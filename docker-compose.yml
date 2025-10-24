@@ -1,0 +1,8 @@
+services:
+  iter8-bot:
+    container_name: iter8-bot
+    build: .
+    env_file: ".secrets"
+    ports:
+      - "8080:8080"
+#    read_only: true
