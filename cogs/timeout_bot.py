@@ -1,3 +1,5 @@
+import operator
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -6,7 +8,7 @@ import logging
 import sys
 import datetime
 
-import bot_utils
+from cogs import bot_utils
 
 _log = logging.getLogger(__name__)
 
@@ -101,8 +103,9 @@ class TimeoutsCog(commands.Cog):
     #     name="show_leaderboard",
     #     description="Displays the current server XP/level leaderboard."
     # )
-    @commands.command(name='leaderboard', description='Show timeout leaderboards')
-    async def command_show_leaderboard(interaction: discord.Interaction):
+    @app_commands.command(name='leaderboard', description='Show timeout leaderboards')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
         leaderboard = {}
 

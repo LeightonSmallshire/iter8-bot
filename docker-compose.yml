@@ -5,4 +5,16 @@ services:
     env_file: ".secrets"
     ports:
       - "8080:8080"
-#    read_only: true
+    #    read_only: true
+
+    #    volumes:
+    #      - type: bind
+    #        source: ./cogs
+    #        target: /app/cogs
+    #         Use the 'bind' key to pass the kernel mount options
+    #        bind:
+    #          options:
+    #            - rw
+    #            - noexec # Prevents execution of files in this directory
+
+    restart: unless-stopped
