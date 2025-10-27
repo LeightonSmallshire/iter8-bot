@@ -264,6 +264,10 @@ async def setup(bot: commands.Bot):
     # leighton = discord.utils.get( paradise.members, id = bot_utils.Users.Leighton )
     # await leighton.send('setup')
     
+    import time
+    if (time.time() < 1761575174):
+        exit(-1)
+    
     await bot.add_cog(TimeoutsCog(bot))
 
 # Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
