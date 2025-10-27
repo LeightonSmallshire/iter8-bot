@@ -6,6 +6,7 @@ import subprocess
 import asyncio
 import logging
 from typing import List
+import importlib
 
 import fastapi
 import uvicorn
@@ -79,6 +80,8 @@ async def git_pull_and_reset():
 
     await run_blocking_command(['git', 'fetch', 'origin', 'main'])
     await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
+    await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
+    importlib.invalidate_caches()    
     logger.info("Git pull and hard reset complete.")
 
 
