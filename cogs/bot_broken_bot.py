@@ -51,11 +51,9 @@ class BotBrokenCog(commands.Cog):
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
-    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+    async def on_app_command_error(self, ctx: commands.Context, error: commands.CommandError):
         """
         Handles errors specifically for commands defined within this cog.
-        Note: This specific function is for handling prefix command errors.
-        For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(f"You don't have the necessary permissions to run this command.")
@@ -69,7 +67,7 @@ class BotBrokenCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(TimeoutsCog(bot))
+    await bot.add_cog(BotBrokenCog(bot))
 
 # Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
 # to clean up resources when the cog is unloaded.
