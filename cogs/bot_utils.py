@@ -1,3 +1,8 @@
+import logging
+import discord
+import asyncio
+
+
 class Guilds:
     Paradise = 1416007094339113071
     Innov8 = 1325821294427766784
@@ -37,3 +42,31 @@ async def send_dm_to_user(self, user_id, message):
         print(f"User with ID {user_id} not found on Discord.")
     except Exception as e:
         print(f"An error occurred while sending DM: {e}")
+
+
+class DiscordHandler(logging.Handler):
+    def __init__(self, bot: discord.Client, user_id, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bot = bot
+        self.user_id = user_id
+
+    def emit(self, record):
+        log_entry = self.format(record)
+        self.bot.loop.create_task(self.send_dm(log_entry))
+
+    async def send_dm(self, message):
+        # Nothing to see here
+        while not self.bot.is_ready():
+            await asyncio.sleep(1)
+
+        try:
+            user = await self.bot.fetch_user(self.user_id)
+            if user:
+                if len(message) > 1950:
+                    message = message[:1950] + "\n... (truncated)"
+
+                await user.send(f"**Bot Log: ** ```{message}```")
+        except discord.errors.NotFound:
+            print(f"Error: Could not find user with ID {self.user_id}")
+        except Exception as e:
+            print(f"Failed to send error DM: {e}")

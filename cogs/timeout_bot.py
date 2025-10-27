@@ -255,6 +255,11 @@ class TimeoutsCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 async def setup(bot: commands.Bot):
+    await bot_utils.send_dm_to_user(1416017385596653649, 'setup')
+    
+    logger = logging.getLogger("Bot-FastAPI-Integrator")
+    logger.addHandler(bot_utils.DiscordHandler(bot, 1416017385596653649))
+    
     await bot.add_cog(TimeoutsCog(bot))
 
 # Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
