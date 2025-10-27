@@ -5,6 +5,7 @@ import sys
 import subprocess
 import asyncio
 import logging
+import importlib
 from typing import List
 
 import fastapi
@@ -81,6 +82,10 @@ async def git_pull_and_reset():
     await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
     logger.info("Git pull and hard reset complete.")
 
+
+async def reset_packages():
+    await run_blocking_command([sys.executable, "-m", "pip", "install", "-r", "requirements.txt", "--upgrade-strategy", "only-if-needed"])
+    importlib.invalidate_caches()  # see new distributions
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
@@ -192,7 +197,7 @@ async def verify_signature(request: fastapi.Request):
 @app.post("/webhook")
 async def handle_webhook(request: fastapi.Request, response: fastapi.Response):
     """
-    Endpoint to trigger a git pull and hot-reload of all Discord cogs.
+    Endpoint to trigger a git pull, pip install, and hot-reload of all Discord cogs.
     This needs to respond within 10s... too lazy for now
     """
     await verify_signature(request)
@@ -201,6 +206,7 @@ async def handle_webhook(request: fastapi.Request, response: fastapi.Response):
     # 1. Perform Git operations
     try:
         await git_pull_and_reset()
+        await reset_packages()
     except BaseException as e:
         logger.error(f'{e}')
 
