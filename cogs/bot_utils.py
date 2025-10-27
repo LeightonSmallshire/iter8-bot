@@ -60,7 +60,11 @@ class DiscordHandler(logging.Handler):
             await asyncio.sleep(1)
 
         try:
-            user = await self.bot.fetch_user(self.user_id)
+            paradise = discord.utils.get(self.bot.guilds, id=Guilds.Paradise )
+            user = discord.utils.get( paradise.members, id = Users.Leighton )
+            # await leighton.send('setup')
+            
+            # user = await self.bot.fetch_user(self.user_id)
             if user:
                 if len(message) > 1950:
                     message = message[:1950] + "\n... (truncated)"

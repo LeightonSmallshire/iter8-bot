@@ -260,6 +260,10 @@ async def setup(bot: commands.Bot):
     logger = logging.getLogger("Bot-FastAPI-Integrator")
     logger.addHandler(bot_utils.DiscordHandler(bot, 1416017385596653649))
     
+    paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise )
+    leighton = discord.utils.get( paradise.members, id = bot_utils.Users.Leighton )
+    await leighton.send('setup')
+    
     await bot.add_cog(TimeoutsCog(bot))
 
 # Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
