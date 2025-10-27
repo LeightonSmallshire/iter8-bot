@@ -255,18 +255,7 @@ class TimeoutsCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 async def setup(bot: commands.Bot):
-    # await bot_utils.send_dm_to_user(1416017385596653649, 'setup')
-    
-    # logger = logging.getLogger("Bot-FastAPI-Integrator")
-    # logger.addHandler(bot_utils.DiscordHandler(bot, 1416017385596653649))
-    
-    # paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise )
-    # leighton = discord.utils.get( paradise.members, id = bot_utils.Users.Leighton )
-    # await leighton.send('setup')
-    
-    import time
-    if (time.time() < 1761575174):
-        exit(-1)
+    # await bot_utils.send_dm_to_user(1416017385596653649, 'error incoming')
     
     await bot.add_cog(TimeoutsCog(bot))
 
