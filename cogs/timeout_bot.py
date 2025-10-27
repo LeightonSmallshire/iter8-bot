@@ -109,6 +109,12 @@ class TimeoutsCog(commands.Cog):
         if 'bot broken' in message.content:
             await message.reply('No U')
 
+    @app_commands.command(name='crash')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_crash(self, interaction:discord.Interaction):
+        os.abort()
+        interaction.response.send_message('past abort somehow')
+
     @app_commands.command(name='bash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_bash(self, interaction: discord.Interaction, command: str):
@@ -254,8 +260,21 @@ class TimeoutsCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
+
+async def send_message(bot, message):
+    while not bot.is_ready():
+        await asyncio.sleep(1)
+    
+    paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
+    leighton = discord.utils.get(paradise.members, id=bot_utils.Users.Leighton)
+    await leighton.send(message)
+
+
+
 async def setup(bot: commands.Bot):
     # await bot_utils.send_dm_to_user(1416017385596653649, 'error incoming')
+    
+    asyncio.create_task(send_message(bot, 'timeout setup'))
     
     await bot.add_cog(TimeoutsCog(bot))
 

@@ -83,8 +83,8 @@ async def git_pull_and_reset():
 
     await run_blocking_command(['git', 'fetch', 'origin', 'main'])
     await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
-    await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
-    importlib.invalidate_caches()    
+    # await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
+    # importlib.invalidate_caches()    
     logger.info("Git pull and hard reset complete.")
 
 
@@ -97,8 +97,8 @@ class HotReloadBot(commands.Bot):
         """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
-        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise )
-        leighton = discord.utils.get( paradise.members, id = bot_utils.Users.Leighton )
+        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
+        leighton = discord.utils.get(paradise.members, id=bot_utils.Users.Leighton)
         await leighton.send('setup')
 
         try:
