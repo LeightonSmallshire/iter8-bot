@@ -1,3 +1,4 @@
+import asyncio
 import operator
 
 import discord
@@ -7,6 +8,9 @@ import traceback
 import logging
 import sys
 import datetime
+import subprocess
+import os
+import io
 
 from cogs import bot_utils
 
@@ -96,6 +100,55 @@ class TimeoutsCog(commands.Cog):
     async def on_message(self, message: discord.Message):
         if 'bot broken' in message.content:
             await message.reply('No U')
+
+    @app_commands.command(name='bash')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_bash(self, interaction: discord.Interaction, command: str):
+        if interaction.user.id != bot_utils.ID_PARADISE_MEMBER_LEIGHTON:
+            return await interaction.response.send_message("No shell 4 U")
+
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            process = await asyncio.create_subprocess_shell(
+                cmd=command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            stdout, stderr = await process.communicate()
+            stdout = stdout.decode().strip()
+            stderr = stderr.decode().strip()
+
+            message = f'Command: {command}\n'\
+                f'Exit code: {process.returncode}\n'\
+                f'{stdout}\n\n'\
+                f'{stderr}'
+
+            message = f'{message}  - {len(message)}'
+
+            # if len(message) < 2000 and not command.startswith('cat'):
+            #     await interaction.followup.send(content=f'```{message}```'`)
+            # else:
+            if True:
+                files = []
+                
+                if len(stdout) > 0:
+                    files.append( discord.File(io.StringIO(stdout), 'stdout.txt'))
+                if len(stderr) > 0:
+                    files.append( discord.File(io.StringIO(stderr), 'stderr.txt'))
+                await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
+
+            # await interaction.user.send(content=message)
+            # await interaction.response.send_message(message, ephemeral=True)
+            # await interaction.followup.send(message, ephemeral=True)
+        except BaseException as e:
+            buf = io.StringIO()
+            traceback.print_exc(file=buf)
+            message = f'Event: {e}\nTraceback:\n{buf.read()}'
+            await interaction.user.send(message)
+
+            user = self.bot_.get_user(1416017385596653649)
+            await interaction.user.send(repr(user))
 
     # --- Slash Command ---
 
