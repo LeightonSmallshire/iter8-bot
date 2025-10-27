@@ -15,6 +15,8 @@ from fastapi import FastAPI, HTTPException
 import discord
 from discord.ext import commands
 
+from cogs import bot_utils
+
 assert __name__ == "__main__", 'Must be run directly'
 
 # --- Configuration ---
@@ -94,6 +96,10 @@ class HotReloadBot(commands.Bot):
     async def on_ready(self):
         """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
+
+        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise )
+        leighton = discord.utils.get( paradise.members, id = bot_utils.Users.Leighton )
+        await leighton.send('setup')
 
         try:
             await git_pull_and_reset()
