@@ -83,17 +83,25 @@ class TimeoutsCog(commands.Cog):
                 f'{member.mention} was timed out by {moderator.mention} for **{reason}** <t:{int(until.timestamp())}:R>',
                 silent=True)
 
-    # @commands.Cog.listener()
-    # async def on_error(self, event, *args, **kwargs):
-    #     """
-    #     Listener for unhandled errors that occur during event processing.
-    #     This provides a catch-all for logic errors not caught by a command error handler.
-    #     """
-    #     print(f'Ignoring exception in {event}')
-    #     print("----- ERROR TRACEBACK -----")
-    #     traceback.print_exc(file=sys.stderr)
-    #     print("---------------------------")
-    #     # In a real bot, you might send this traceback to a private log channel.
+    @commands.Cog.listener()
+    async def on_error(self, event, *args, **kwargs):
+        """
+        Listener for unhandled errors that occur during event processing.
+        This provides a catch-all for logic errors not caught by a command error handler.
+        """
+        await bot_utils.send_dm_to_user(1416017385596653649, 'error incoming')
+
+        buf = io.StringIO()
+        traceback.print_exc(file=buf)
+        message = f'Event: {event}\nArgs: {args}\nkwargs: {kwargs}\nTraceback:\n{buf.read()}'
+        # await self.bot_.get_user(1416017385596653649).send(content=message)
+        await bot_utils.send_dm_to_user(1416017385596653649, message)
+
+        print(f'Ignoring exception in {event}')
+        print("----- ERROR TRACEBACK -----")
+        traceback.print_exc(file=sys.stderr)
+        print("---------------------------")
+        # In a real bot, you might send this traceback to a private log channel.
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
