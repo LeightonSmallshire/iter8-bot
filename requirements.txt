@@ -14,3 +14,5 @@ matplotlib
 pillow
 beautifulsoup4
 numba
+aiohttp
+beautifulsoup4
