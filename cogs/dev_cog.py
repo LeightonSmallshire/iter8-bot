@@ -14,7 +14,7 @@ class DevCog(commands.Cog):
     @app_commands.command(name='bash2')
     # @commands.check(bot_utils.is_leighton)
     async def do_bash(self, ctx: discord.Interaction, command: str):
-        if ctx.user.id != bot_utils.ID_PARADISE_MEMBER_LEIGHTON:
+        if ctx.user.id != bot_utils.Users.Leighton:
             return await ctx.response.send_message("No shell 4 U")
 
         await ctx.response.defer(ephemeral=True, thinking=True)
