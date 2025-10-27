@@ -214,3 +214,23 @@ class YouTubeCog(commands.Cog):
             for (title, vid, channel) in hits[:25]
         ]
         return results
+    
+
+    # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
+
+    async def on_app_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        """
+        Handles errors specifically for commands defined within this cog.
+        """
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f"You don't have the necessary permissions to run this command.")
+        elif isinstance(error, commands.CommandNotFound):
+            # This generally won't happen if the command is correctly registered
+            pass
+        else:
+            print(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
+
+# --- Cog Setup Function (MANDATORY for extensions) ---
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(YouTubeCog(bot))
