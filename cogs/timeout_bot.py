@@ -112,7 +112,7 @@ class TimeoutsCog(commands.Cog):
     @app_commands.command(name='bash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_bash(self, interaction: discord.Interaction, command: str):
-        if interaction.user.id != bot_utils.ID_PARADISE_MEMBER_LEIGHTON:
+        if interaction.user.id != bot_utils.Users.Leighton:
             return await interaction.response.send_message("No shell 4 U")
 
         try:
