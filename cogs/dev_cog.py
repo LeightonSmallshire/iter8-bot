@@ -1,0 +1,107 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import bot_utils
+import os
+import asyncio
+
+
+class DevCog(commands.Cog):
+    def __init__(self, bot: discord.Client):
+        super().__init__()
+        self.bot_ = bot
+
+    @app_commands.command(name='bash2')
+    # @commands.check(bot_utils.is_leighton)
+    async def do_bash(self, ctx: discord.Interaction, command: str):
+        if ctx.user.id != bot_utils.Users.Leighton:
+            return await ctx.response.send_message("No shell 4 U")
+
+        await ctx.response.defer(ephemeral=True, thinking=True)
+
+        process = await asyncio.create_subprocess_shell(
+            cmd=command,
+            stdout=asyncio.PIPE,
+            stderr=asyncio.PIPE,
+        )
+
+        stdout, stderr = await process.communicate()
+        return_code = await process.returncode()
+
+        stdout = stdout.decode().strip()
+        stderr = stderr.decode().strip()
+
+        message = f'Exit code: {return_code}\n\n{stdout}\n\n{stderr}'
+
+        await ctx.followup.send(content=message)
+
+
+# class FilesystemCog(commands.Cog):
+#     def __init__(self, bot):
+#         self.bot = bot
+
+#     def _get_file_tree(self, start_dir='.'):
+#         output = []
+#         EXCLUDED_DIRS = {'.git', '__pycache__',
+#                          'venv', 'node_modules', '.idea'}
+#         EXCLUDED_FILES = ['.DS_Store', 'Thumbs.db', 'LICENSE', 'README.md']
+
+#         def walk_dir(root, prefix=""):
+#             try:
+#                 items = os.listdir(root)
+#             except Exception:
+#                 return
+
+#             dirs = sorted([d for d in items if os.path.isdir(
+#                 os.path.join(root, d)) and d not in EXCLUDED_DIRS])
+#             files = sorted([f for f in items if os.path.isfile(
+#                 os.path.join(root, f)) and f not in EXCLUDED_FILES])
+
+#             all_items = dirs + files
+
+#             for index, item in enumerate(all_items):
+#                 path = os.path.join(root, item)
+#                 is_last = index == len(all_items) - 1
+#                 pointer = "└── " if is_last else "├── "
+#                 output.append(f"{prefix}{pointer}{item}")
+
+#                 if os.path.isdir(path):
+#                     new_prefix = prefix + ("    " if is_last else "│   ")
+#                     walk_dir(path, new_prefix)
+
+#         output.append(f"/{os.path.basename(os.getcwd())}")
+#         try:
+#             walk_dir(start_dir)
+#         except Exception as e:
+#             output.append(f"Error accessing directory: {e}")
+#         return '\n'.join(output)
+
+#     @app_commands.command(name='filetree', description='Show timeout leaderboards')
+#     # @commands.command(name='filetree')
+#     # @commands.is_owner()
+#     async def file_tree_command(self, ctx):
+#         await ctx.defer()
+#         file_tree = self._get_file_tree()
+
+#         chunks = [file_tree[i:i + 1990]
+#                   for i in range(0, len(file_tree), 1990)]
+
+#         if not chunks:
+#             await ctx.author.send("The file tree is empty or could not be generated.")
+#             await ctx.send("File tree failed to generate.")
+#             return
+
+#         try:
+#             await ctx.author.send(f"**File Tree for `{os.getcwd()}`**")
+#             for chunk in chunks:
+#                 await ctx.author.send(f"```\n{chunk}\n```")
+#             await ctx.send("File tree successfully sent to your DMs.")
+#         except discord.Forbidden:
+#             await ctx.send("I couldn't DM you. Please check your privacy settings to allow DMs from server members.")
+
+#     async def download(self, ctx):
+#         pass
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(DevCog(bot))
