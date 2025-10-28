@@ -51,8 +51,8 @@ def restart():
     # Start the wget process and pipe its output to tar
     with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
         with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
-            wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
             tar_process.communicate()
+            # wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
 
     bot_process = subprocess.Popen(['python3', 'bot-main.py'], cmd=BOT_DIR)
 
