@@ -7,10 +7,9 @@ import traceback
 import logging
 import sys
 import datetime
+import cogs.utils.bot as bot_utils
 import cogs.utils.log as log_utils
 from typing import Optional
-
-import cogs.utils.bot as bot_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(log_utils.DatabaseHandler())
@@ -32,7 +31,7 @@ class BotBrokenCog(commands.Cog):
         _log.info(f"Broken command from {interaction.user.display_name}")
 
         message = f"<@{user_target}> bot broken"
-        channel = interaction.client.get_channel(Channels.ParadiseBotBrokenSpam)
+        channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
         await interaction.response.defer(ephemeral=True, thinking=True)
         await channel.send(message)
         await interaction.delete_original_response()
@@ -45,7 +44,7 @@ class BotBrokenCog(commands.Cog):
         _log.info(f"Broken command from {interaction.user.display_name}")
 
         message = f"<@{user_target}> bot working"
-        channel = interaction.client.get_channel(Channels.ParadiseBotBrokenSpam)
+        channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
         await interaction.response.defer(ephemeral=True, thinking=True)
         await channel.send(message)
         await interaction.delete_original_response()
