@@ -65,14 +65,32 @@ def write_log(level: str, message: str) -> None:
         )   
 
 def read_logs(limit: int=100, level: Optional[str]=None):
-    q = "SELECT id, timestamp, level, message FROM logs"
-    cond, args = [], []
-    if level:
-        cond.append("level = ?");  args.append(level)
-    if cond:
-        q += " WHERE " + " AND ".join(cond)
-    q += " ORDER BY timestamp DESC, id DESC LIMIT ?"; args.append(limit)
-
     with sqlite3.connect(DATABASE_NAME) as con:
         con.row_factory = sqlite3.Row
-        return [dict(r) for r in con.execute(q, args)]
+        if level is None:
+            sql = """
+                SELECT timestamp, level, message
+                FROM (
+                    SELECT timestamp, level, message
+                    FROM logs
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                )
+                ORDER BY timestamp ASC
+            """
+            params = (limit,)
+        else:
+            sql = """
+                SELECT timestamp, level, message
+                FROM (
+                    SELECT timestamp, level, message
+                    FROM logs
+                    WHERE level = ? COLLATE NOCASE
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                )
+                ORDER BY timestamp ASC
+            """
+            params = (level, limit)
+
+        return [dict(r) for r in con.execute(sql, params).fetchall()]

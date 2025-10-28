@@ -14,6 +14,7 @@ import cogs.utils.bot as bot_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(log_utils.DatabaseHandler())
+_log.addHandler(logging.FileHandler('logs.log'))
 
 
 class BotBrokenCog(commands.Cog):
@@ -52,26 +53,14 @@ class BotBrokenCog(commands.Cog):
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
-    async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
         """
         Handles errors specifically for commands defined within this cog.
         Note: This specific function is for handling prefix command errors.
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await ctx.send(f"You don't have the necessary permissions to run this command.")
-        elif isinstance(error, commands.CommandNotFound):
-            # This generally won't happen if the command is correctly registered
-            pass
-        else:
-            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
-
-    async def on_app_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        """
-        Handles errors specifically for commands defined within this cog.
-        """
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.send(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
