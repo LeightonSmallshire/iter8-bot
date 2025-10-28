@@ -29,7 +29,7 @@ def is_guild_paradise(ctx):
 class Channels:
     ParadiseBotBrokenSpam = 1427971106920202240
     ParadiseClockwork = 1416059475873239181
-    TestServerClockwork = 1432698704191815680
+    TestServerBotSpam  = 1432698704191815680
 
 
 async def send_dm_to_user(self, user_id, message):

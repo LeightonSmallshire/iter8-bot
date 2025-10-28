@@ -17,7 +17,7 @@ import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
 
 _log = logging.getLogger(__name__)
-_log.addHandler(log_utils.CallbackHandler())
+_log.addHandler(log_utils.DatabaseHandler())
 
 
 class TimeoutsCog(commands.Cog):

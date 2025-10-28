@@ -27,6 +27,7 @@ DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 GITHUB_USER = os.environ.get("GITHUB_USER", "LeightonSmallshire")
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
+GITHUB_BRANCH = os.environ.get("WORKING_BRANCH", "main")
 
 # The directory containing your Discord cogs (Python files)
 COGS_DIR = "cogs"
@@ -85,6 +86,8 @@ async def git_pull_and_reset():
     """Performs git pull and hard reset on the cogs directory."""
     origin_url = f'https://{GITHUB_USER}:{GITHUB_SECRET}@github.com/{GITHUB_USER}/iter8-bot'
 
+    await run_blocking_command(['git', 'config', '--global', "--add", "safe.directory", "/app"])
+
     with open('logs.txt', 'a') as f:
         print('pre-git-pull', file=f)
 
@@ -95,8 +98,8 @@ async def git_pull_and_reset():
     else:
         await run_blocking_command(['git', 'remote', 'set-url', 'origin', origin_url])
 
-    await run_blocking_command(['git', 'fetch', 'origin', 'main'])
-    # await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
+    await run_blocking_command(['git', 'fetch', 'origin', GITHUB_BRANCH])
+    await run_blocking_command(['git', 'reset', '--hard', f'origin/{GITHUB_BRANCH}'])
     # await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
     # importlib.invalidate_caches()
     logger.info("Git pull and hard reset complete.")
@@ -104,7 +107,7 @@ async def git_pull_and_reset():
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=discord.Intents.default())
+        super().__init__(command_prefix="!", intents= discord.Intents.all())
         self._fastapi_task = None
 
     async def on_ready(self):

@@ -3,7 +3,7 @@ import datetime
 import logging
 from typing import Dict, Optional
 
-DATABASE_NAME = "storage.db"
+DATABASE_NAME = "data/storage.db"
 
 def init_database(timeout_data: Dict[int, tuple[int, datetime.timedelta]]):
     with sqlite3.connect(DATABASE_NAME) as connection:
