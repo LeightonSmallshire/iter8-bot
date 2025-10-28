@@ -7,7 +7,7 @@ import traceback
 import logging
 import sys
 import datetime
-from bot_utils import Users, Channels
+from cogs.bot_utils import Users, Channels
 from typing import Optional
 
 from cogs import bot_utils

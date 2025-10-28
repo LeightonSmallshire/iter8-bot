@@ -1,17 +1,24 @@
 import uvicorn
 import os
 import subprocess
-
+import logging
 import fastapi
 from fastapi import FastAPI
 
 assert __name__ == "__main__", 'Must be run directly'
 
+# apt update && apt install -y wget procps git tar
+
 # --- Configuration ---
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
-BOT_DIR = './bot_dir'
+BOT_DIR = '/bot_dir'
 
-log_file = open('deploy_log.txt', 'a')
+# --- Logging Setup ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("AutoUpdater")
+
+file_handler = logging.FileHandler('/update-logs.log')
+logger.addHandler(file_handler)
 
 # --- FastAPI Setup ---
 app = FastAPI()
@@ -21,6 +28,9 @@ bot_process: None | subprocess.Popen = None
 
 def restart():
     global bot_process
+
+    logger.info("Doing autoupdate")
+
     if bot_process is not None:
         bot_process.terminate()
         try:
@@ -30,24 +40,22 @@ def restart():
 
     #
     username = 'LeightonSmallshire'
-    password = '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'
-    url = f'https://{username}:{password}@github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/main-v2.zip'
+    url = f'https://{username}:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/main-v2.zip'
 
-    subprocess.run(['rm', '-rf', BOT_DIR], cwd='/', check=True)
+    subprocess.run(['rm', '-rf', '.'], cmd=BOT_DIR, check=True)
 
     # Start the wget process and pipe its output to tar
-    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
-        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
+    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cmd=BOT_DIR) as wget_process:
+        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cmd=BOT_DIR) as tar_process:
             wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
             tar_process.communicate()
 
-    bot_process = subprocess.Popen(['python3', 'main.py'], cwd=BOT_DIR)
+    bot_process = subprocess.Popen(['python3', 'bot-main.py'], cmd=BOT_DIR)
 
 
 @app.post('/webhook')
 def handle_webhook(request: fastapi.Request):
     # await verify_signature(request)
-    print("POST request received at /webhook. Initiating git pull and cog reload.", file=log_file)
     restart()
     return fastapi.Response('Accepted', 202)
 
@@ -70,6 +78,6 @@ def get_status():
 try:
     restart()
 except BaseException as e:
-    print(repr(e), file=log_file)
+    logger.error(repr(e))
 
 uvicorn.run(app, host='0.0.0.0', port=8090)

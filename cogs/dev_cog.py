@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import bot_utils
+import cogs.bot_utils
 import os
 import asyncio
 
@@ -12,9 +12,9 @@ class DevCog(commands.Cog):
         self.bot_ = bot
 
     @app_commands.command(name='bash2')
-    # @commands.check(bot_utils.is_leighton)
+    @commands.check(cogs.bot_utils.is_leighton)
     async def do_bash(self, ctx: discord.Interaction, command: str):
-        if ctx.user.id != bot_utils.Users.Leighton:
+        if ctx.user.id != cogs.bot_utils.Users.Leighton:
             return await ctx.response.send_message("No shell 4 U")
 
         await ctx.response.defer(ephemeral=True, thinking=True)
