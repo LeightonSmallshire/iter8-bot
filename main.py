@@ -11,24 +11,21 @@ import importlib
 import cogs.utils.bot as bot_utils
 import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
-from dotenv import load_dotenv
-
+import time
 import fastapi
 import uvicorn
 from fastapi import FastAPI, HTTPException
 import discord
 from discord.ext import commands
-
-from cogs.utils import bot
+import datetime
 
 assert __name__ == "__main__", 'Must be run directly'
 
-load_dotenv(".secrets")
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
-GITHUB_USER = os.environ.get("GITHUB_USER")
+GITHUB_USER = os.environ.get("GITHUB_USER", "LeightonSmallshire")
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
 
 # The directory containing your Discord cogs (Python files)
@@ -41,9 +38,16 @@ WEBHOOK_PORT = 8080
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Bot-FastAPI-Integrator")
-logger.addHandler(log_utils.CallbackHandler())
+
+# file_handler.setLevel(logging.DEBUG)
+# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(logging.FileHandler('logs.log'))
+logger.addHandler(log_utils.DatabaseHandler())
 
 # --- Discord Bot Setup ---
+with open('logs.txt', 'a') as f:
+    now = datetime.datetime.now()
+    print(now, file=f)
 
 
 async def run_blocking_command(cmd: List[str], cwd: str = '.') -> str:
@@ -81,6 +85,9 @@ async def git_pull_and_reset():
     """Performs git pull and hard reset on the cogs directory."""
     origin_url = f'https://{GITHUB_USER}:{GITHUB_SECRET}@github.com/{GITHUB_USER}/iter8-bot'
 
+    with open('logs.txt', 'a') as f:
+        print('pre-git-pull', file=f)
+
     if not os.path.exists('.git'):
         logger.error('NOT A GIT REPO - bad - explode - die horribly')
         exit(-1)
@@ -91,7 +98,7 @@ async def git_pull_and_reset():
     await run_blocking_command(['git', 'fetch', 'origin', 'main'])
     # await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
     # await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
-    # importlib.invalidate_caches()    
+    # importlib.invalidate_caches()
     logger.info("Git pull and hard reset complete.")
 
 
@@ -104,7 +111,9 @@ class HotReloadBot(commands.Bot):
         """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
-        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
+        paradise = discord.utils.get(bot.guilds, id=1416007094339113071)
+        leighton = discord.utils.get(paradise.members, id=1416017385596653649)
+        await leighton.send('setup')
 
         leaderboard = await bot_utils.get_timeout_data(paradise)
         db_utils.init_database(leaderboard)
@@ -142,6 +151,9 @@ class HotReloadBot(commands.Bot):
         """Unloads, reloads, and reports the status of all cogs."""
 
         logger.info('--- Loading cogs ---')
+
+        with open('logs.txt', 'a') as f:
+            print('reload-cogs', file=f)
 
         reloaded_cogs = []
         failed_cogs = []
@@ -208,12 +220,13 @@ async def verify_signature(request: fastapi.Request):
 
 
 @app.post("/webhook")
-async def handle_webhook(request: fastapi.Request, response: fastapi.Response):
+@app.get("/restart")
+async def handle_webhook():
     """
     Endpoint to trigger a git pull and hot-reload of all Discord cogs.
     This needs to respond within 10s... too lazy for now
     """
-    await verify_signature(request)
+    # await verify_signature(request)
     logger.info("POST request received at /webhook. Initiating git pull and cog reload.")
 
     # 1. Perform Git operations
