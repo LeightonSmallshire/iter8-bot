@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("AutoUpdater")
 
 file_handler = logging.FileHandler('/update-logs.log')
+logger.setLevel(logging.DEBUG)
 logger.addHandler(file_handler)
 
 # --- FastAPI Setup ---
@@ -42,11 +43,11 @@ def restart():
     username = 'LeightonSmallshire'
     url = f'https://{username}:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/main-v2.zip'
 
-    subprocess.run(['rm', '-rf', '.'], cmd=BOT_DIR, check=True)
+    subprocess.run(['rm', '-rf', '.'], cwd=BOT_DIR, check=True)
 
     # Start the wget process and pipe its output to tar
-    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cmd=BOT_DIR) as wget_process:
-        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cmd=BOT_DIR) as tar_process:
+    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
+        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
             wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
             tar_process.communicate()
 
@@ -74,6 +75,9 @@ def get_status():
         # "webhook_endpoint": f"http://{WEBHOOK_HOST}:{WEBHOOK_PORT}/webhook"
     }
 
+
+restart()
+exit(0)
 
 try:
     restart()
