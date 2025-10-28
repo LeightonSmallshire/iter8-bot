@@ -49,8 +49,8 @@ def restart():
     os.makedirs(BOT_DIR, exist_ok=True)
 
     # Start the wget process and pipe its output to tar
-    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR, check=True) as wget_process:
-        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR, check=True) as tar_process:
+    with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
+        with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
             tar_process.communicate()
             # wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
 
