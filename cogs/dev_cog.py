@@ -2,38 +2,56 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import cogs.utils.bot as bot_utils
+import cogs.utils.database as db_utils
+from typing import Optional
 import os
-import asyncio
-
+import datetime
 
 class DevCog(commands.Cog):
     def __init__(self, bot: discord.Client):
         super().__init__()
         self.bot_ = bot
 
-    @app_commands.command(name='bash2')
+    @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
-    async def do_bash(self, ctx: discord.Interaction, command: str):
-        if ctx.user.id != bot_utils.Users.Leighton:
-            return await ctx.response.send_message("No shell 4 U")
+    @app_commands.describe(limit="Number of logs to show (default 25)")
+    async def get_logs(self, interaction: discord.Interaction, limit: int = 25):
+        rows = db_utils.read_logs(limit)
+        if not rows:
+            await interaction.response.send_message("No logs found.")
+            return
 
-        await ctx.response.defer(ephemeral=True, thinking=True)
+        formatted = []
+        for r in rows:
+            ts = datetime.datetime.fromisoformat(r["timestamp"])
+            formatted.append(f"[{ts:%Y-%m-%d %H:%M:%S}] [{r['level']}] {r['message']}")
 
-        process = await asyncio.create_subprocess_shell(
-            cmd=command,
-            stdout=asyncio.PIPE,
-            stderr=asyncio.PIPE,
-        )
+        msg = "```\n" + "\n".join(formatted) + "\n```"
+        await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
 
-        stdout, stderr = await process.communicate()
-        return_code = await process.returncode()
+    # @app_commands.command(name='bash2')
+    # # @commands.check(bot_utils.is_leighton)
+    # async def do_bash(self, ctx: discord.Interaction, command: str):
+    #     if ctx.user.id != bot_utils.Users.Leighton:
+    #         return await ctx.response.send_message("No shell 4 U")
 
-        stdout = stdout.decode().strip()
-        stderr = stderr.decode().strip()
+    #     await ctx.response.defer(ephemeral=True, thinking=True)
 
-        message = f'Exit code: {return_code}\n\n{stdout}\n\n{stderr}'
+    #     process = await asyncio.create_subprocess_shell(
+    #         cmd=command,
+    #         stdout=asyncio.PIPE,
+    #         stderr=asyncio.PIPE,
+    #     )
 
-        await ctx.followup.send(content=message)
+    #     stdout, stderr = await process.communicate()
+    #     return_code = await process.returncode()
+
+    #     stdout = stdout.decode().strip()
+    #     stderr = stderr.decode().strip()
+
+    #     message = f'Exit code: {return_code}\n\n{stdout}\n\n{stderr}'
+
+    #     await ctx.followup.send(content=message)
 
 
 # class FilesystemCog(commands.Cog):

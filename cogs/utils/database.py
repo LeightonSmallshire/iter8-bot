@@ -65,13 +65,13 @@ def write_log(level: str, message: str) -> None:
         )   
 
 def read_logs(limit: int=100, level: Optional[str]=None):
-    q = "SELECT id, ts, level, message, FROM logs"
+    q = "SELECT id, timestamp, level, message FROM logs"
     cond, args = [], []
     if level:
         cond.append("level = ?");  args.append(level)
     if cond:
         q += " WHERE " + " AND ".join(cond)
-    q += " ORDER BY ts DESC, id DESC LIMIT ?"; args.append(limit)
+    q += " ORDER BY timestamp DESC, id DESC LIMIT ?"; args.append(limit)
 
     with sqlite3.connect(DATABASE_NAME) as con:
         con.row_factory = sqlite3.Row
