@@ -43,7 +43,8 @@ def restart():
     username = 'LeightonSmallshire'
     url = f'https://{username}:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/main-v2.zip'
 
-    subprocess.run(['rm', '-rf', '.'], cwd=BOT_DIR, check=True)
+    if os.path.exists(BOT_DIR):
+        subprocess.run(['rm', '-rf', BOT_DIR], cwd='/', check=False)
 
     # Start the wget process and pipe its output to tar
     with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
