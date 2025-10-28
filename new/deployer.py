@@ -11,7 +11,7 @@ assert __name__ == "__main__", 'Must be run directly'
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
 BOT_DIR = '/bot_dir'
 
-log_file = open('deploy_log.txt')
+log_file = open('deploy_log.txt', 'a')
 
 # --- FastAPI Setup ---
 app = FastAPI()
