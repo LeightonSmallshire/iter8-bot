@@ -7,6 +7,7 @@ from typing import Optional
 import os
 import datetime
 
+
 class DevCog(commands.Cog):
     def __init__(self, bot: discord.Client):
         super().__init__()
@@ -28,6 +29,15 @@ class DevCog(commands.Cog):
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
+
+    @app_commands.command(name='download')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_bash(self, interaction: discord.Interaction, path: str):
+        if interaction.user.id != bot_utils.Users.Leighton:
+            return await interaction.response.send_message("No files 4 U")
+
+        file = discord.File(path)
+        await interaction.response.send_message(file=file, ephemeral=True)
 
     # @app_commands.command(name='bash2')
     # # @commands.check(bot_utils.is_leighton)
