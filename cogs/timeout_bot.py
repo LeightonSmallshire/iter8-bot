@@ -237,7 +237,22 @@ class TimeoutsCog(commands.Cog):
             # This generally won't happen if the command is correctly registered
             pass
         else:
-            print(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
+            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
+
+    async def on_app_command_error(self, ctx: commands.Context, error: commands.CommandError):
+        """
+        Handles errors specifically for commands defined within this cog.
+        Note: This specific function is for handling prefix command errors.
+        For slash commands, errors are often handled via `on_app_command_error`.
+        """
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f"You don't have the necessary permissions to run this command.")
+        elif isinstance(error, commands.CommandNotFound):
+            # This generally won't happen if the command is correctly registered
+            pass
+        else:
+            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
+
 
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
