@@ -7,10 +7,10 @@ import traceback
 import logging
 import sys
 import datetime
-from bot_utils import Users, Channels
+from cogs.utils.bot import Users, Channels
 from typing import Optional
 
-from cogs import bot_utils
+import utils.bot as bot_utils
 
 _log = logging.getLogger(__name__)
 

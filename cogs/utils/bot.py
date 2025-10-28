@@ -1,6 +1,9 @@
 import logging
 import discord
 import asyncio
+import datetime
+import operator
+from typing import Dict
 
 
 class Guilds:
@@ -74,3 +77,45 @@ class DiscordHandler(logging.Handler):
             print(f"Error: Could not find user with ID {self.user_id}")
         except Exception as e:
             print(f"Failed to send error DM: {e}")
+
+
+async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple]:
+    if guild is None:
+        return {}
+
+    leaderboard = {}
+
+    async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
+        member = entry.target
+
+        was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
+        now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
+        was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+        now_timeout = now_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+
+        b_was_timeout = (was_timeout >= entry.created_at)
+        b_now_timeout = (now_timeout >= entry.created_at)
+
+        timeout_added = not b_was_timeout and b_now_timeout
+        timeout_changed = b_was_timeout and b_now_timeout
+        timeout_removed = b_was_timeout and not b_now_timeout
+
+        if timeout_added:
+            duration = now_timeout - entry.created_at
+            # print('added', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (member.display_name, total_timeouts + 1, total_duration + duration)
+
+        if timeout_changed:
+            duration = now_timeout - was_timeout
+            # print('changed', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (member.display_name, total_timeouts, total_duration + duration)
+
+        if timeout_removed:
+            duration = was_timeout - entry.created_at
+            # print('removed', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (member.display_name, total_timeouts, total_duration - duration)
+
+    return sorted_leaderboard

@@ -8,6 +8,8 @@ import logging
 import logging.handlers
 from typing import List
 import importlib
+import cogs.utils.bot as bot_utils
+import cogs.utils.database as db_utils
 
 import fastapi
 import uvicorn
@@ -15,7 +17,7 @@ from fastapi import FastAPI, HTTPException
 import discord
 from discord.ext import commands
 
-from cogs import bot_utils
+from cogs.utils import bot
 
 assert __name__ == "__main__", 'Must be run directly'
 
@@ -99,7 +101,9 @@ class HotReloadBot(commands.Bot):
 
         paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
         leighton = discord.utils.get(paradise.members, id=bot_utils.Users.Leighton)
-        await leighton.send('setup')
+
+        leaderboard = await bot_utils.get_timeout_data(paradise)
+        db_utils.init_database(leaderboard)
 
         try:
             await git_pull_and_reset()

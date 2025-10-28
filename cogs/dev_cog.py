@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import bot_utils
+import cogs.utils.bot as bot_utils
 import os
 import asyncio
 

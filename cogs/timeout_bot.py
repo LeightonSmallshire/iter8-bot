@@ -12,7 +12,8 @@ import subprocess
 import os
 import io
 
-from cogs import bot_utils
+import utils.bot as bot_utils
+import utils.database as db_utils
 
 _log = logging.getLogger(__name__)
 
@@ -174,53 +175,14 @@ class TimeoutsCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
-        leaderboard = {}
-
-        async for entry in interaction.guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
-            member = entry.target
-
-            was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
-            now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
-            was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
-            now_timeout = now_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
-
-            b_was_timeout = (was_timeout >= entry.created_at)
-            b_now_timeout = (now_timeout >= entry.created_at)
-
-            timeout_added = not b_was_timeout and b_now_timeout
-            timeout_changed = b_was_timeout and b_now_timeout
-            timeout_removed = b_was_timeout and not b_now_timeout
-
-            if timeout_added:
-                duration = now_timeout - entry.created_at
-                # print('added', duration)
-                total_timeouts, total_duration = leaderboard.get(member.display_name, [0, datetime.timedelta()])
-                leaderboard[member.display_name] = (total_timeouts + 1, total_duration + duration)
-
-            if timeout_changed:
-                duration = now_timeout - was_timeout
-                # print('changed', duration)
-                total_timeouts, total_duration = leaderboard.get(member.display_name, [0, datetime.timedelta()])
-                leaderboard[member.display_name] = (total_timeouts, total_duration + duration)
-
-            if timeout_removed:
-                duration = was_timeout - entry.created_at
-                # print('removed', duration)
-                total_timeouts, total_duration = leaderboard.get(member.display_name, [0, datetime.timedelta()])
-                leaderboard[member.display_name] = (total_timeouts, total_duration - duration)
-
-        sorted_leaderboard = sorted(
-            leaderboard.items(),
-            key=operator.itemgetter(1),
-            reverse=True
-        )
+        leaderboard = db_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',
             color=discord.Color.red()
         )
 
-        for rank, (user, (total_timeouts, total_duration)) in enumerate(sorted_leaderboard, start=1):
+        for rank, (user_id, (username, total_timeouts, total_duration)) in enumerate(leaderboard.items(), start=1):
             total_duration: datetime.timedelta
             total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
 
@@ -228,13 +190,13 @@ class TimeoutsCog(commands.Cog):
                      + f' {total_duration}')
 
             if rank == 1:
-                field_name = f"🥇 {user}"
+                field_name = f"🥇 {username}"
             elif rank == 2:
-                field_name = f"🥈 {user}"
+                field_name = f"🥈 {username}"
             elif rank == 3:
-                field_name = f"🥉 {user}"
+                field_name = f"🥉 {username}"
             else:
-                field_name = f"#{rank}: {user}"
+                field_name = f"#{rank}: {username}"
 
             embed.add_field(name=field_name, value=value, inline=False)
 
