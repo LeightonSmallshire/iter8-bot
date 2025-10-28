@@ -46,6 +46,8 @@ def restart():
     if os.path.exists(BOT_DIR):
         subprocess.run(['rm', '-rf', BOT_DIR], cwd='/', check=False)
 
+    os.makedirs(BOT_DIR, exist_ok=True)
+
     # Start the wget process and pipe its output to tar
     with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
         with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
