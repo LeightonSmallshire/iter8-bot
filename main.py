@@ -100,7 +100,6 @@ class HotReloadBot(commands.Bot):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
         paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
-        leighton = discord.utils.get(paradise.members, id=bot_utils.Users.Leighton)
 
         leaderboard = await bot_utils.get_timeout_data(paradise)
         db_utils.init_database(leaderboard)

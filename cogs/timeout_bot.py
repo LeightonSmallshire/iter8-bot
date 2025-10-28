@@ -40,6 +40,14 @@ class TimeoutsCog(commands.Cog):
         timeout_extended = (before.timed_out_until is not None) and \
                            (after.timed_out_until is not None) and \
                            (before.timed_out_until < after.timed_out_until)
+        
+        duration_to_add = 0
+        if timeout_applied:
+            duration_to_add = after.timed_out_until - now
+        else:
+            duration_to_add = after.timed_out_until - before.timed_out_until
+
+        db_utils.update_timeout_leaderboard(after.id, duration_to_add)
 
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
