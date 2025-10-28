@@ -14,8 +14,10 @@ import io
 
 import utils.bot as bot_utils
 import utils.database as db_utils
+import utils.log as log_utils
 
 _log = logging.getLogger(__name__)
+_log.addHandler(log_utils.CallbackHandler())
 
 
 class TimeoutsCog(commands.Cog):
@@ -121,6 +123,9 @@ class TimeoutsCog(commands.Cog):
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction:discord.Interaction):
+        if interaction.user.id != bot_utils.Users.Leighton:
+            return await interaction.response.send_message("No dont do it")
+
         os.abort()
         interaction.response.send_message('past abort somehow')
 

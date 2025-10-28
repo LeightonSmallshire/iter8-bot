@@ -8,11 +8,13 @@ import logging
 import sys
 import datetime
 from cogs.utils.bot import Users, Channels
+import cogs.utils.log as log_utils
 from typing import Optional
 
 import utils.bot as bot_utils
 
 _log = logging.getLogger(__name__)
+_log.addHandler(log_utils.CallbackHandler())
 
 
 class BotBrokenCog(commands.Cog):
