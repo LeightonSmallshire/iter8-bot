@@ -3,6 +3,7 @@ import os
 import subprocess
 import logging
 import fastapi
+import shutil
 from fastapi import FastAPI
 
 assert __name__ == "__main__", 'Must be run directly'
@@ -33,6 +34,7 @@ def restart():
     logger.info("Doing autoupdate")
 
     if bot_process is not None:
+        logger.info("killing bot")
         bot_process.terminate()
         try:
             bot_process.wait(timeout=5)
@@ -41,19 +43,34 @@ def restart():
 
     #
     username = 'LeightonSmallshire'
-    url = f'https://{username}:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/main-v2.tar.gz'
+    repo_name = 'iter8-bot'
+    branch = 'main-v2'
+    url = f'https://{username}:{GITHUB_SECRET}@github.com/{username}/{repo_name}/archive/refs/heads/{branch}.tar.gz'
+
+    logger.info("removing old dir")
 
     if os.path.exists(BOT_DIR):
         subprocess.run(['rm', '-rf', BOT_DIR], cwd='/', check=False)
 
+    logger.info("making empty dir")
+
+    # todo shutil rmtree
     os.makedirs(BOT_DIR, exist_ok=True)
+
+    logger.info("wget | tar")
 
     # Start the wget process and pipe its output to tar
     with subprocess.Popen(["wget", "-qO-", url], stdout=subprocess.PIPE, cwd=BOT_DIR) as wget_process:
         with subprocess.Popen(["tar", "-xz"], stdin=wget_process.stdout, cwd=BOT_DIR) as tar_process:
-            tar_process.communicate()
+            a, b = tar_process.communicate()
             # wget_process.stdout.close()  # Allow wget to receive a SIGPIPE if tar exits
 
+    logger.info(a)
+    logger.info(b)
+    logger.info(wget_process.returncode)
+    logger.info(tar_process.returncode)
+
+    logger.info("starting bot")
     bot_process = subprocess.Popen(['python3', 'bot-main.py'], cwd=BOT_DIR)
 
 
