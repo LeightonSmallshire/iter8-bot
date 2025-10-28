@@ -3,9 +3,15 @@ from discord import app_commands
 from discord.ext import commands
 import cogs.utils.bot as bot_utils
 import cogs.utils.database as db_utils
+import cogs.utils.log as log_utils
 from typing import Optional
 import os
 import datetime
+import logging
+
+_log = logging.getLogger(__name__)
+_log.addHandler(log_utils.DatabaseHandler())
+_log.addHandler(logging.FileHandler('logs.log'))
 
 class DevCog(commands.Cog):
     def __init__(self, bot: discord.Client):
@@ -14,9 +20,9 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
-    @app_commands.describe(limit="Number of logs to show (default 25)")
-    async def get_logs(self, interaction: discord.Interaction, limit: int = 25):
-        rows = db_utils.read_logs(limit)
+    @app_commands.describe(level="Filter by log level")
+    async def get_logs(self, interaction: discord.Interaction, level: Optional[str]=None):
+        rows = db_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.")
             return
@@ -28,6 +34,23 @@ class DevCog(commands.Cog):
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
+        
+
+    # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
+
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+        """
+        Handles errors specifically for commands defined within this cog.
+        Note: This specific function is for handling prefix command errors.
+        For slash commands, errors are often handled via `on_app_command_error`.
+        """
+        if isinstance(error, commands.MissingPermissions):
+            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+        elif isinstance(error, commands.CommandNotFound):
+            # This generally won't happen if the command is correctly registered
+            pass
+        else:
+            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
 
     # @app_commands.command(name='bash2')
     # # @commands.check(bot_utils.is_leighton)
