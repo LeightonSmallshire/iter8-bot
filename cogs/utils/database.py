@@ -62,7 +62,7 @@ def write_log(level: str, message: str) -> None:
         con.execute(
             "INSERT INTO logs(level, message) VALUES (?, ?)",
             (level, message),
-        )
+        )   
 
 def read_logs(limit: int=100, level: Optional[str]=None):
     q = "SELECT id, ts, level, message, FROM logs"
@@ -76,6 +76,3 @@ def read_logs(limit: int=100, level: Optional[str]=None):
     with sqlite3.connect(DATABASE_NAME) as con:
         con.row_factory = sqlite3.Row
         return [dict(r) for r in con.execute(q, args)]
-    
-def on_log(record: logging.LogRecord) -> None:
-    write_log(record.levelname, record.message)
