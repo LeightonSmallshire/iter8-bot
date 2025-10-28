@@ -3,6 +3,11 @@ services:
     container_name: iter8-bot
     build: .
     env_file: ".secrets"
+
+    image: iter8-bot-storage
+    volumes:
+      - ./data:/app/data
+
     ports:
       - "8080:8080"
     #    read_only: true

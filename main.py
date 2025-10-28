@@ -8,6 +8,9 @@ import logging
 import logging.handlers
 from typing import List
 import importlib
+import cogs.utils.bot as bot_utils
+import cogs.utils.database as db_utils
+import cogs.utils.log as log_utils
 import time
 import fastapi
 import uvicorn
@@ -18,10 +21,13 @@ import datetime
 
 assert __name__ == "__main__", 'Must be run directly'
 
+
 # --- Configuration ---
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
+GITHUB_USER = os.environ.get("GITHUB_USER", "LeightonSmallshire")
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
+GITHUB_BRANCH = os.environ.get("WORKING_BRANCH", "main")
 
 # The directory containing your Discord cogs (Python files)
 COGS_DIR = "cogs"
@@ -34,11 +40,10 @@ WEBHOOK_PORT = 8080
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Bot-FastAPI-Integrator")
 
-file_handler = logging.FileHandler('logs.log')
 # file_handler.setLevel(logging.DEBUG)
 # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(file_handler)
-
+logger.addHandler(logging.FileHandler('logs.log'))
+logger.addHandler(log_utils.DatabaseHandler())
 
 # --- Discord Bot Setup ---
 with open('logs.txt', 'a') as f:
@@ -79,7 +84,9 @@ async def run_blocking_command(cmd: List[str], cwd: str = '.') -> str:
 
 async def git_pull_and_reset():
     """Performs git pull and hard reset on the cogs directory."""
-    origin_url = f'https://LeightonSmallshire:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot'
+    origin_url = f'https://{GITHUB_USER}:{GITHUB_SECRET}@github.com/{GITHUB_USER}/iter8-bot'
+
+    await run_blocking_command(['git', 'config', '--global', "--add", "safe.directory", "/app"])
 
     with open('logs.txt', 'a') as f:
         print('pre-git-pull', file=f)
@@ -91,8 +98,8 @@ async def git_pull_and_reset():
     else:
         await run_blocking_command(['git', 'remote', 'set-url', 'origin', origin_url])
 
-    await run_blocking_command(['git', 'fetch', 'origin', 'main'])
-    await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
+    await run_blocking_command(['git', 'fetch', 'origin', GITHUB_BRANCH])
+    await run_blocking_command(['git', 'reset', '--hard', f'origin/{GITHUB_BRANCH}'])
     # await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
     # importlib.invalidate_caches()
     logger.info("Git pull and hard reset complete.")
@@ -100,7 +107,7 @@ async def git_pull_and_reset():
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=discord.Intents.all())
+        super().__init__(command_prefix="!", intents= discord.Intents.all())
         self._fastapi_task = None
 
     async def on_ready(self):
@@ -110,6 +117,9 @@ class HotReloadBot(commands.Bot):
         paradise = discord.utils.get(bot.guilds, id=1416007094339113071)
         leighton = discord.utils.get(paradise.members, id=1416017385596653649)
         await leighton.send('setup')
+
+        leaderboard = await bot_utils.get_timeout_data(paradise)
+        db_utils.init_database(leaderboard)
 
         try:
             await git_pull_and_reset()

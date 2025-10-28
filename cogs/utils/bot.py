@@ -1,12 +1,16 @@
 import logging
 import discord
+import operator
 import asyncio
+import datetime
+from typing import Dict
 
 
 class Guilds:
     Paradise = 1416007094339113071
     Innov8 = 1325821294427766784
     Innov8_DevOps = 1425873966035238975
+    TestServer = 1427287847085281382
 
 
 class Users:
@@ -24,6 +28,8 @@ def is_guild_paradise(ctx):
 
 class Channels:
     ParadiseBotBrokenSpam = 1427971106920202240
+    ParadiseClockwork = 1416059475873239181
+    TestServerBotSpam  = 1432698704191815680
 
 
 async def send_dm_to_user(self, user_id, message):
@@ -74,3 +80,51 @@ class DiscordHandler(logging.Handler):
             print(f"Error: Could not find user with ID {self.user_id}")
         except Exception as e:
             print(f"Failed to send error DM: {e}")
+
+
+async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple[int, datetime.timedelta]]:
+    if guild is None:
+        return {}
+
+    leaderboard = {}
+
+    async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
+        member = entry.target
+
+        was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
+        now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
+        was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+        now_timeout = now_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+
+        b_was_timeout = (was_timeout >= entry.created_at)
+        b_now_timeout = (now_timeout >= entry.created_at)
+
+        timeout_added = not b_was_timeout and b_now_timeout
+        timeout_changed = b_was_timeout and b_now_timeout
+        timeout_removed = b_was_timeout and not b_now_timeout
+
+        if timeout_added:
+            duration = now_timeout - entry.created_at
+            # print('added', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (total_timeouts + 1, total_duration + duration)
+
+        if timeout_changed:
+            duration = now_timeout - was_timeout
+            # print('changed', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (total_timeouts, total_duration + duration)
+
+        if timeout_removed:
+            duration = was_timeout - entry.created_at
+            # print('removed', duration)
+            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
+            leaderboard[member.id] = (total_timeouts, total_duration - duration)
+
+    sorted_leaderboard = dict(sorted(
+        leaderboard.items(),
+        key=operator.itemgetter(1),
+        reverse=True
+    ))
+
+    return sorted_leaderboard

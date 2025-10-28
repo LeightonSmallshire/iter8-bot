@@ -7,12 +7,13 @@ import traceback
 import logging
 import sys
 import datetime
-from cogs.bot_utils import Users, Channels
+import cogs.utils.log as log_utils
 from typing import Optional
 
-from cogs import bot_utils
+import cogs.utils.bot as bot_utils
 
 _log = logging.getLogger(__name__)
+_log.addHandler(log_utils.DatabaseHandler())
 
 
 class BotBrokenCog(commands.Cog):
@@ -25,7 +26,7 @@ class BotBrokenCog(commands.Cog):
     @app_commands.command(name='broken', description='Bot is broken')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_bot_broken(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        user_target = user.id if user is not None else Users.Leighton
+        user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
 
@@ -38,7 +39,7 @@ class BotBrokenCog(commands.Cog):
     @app_commands.command(name='working', description='Bot is working')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_bot_working(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        user_target = user.id if user is not None else Users.Leighton
+        user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
 
