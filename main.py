@@ -11,6 +11,7 @@ import importlib
 import cogs.utils.bot as bot_utils
 import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
+from dotenv import load_dotenv
 
 import fastapi
 import uvicorn
@@ -22,9 +23,12 @@ from cogs.utils import bot
 
 assert __name__ == "__main__", 'Must be run directly'
 
+load_dotenv(".secrets")
+
 # --- Configuration ---
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
+GITHUB_USER = os.environ.get("GITHUB_USER")
 GITHUB_SECRET = os.environ.get("GITHUB_SECRET")
 
 # The directory containing your Discord cogs (Python files)
@@ -75,7 +79,7 @@ async def run_blocking_command(cmd: List[str], cwd: str = '.') -> str:
 
 async def git_pull_and_reset():
     """Performs git pull and hard reset on the cogs directory."""
-    origin_url = f'https://LeightonSmallshire:{GITHUB_SECRET}@github.com/LeightonSmallshire/iter8-bot'
+    origin_url = f'https://{GITHUB_USER}:{GITHUB_SECRET}@github.com/{GITHUB_USER}/iter8-bot'
 
     if not os.path.exists('.git'):
         logger.error('NOT A GIT REPO - bad - explode - die horribly')
@@ -85,7 +89,7 @@ async def git_pull_and_reset():
         await run_blocking_command(['git', 'remote', 'set-url', 'origin', origin_url])
 
     await run_blocking_command(['git', 'fetch', 'origin', 'main'])
-    await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
+    # await run_blocking_command(['git', 'reset', '--hard', 'origin/main'])
     # await run_blocking_command(['pip', 'install', '-r', 'requirements.txt'])
     # importlib.invalidate_caches()    
     logger.info("Git pull and hard reset complete.")
@@ -93,14 +97,14 @@ async def git_pull_and_reset():
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=discord.Intents.all())
+        super().__init__(command_prefix="!", intents=discord.Intents.default())
         self._fastapi_task = None
 
     async def on_ready(self):
         """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
-        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
+        paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
 
         leaderboard = await bot_utils.get_timeout_data(paradise)
         db_utils.init_database(leaderboard)

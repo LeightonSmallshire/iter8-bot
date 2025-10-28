@@ -12,9 +12,9 @@ import subprocess
 import os
 import io
 
-import utils.bot as bot_utils
-import utils.database as db_utils
-import utils.log as log_utils
+import cogs.utils.bot as bot_utils
+import cogs.utils.database as db_utils
+import cogs.utils.log as log_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(log_utils.CallbackHandler())
@@ -39,17 +39,21 @@ class TimeoutsCog(commands.Cog):
 
         timeout_applied = after_timed_out and not before_timed_out
 
+        timeout_removed = before_timed_out and not after_timed_out
+
         timeout_extended = (before.timed_out_until is not None) and \
                            (after.timed_out_until is not None) and \
                            (before.timed_out_until < after.timed_out_until)
         
-        duration_to_add = 0
+        duration_to_add = datetime.timedelta(seconds=0)
         if timeout_applied:
             duration_to_add = after.timed_out_until - now
+        elif timeout_removed:
+            duration_to_add = now - before.timed_out_until
         else:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        db_utils.update_timeout_leaderboard(after.id, duration_to_add)
+        db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
@@ -77,7 +81,7 @@ class TimeoutsCog(commands.Cog):
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
         # but discord.utils.get by name is fine too.
-        channel = discord.utils.get(guild.text_channels, name='clockwork-bot')
+        channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
 
         if channel is None:
             _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
@@ -189,8 +193,7 @@ class TimeoutsCog(commands.Cog):
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
         
-        #leaderboard = db_utils.get_timeout_leaderboard()
-        leaderboard = bot_utils.get_timeout_data()
+        leaderboard = db_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',

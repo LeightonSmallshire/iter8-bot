@@ -1,8 +1,8 @@
-import database
+from .database import write_log
 import logging
     
 def on_log(record: logging.LogRecord) -> None:
-    database.write_log(record.levelname, record.message)
+    write_log(record.levelname, record.getMessage())
 
 class CallbackHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:

@@ -10,6 +10,7 @@ class Guilds:
     Paradise = 1416007094339113071
     Innov8 = 1325821294427766784
     Innov8_DevOps = 1425873966035238975
+    TestServer = 1427287847085281382
 
 
 class Users:
@@ -27,6 +28,8 @@ def is_guild_paradise(ctx):
 
 class Channels:
     ParadiseBotBrokenSpam = 1427971106920202240
+    ParadiseClockwork = 1416059475873239181
+    TestServerClockwork = 1432698704191815680
 
 
 async def send_dm_to_user(self, user_id, message):
@@ -118,10 +121,10 @@ async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple[int, 
             total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
             leaderboard[member.id] = (total_timeouts, total_duration - duration)
 
-    sorted_leaderboard = sorted(
+    sorted_leaderboard = dict(sorted(
         leaderboard.items(),
         key=operator.itemgetter(1),
         reverse=True
-    )
+    ))
 
     return sorted_leaderboard
