@@ -34,6 +34,11 @@ WEBHOOK_PORT = 8080
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Bot-FastAPI-Integrator")
 
+file_handler = logging.FileHandler('logs.log')
+# file_handler.setLevel(logging.DEBUG)
+# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
 
 # --- Discord Bot Setup ---
 with open('logs.txt', 'a') as f:
