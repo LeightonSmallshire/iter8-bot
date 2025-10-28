@@ -35,32 +35,16 @@ class DevCog(commands.Cog):
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
-        
-
-    # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
-
-    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
-        """
-        Handles errors specifically for commands defined within this cog.
-        Note: This specific function is for handling prefix command errors.
-        For slash commands, errors are often handled via `on_app_command_error`.
-        """
-        if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
-        elif isinstance(error, commands.CommandNotFound):
-            # This generally won't happen if the command is correctly registered
-            pass
-        else:
-            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
 
     @app_commands.command(name='download')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_bash(self, interaction: discord.Interaction, path: str):
-        if interaction.user.id != bot_utils.Users.Leighton:
+        if interaction.user.id != bot_utils.Users.Leighton and interaction.user.id != bot_utils.Users.Nathan:
             return await interaction.response.send_message("No files 4 U")
 
         file = discord.File(path)
         await interaction.response.send_message(file=file, ephemeral=True)
+        
 
     # @app_commands.command(name='bash2')
     # # @commands.check(bot_utils.is_leighton)
@@ -85,6 +69,23 @@ class DevCog(commands.Cog):
     #     message = f'Exit code: {return_code}\n\n{stdout}\n\n{stderr}'
 
     #     await ctx.followup.send(content=message)
+        
+
+    # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
+
+    async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
+        """
+        Handles errors specifically for commands defined within this cog.
+        Note: This specific function is for handling prefix command errors.
+        For slash commands, errors are often handled via `on_app_command_error`.
+        """
+        if isinstance(error, commands.MissingPermissions):
+            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+        elif isinstance(error, commands.CommandNotFound):
+            # This generally won't happen if the command is correctly registered
+            pass
+        else:
+            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
 
 
 # class FilesystemCog(commands.Cog):
