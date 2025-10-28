@@ -45,7 +45,8 @@ def restart():
     username = 'LeightonSmallshire'
     repo_name = 'iter8-bot'
     branch = 'main-v2'
-    url = f'https://{username}:{GITHUB_SECRET}@github.com/{username}/{repo_name}/archive/refs/heads/{branch}.tar.gz'
+    # url = f'https://{username}:{GITHUB_SECRET}@github.com/{username}/{repo_name}/archive/refs/heads/{branch}.tar.gz'
+    url = f'https://github.com/{username}/{repo_name}/archive/refs/heads/{branch}.tar.gz'
 
     logger.info("removing old dir")
 
@@ -71,7 +72,7 @@ def restart():
     logger.info(tar_process.returncode)
 
     logger.info("starting bot")
-    bot_process = subprocess.Popen(['python3', 'bot-main.py'], cwd=BOT_DIR)
+    bot_process = subprocess.Popen(['python3', 'iter8-bot-main-v2/bot-main.py'], cwd=BOT_DIR)
 
 
 @app.post('/webhook')
@@ -97,11 +98,10 @@ def get_status():
 
 
 restart()
-exit(0)
 
-try:
-    restart()
-except BaseException as e:
-    logger.error(repr(e))
+# try:
+#     restart()
+# except BaseException as e:
+#     logger.error(repr(e))
 
-uvicorn.run(app, host='0.0.0.0', port=8090)
+# uvicorn.run(app, host='0.0.0.0', port=8090)
