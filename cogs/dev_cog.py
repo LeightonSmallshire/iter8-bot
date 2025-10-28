@@ -27,7 +27,7 @@ class DevCog(commands.Cog):
             formatted.append(f"[{ts:%Y-%m-%d %H:%M:%S}] [{r['level']}] {r['message']}")
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
-        await interaction.response.send_message(msg[:2000])  # Discord limit
+        await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
 
     # @app_commands.command(name='bash2')
     # # @commands.check(bot_utils.is_leighton)
