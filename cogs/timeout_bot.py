@@ -188,28 +188,32 @@ class TimeoutsCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
-        leaderboard = db_utils.get_timeout_leaderboard()
+        
+        #leaderboard = db_utils.get_timeout_leaderboard()
+        leaderboard = bot_utils.get_timeout_data()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',
             color=discord.Color.red()
         )
 
-        for rank, (user_id, (username, total_timeouts, total_duration)) in enumerate(leaderboard.items(), start=1):
+        for rank, (user_id, (total_timeouts, total_duration)) in enumerate(leaderboard.items(), start=1):
             total_duration: datetime.timedelta
             total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
 
             value = (f"**{total_timeouts}** Timeout{'s' if total_timeouts != 1 else ''}"
                      + f' {total_duration}')
 
+            user = await interaction.guild.fetch_member(user_id)
+
             if rank == 1:
-                field_name = f"🥇 {username}"
+                field_name = f"🥇 {user.display_name}"
             elif rank == 2:
-                field_name = f"🥈 {username}"
+                field_name = f"🥈 {user.display_name}"
             elif rank == 3:
-                field_name = f"🥉 {username}"
+                field_name = f"🥉 {user.display_name}"
             else:
-                field_name = f"#{rank}: {username}"
+                field_name = f"#{rank}: {user.display_name}"
 
             embed.add_field(name=field_name, value=value, inline=False)
 

@@ -10,6 +10,7 @@ from typing import List
 import importlib
 import cogs.utils.bot as bot_utils
 import cogs.utils.database as db_utils
+import cogs.utils.log as log_utils
 
 import fastapi
 import uvicorn
@@ -36,7 +37,7 @@ WEBHOOK_PORT = 8080
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("Bot-FastAPI-Integrator")
-
+logger.addHandler(log_utils.CallbackHandler())
 
 # --- Discord Bot Setup ---
 

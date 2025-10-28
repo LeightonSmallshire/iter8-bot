@@ -1,8 +1,8 @@
 import logging
 import discord
+import operator
 import asyncio
 import datetime
-import operator
 from typing import Dict
 
 
@@ -79,7 +79,7 @@ class DiscordHandler(logging.Handler):
             print(f"Failed to send error DM: {e}")
 
 
-async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple]:
+async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple[int, datetime.timedelta]]:
     if guild is None:
         return {}
 
@@ -104,18 +104,24 @@ async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple]:
             duration = now_timeout - entry.created_at
             # print('added', duration)
             total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (member.display_name, total_timeouts + 1, total_duration + duration)
+            leaderboard[member.id] = (total_timeouts + 1, total_duration + duration)
 
         if timeout_changed:
             duration = now_timeout - was_timeout
             # print('changed', duration)
             total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (member.display_name, total_timeouts, total_duration + duration)
+            leaderboard[member.id] = (total_timeouts, total_duration + duration)
 
         if timeout_removed:
             duration = was_timeout - entry.created_at
             # print('removed', duration)
             total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (member.display_name, total_timeouts, total_duration - duration)
+            leaderboard[member.id] = (total_timeouts, total_duration - duration)
+
+    sorted_leaderboard = sorted(
+        leaderboard.items(),
+        key=operator.itemgetter(1),
+        reverse=True
+    )
 
     return sorted_leaderboard
