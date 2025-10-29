@@ -143,7 +143,7 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
             leaderboard.append(Timeout(member.id, 0, duration))
 
         if timeout_removed:
-            duration = (was_timeout - entry.created_at).total_seconds()
+            duration = (entry.created_at - was_timeout).total_seconds()
             # print('removed', duration)
             leaderboard.append(Timeout(member.id, 0, duration))
 
