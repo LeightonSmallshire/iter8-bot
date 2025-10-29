@@ -154,4 +154,11 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
             acc[t.id].duration += t.duration
         else:
             acc[t.id] = Timeout(t.id, t.count, t.duration)
-    return list(acc.values())
+
+    sorted_leaderboard = sorted(
+        acc.values(),
+        key=lambda x: x.count,
+        reverse=True
+    )
+
+    return sorted_leaderboard
