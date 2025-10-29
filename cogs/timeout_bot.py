@@ -138,14 +138,11 @@ class TimeoutsCog(commands.Cog):
             color=discord.Color.red()
         )
 
-        for rank, (user_id, (total_timeouts, total_duration)) in enumerate(leaderboard.items(), start=1):
-            total_duration: datetime.timedelta
-            total_duration -= datetime.timedelta(microseconds=total_duration.microseconds)
+        for rank, timeout in enumerate(leaderboard, start=1):
+            value = (f"**{timeout.count}** Timeout{'s' if timeout.count != 1 else ''}"
+                     + f' {datetime.timedelta(seconds=round(timeout.duration))}')
 
-            value = (f"**{total_timeouts}** Timeout{'s' if total_timeouts != 1 else ''}"
-                     + f' {total_duration}')
-
-            user = await interaction.guild.fetch_member(user_id)
+            user = await interaction.guild.fetch_member(timeout.id)
 
             if rank == 1:
                 field_name = f"🥇 {user.display_name}"
