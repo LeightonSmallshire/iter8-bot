@@ -1,4 +1,4 @@
-from .database import write_log
+# from .database import write_log
 import logging
     
 class DatabaseHandler(logging.Handler):

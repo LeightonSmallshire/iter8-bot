@@ -19,7 +19,7 @@ _log.addHandler(logging.FileHandler('logs.log'))
 class BotBrokenCog(commands.Cog):
     def __init__(self, client: discord.Client):
         self.bot_ = client
-        print(f"Cog '{self.qualified_name}' initialized.")
+        _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     # --- Slash Command ---
 
@@ -49,7 +49,6 @@ class BotBrokenCog(commands.Cog):
         await channel.send(message)
         await interaction.delete_original_response()
 
-
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
@@ -72,7 +71,6 @@ class BotBrokenCog(commands.Cog):
 async def setup(bot: commands.Bot):
     await bot.add_cog(BotBrokenCog(bot))
 
-# Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
-# to clean up resources when the cog is unloaded.
+
 # async def teardown(bot: commands.Bot):
-#     print(f"Cog '{ModerationCog.qualified_name}' unloaded.")
+#     _log.info(f"Cog '{BotBrokenCog.qualified_name}' unloaded.")
