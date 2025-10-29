@@ -10,21 +10,20 @@ import datetime
 import logging
 
 _log = logging.getLogger(__name__)
+_log.addHandler(log_utils.DatabaseHandler())
 _log.addHandler(logging.FileHandler('logs.log'))
 
 
 class DevCog(commands.Cog):
-    def __init__(self, client: discord.Client):
-        self.bot_ = client
-        _log.addHandler(log_utils.DatabaseHandler(client.loop))
+    def __init__(self, bot: discord.Client):
         super().__init__()
-        _log.info(f"Cog '{self.qualified_name}' initialized.")
+        self.bot_ = bot
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
     async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None):
-        rows = []  # await db_utils.read_logs(level=level)
+        rows = []  # db_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
             return
@@ -57,11 +56,12 @@ class DevCog(commands.Cog):
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction: discord.Interaction):
+        # member: discord.Member | None = discord.utils.get(interaction.guild.members, id=interaction.user.id)
+
         if interaction.user.id == bot_utils.Users.Tom:
-            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
+            # await member.timeout(datetime.timedelta(60))
             return await interaction.response.send_message('Stop it Tom')
         if not bot_utils.is_trusted_developer(interaction):
-            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
             return await interaction.response.send_message('No')
 
         os.abort()

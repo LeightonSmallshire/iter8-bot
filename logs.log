@@ -1,0 +1,175 @@
+Starting Discord Bot...
+--- Starting FastAPI Server Task ---
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog TimeoutsCog: Command 'leaderboard' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+An unhandled command error occurred in cog TimeoutsCog: Command 'leaderboard' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+Starting Discord Bot...
+--- Starting FastAPI Server Task ---
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+--- Starting FastAPI Server Task ---
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog TimeoutsCog: Command 'leaderboard' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+Starting Discord Bot...
+--- Starting FastAPI Server Task ---
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog TimeoutsCog: Command 'leaderboard' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+Starting Discord Bot...
+--- Starting FastAPI Server Task ---
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog TimeoutsCog: Command 'leaderboard' raised an exception: NotFound: 404 Not Found (error code: 10062): Unknown interaction
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+An unhandled command error occurred in cog DevCog: Command 'crash' raised an exception: HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In communication_disabled_until: Invalid communication disabled timestamp
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
+Starting Discord Bot...
+Discord Bot logged in as Clockwork#5136 (ID: 1425483577587531886)
+--- Loading cogs ---
+Cog 'BotBrokenCog' initialized.
+Successfully loaded NEW cog: cogs.bot_broken_bot
+Successfully loaded NEW cog: cogs.dev_cog
+Successfully loaded NEW cog: cogs.timeout_bot
+Syncing...
+Synced: [<AppCommand id=1432704391026053150 name='broken' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432704391026053151 name='working' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432761452812439572 name='logs' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432763705346490500 name='download' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1432508244030652447 name='crash' type=<AppCommandType.chat_input: 1>>, <AppCommand id=1431405404272726058 name='leaderboard' type=<AppCommandType.chat_input: 1>>]
