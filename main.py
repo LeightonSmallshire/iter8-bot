@@ -2,7 +2,7 @@ import json
 import os
 import logging
 import cogs.utils.bot as bot_utils
-# import cogs.utils.database as db_utils
+import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
 import discord
 from discord.ext import commands
@@ -15,7 +15,7 @@ COGS_DIR = "cogs"
 
 # --- Logging Setup ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("Bot-FastAPI-Integrator")
+logger = logging.getLogger(__name__)
 
 # file_handler.setLevel(logging.DEBUG)
 # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -36,10 +36,6 @@ class HotReloadBot(commands.Bot):
         # db_utils.init_database(leaderboard)
 
         await self.hot_reload_cogs()
-
-    async def setup_hook(self):
-        """Prepares the initial loading of cogs."""
-        logger.info('--- Starting FastAPI Server Task ---')
 
     async def hot_reload_cogs(self):
         """Unloads, reloads, and reports the status of all cogs."""

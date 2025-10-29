@@ -4,6 +4,7 @@ import operator
 import asyncio
 import datetime
 from typing import Dict
+from .model import Timeout
 
 
 class Guilds:
@@ -110,11 +111,11 @@ class DiscordHandler(logging.Handler):
             print(f"Failed to send error DM: {e}")
 
 
-async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple[int, datetime.timedelta]]:
+async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
     if guild is None:
-        return {}
+        return []
 
-    leaderboard = {}
+    leaderboard: list[Timeout] = []
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
@@ -132,27 +133,25 @@ async def get_timeout_data(guild: discord.Guild | None) -> Dict[int, tuple[int, 
         timeout_removed = b_was_timeout and not b_now_timeout
 
         if timeout_added:
-            duration = now_timeout - entry.created_at
+            duration = (now_timeout - entry.created_at).total_seconds()
             # print('added', duration)
-            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (total_timeouts + 1, total_duration + duration)
+            leaderboard.append(Timeout(member.id, 1, duration))
 
         if timeout_changed:
-            duration = now_timeout - was_timeout
+            duration = (now_timeout - was_timeout).total_seconds()
             # print('changed', duration)
-            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (total_timeouts, total_duration + duration)
+            leaderboard.append(Timeout(member.id, 0, duration))
 
         if timeout_removed:
-            duration = was_timeout - entry.created_at
+            duration = (was_timeout - entry.created_at).total_seconds()
             # print('removed', duration)
-            total_timeouts, total_duration = leaderboard.get(member.id, [0, datetime.timedelta()])
-            leaderboard[member.id] = (total_timeouts, total_duration - duration)
+            leaderboard.append(Timeout(member.id, 0, duration))
 
-    sorted_leaderboard = dict(sorted(
-        leaderboard.items(),
-        key=operator.itemgetter(1),
-        reverse=True
-    ))
-
-    return sorted_leaderboard
+    acc: dict[int, Timeout] = {}
+    for t in leaderboard:
+        if t.id in acc:
+            acc[t.id].count += t.count
+            acc[t.id].duration += t.duration
+        else:
+            acc[t.id] = Timeout(t.id, t.count, t.duration)
+    return list(acc.values())
