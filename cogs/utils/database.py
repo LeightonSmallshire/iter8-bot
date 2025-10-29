@@ -1,7 +1,5 @@
 import aiosqlite
 import datetime
-import aiosqlite
-import asyncio
 from .model import *
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar

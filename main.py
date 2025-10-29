@@ -20,12 +20,11 @@ logger = logging.getLogger(__name__)
 # file_handler.setLevel(logging.DEBUG)
 # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(logging.FileHandler('logs.log'))
-logger.addHandler(log_utils.DatabaseHandler())
-
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
+        logger.addHandler(log_utils.DatabaseHandler(self.loop))
 
     async def on_ready(self):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')

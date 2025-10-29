@@ -17,14 +17,15 @@ import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
 
 _log = logging.getLogger(__name__)
-_log.addHandler(log_utils.DatabaseHandler())
 _log.addHandler(logging.FileHandler('logs.log'))
 
 
 class TimeoutsCog(commands.Cog):
     def __init__(self, client: discord.Client):
         self.bot_ = client
-        print(f"Cog '{self.qualified_name}' initialized.")
+        _log.addHandler(log_utils.DatabaseHandler(client.loop))
+        super().__init__()
+        _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     # --- Listeners (Events) ---
 

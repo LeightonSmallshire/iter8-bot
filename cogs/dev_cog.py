@@ -10,14 +10,15 @@ import datetime
 import logging
 
 _log = logging.getLogger(__name__)
-_log.addHandler(log_utils.DatabaseHandler())
 _log.addHandler(logging.FileHandler('logs.log'))
 
 
 class DevCog(commands.Cog):
-    def __init__(self, bot: discord.Client):
+    def __init__(self, client: discord.Client):
+        self.bot_ = client
+        _log.addHandler(log_utils.DatabaseHandler(client.loop))
         super().__init__()
-        self.bot_ = bot
+        _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
