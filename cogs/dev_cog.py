@@ -38,8 +38,8 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name='download')
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_bash(self, interaction: discord.Interaction, path: str):
-        if interaction.user.id not in bot_utils.Misc.TrustedDevelopers:
+    async def do_download(self, interaction: discord.Interaction, path: str):
+        if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No files 4 U")
 
         file = discord.File(path)
