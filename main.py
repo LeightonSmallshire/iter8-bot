@@ -20,20 +20,19 @@ logger = logging.getLogger(__name__)
 # file_handler.setLevel(logging.DEBUG)
 # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(logging.FileHandler('logs.log'))
-logger.addHandler(log_utils.DatabaseHandler())
-
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
+        logger.addHandler(log_utils.DatabaseHandler(self.loop))
 
     async def on_ready(self):
-        """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
         bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
 
+        # server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
         # leaderboard = await bot_utils.get_timeout_data(server)
-        # db_utils.init_database(leaderboard)
+        # await db_utils.init_database(leaderboard)
 
         await self.hot_reload_cogs()
 

@@ -9,13 +9,13 @@ import sys
 import datetime
 import cogs.utils.bot as bot_utils
 import cogs.utils.log as log_utils
+import cogs.utils.database as db_utils
 from typing import Optional
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('logs.log'))
 
-
-class BotBrokenCog(commands.Cog):
+class ShopCog(commands.Cog):
     def __init__(self, client: discord.Client):
         self.bot_ = client
         _log.addHandler(log_utils.DatabaseHandler(client.loop))
@@ -24,31 +24,27 @@ class BotBrokenCog(commands.Cog):
 
     # --- Slash Command ---
 
-    @app_commands.command(name='broken', description='Bot is broken')
+    @app_commands.command(name='shop', description='Let\'s see what the lovely shop has to offer')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_broken(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        user_target = user.id if user is not None else bot_utils.Users.Leighton
+    async def command_display_shop(self, interaction: discord.Interaction):
+        """Generates and displays the timeout shop."""
 
-        _log.info(f"Broken command from {interaction.user.display_name}")
+        # Getting leaderboard might take time
+        await interaction.response.defer(thinking=True)
 
-        message = f"<@{user_target}> bot broken"
-        channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        await channel.send(message)
-        await interaction.delete_original_response()
+        shop = await db_utils.get_shop_contents()
 
-    @app_commands.command(name='working', description='Bot is working')
-    @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_working(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
-        user_target = user.id if user is not None else bot_utils.Users.Leighton
+        embed = discord.Embed(
+            title='Timeout Shop 🛒',
+            color=discord.Color.blue()
+        )
 
-        _log.info(f"Broken command from {interaction.user.display_name}")
+        for item in shop:
+            embed.add_field(name=item.description, value=f"Price: {datetime.timedelta(seconds=item.cost)}", inline=False)
+            
+        # Send the final response
+        await interaction.followup.send(embed=embed, ephemeral=False)
 
-        message = f"<@{user_target}> bot working"
-        channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        await channel.send(message)
-        await interaction.delete_original_response()
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
@@ -70,7 +66,7 @@ class BotBrokenCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(BotBrokenCog(bot))
+    await bot.add_cog(ShopCog(bot))
 
 
 # async def teardown(bot: commands.Bot):
