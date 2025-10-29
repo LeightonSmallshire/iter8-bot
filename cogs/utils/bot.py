@@ -37,24 +37,6 @@ def is_trusted_developer(ctx: discord.Interaction):
     return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
-# async def send_dm_to_user(bot, user_id, message):
-#     try:
-#         # Use fetch_user to get the user object from Discord API
-#         user = await bot.fetch_user(user_id)
-
-#         if user:
-#             # Create a DM channel and send the message
-#             await user.send(message)
-#             print(f"Successfully sent DM to {user.name} ({user_id})")
-#         else:
-#             print(f"Could not find user with ID: {user_id}")
-
-#     except discord.errors.NotFound:
-#         print(f"User with ID {user_id} not found on Discord.")
-#     except Exception as e:
-#         print(f"An error occurred while sending DM: {e}")
-
-
 async def send_message(bot, user_id, message):
     while not bot.is_ready():
         await asyncio.sleep(1)
@@ -77,38 +59,6 @@ async def send_message(bot, user_id, message):
 
 def defer_message(bot, user_id, message):
     asyncio.create_task(send_message(bot, user_id, message))
-
-
-class DiscordHandler(logging.Handler):
-    def __init__(self, bot: discord.Client, user_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bot = bot
-        self.user_id = user_id
-
-    def emit(self, record):
-        log_entry = self.format(record)
-        self.bot.loop.create_task(self.send_dm(log_entry))
-
-    async def send_dm(self, message):
-        # Nothing to see here
-        while not self.bot.is_ready():
-            await asyncio.sleep(1)
-
-        try:
-            paradise = discord.utils.get(self.bot.guilds, id=Guilds.Paradise)
-            user = discord.utils.get(paradise.members, id=Users.Leighton)
-            # await leighton.send('setup')
-
-            # user = await self.bot.fetch_user(self.user_id)
-            if user:
-                if len(message) > 1950:
-                    message = message[:1950] + "\n... (truncated)"
-
-                await user.send(f"**Bot Log: ** ```{message}```")
-        except discord.errors.NotFound:
-            print(f"Error: Could not find user with ID {self.user_id}")
-        except Exception as e:
-            print(f"Failed to send error DM: {e}")
 
 
 async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
@@ -134,17 +84,14 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
 
         if timeout_added:
             duration = (now_timeout - entry.created_at).total_seconds()
-            # print('added', duration)
             leaderboard.append(Timeout(member.id, 1, duration))
 
         if timeout_changed:
             duration = (now_timeout - was_timeout).total_seconds()
-            # print('changed', duration)
             leaderboard.append(Timeout(member.id, 0, duration))
 
         if timeout_removed:
             duration = (entry.created_at - was_timeout).total_seconds()
-            # print('removed', duration)
             leaderboard.append(Timeout(member.id, 0, duration))
 
     acc: dict[int, Timeout] = {}
