@@ -64,7 +64,14 @@ async def send_message(bot, user_id, message):
     user = discord.utils.get(paradise.members, id=user_id)
     if user is None:
         return logging.error('could not find user')
-    await user.send(message)
+
+    while True:
+        try:
+            return await user.send(message)
+        except discord.errors.HTTPException as e:
+            if 'You are opening direct messages too fast' not in repr(e):
+                raise e
+            await asyncio.sleep(1)
 
 
 def defer_message(bot, user_id, message):

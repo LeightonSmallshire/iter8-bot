@@ -10,7 +10,7 @@ from discord.ext import commands
 assert __name__ == "__main__", 'Must be run directly'
 
 # --- Configuration ---
-DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
+DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 COGS_DIR = "cogs"
 
 # --- Logging Setup ---
@@ -30,7 +30,7 @@ class HotReloadBot(commands.Bot):
     async def on_ready(self):
         """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'on_ready')
+        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
 
         # leaderboard = await bot_utils.get_timeout_data(server)
         # db_utils.init_database(leaderboard)
@@ -45,7 +45,7 @@ class HotReloadBot(commands.Bot):
         """Unloads, reloads, and reports the status of all cogs."""
 
         logger.info('--- Loading cogs ---')
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'reload cogs')
+        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Reloading cogs')
 
         reloaded_cogs = []
         failed_cogs = []
@@ -61,15 +61,12 @@ class HotReloadBot(commands.Bot):
             try:
                 if cog_name in self.extensions:
                     await self.reload_extension(cog_name)
-                    bot_utils.defer_message(self, bot_utils.Users.Leighton, f"Successfully reloaded cog: {cog_name}")
                     logger.info(f"Successfully reloaded cog: {cog_name}")
                 else:
                     await self.load_extension(cog_name)
-                    bot_utils.defer_message(self, bot_utils.Users.Leighton, f"Successfully loaded NEW cog: {cog_name}")
                     logger.info(f"Successfully loaded NEW cog: {cog_name}")
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                bot_utils.defer_message(self, bot_utils.Users.Leighton, f"Failed to reload/load cog {cog_name}: {e}")
                 logger.error(f"Failed to reload/load cog {cog_name}: {e}")
                 failed_cogs.append(f"{cog_name} ({e.__class__.__name__})")
 
@@ -78,23 +75,20 @@ class HotReloadBot(commands.Bot):
             if ext_name.startswith(f'{COGS_DIR}.') and ext_name not in current_cogs:
                 try:
                     await self.unload_extension(ext_name)
-                    bot_utils.defer_message(self, bot_utils.Users.Leighton, f"Successfully unloaded REMOVED cog: {ext_name}")
                     logger.info(f"Successfully unloaded REMOVED cog: {ext_name}")
                 except Exception as e:
-                    bot_utils.defer_message(self, bot_utils.Users.Leighton, f"Failed to unload removed cog {ext_name}: {e}")
                     logger.error(f"Failed to unload removed cog {ext_name}: {e}")
 
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Syncing...')
         logger.info('Syncing...')
         self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Paradise))
         synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Paradise))
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, f'Synced: {synced}')
         logger.info(f'Synced: {synced}')
 
         status = {
-            "status": "Cogs reloaded successfully",
-            "reloaded": reloaded_cogs,
-            "failed": failed_cogs
+            'status': 'Cogs reloaded successfully',
+            'reloaded': reloaded_cogs,
+            'failed': failed_cogs,
+            'synced': [str(c) for c in synced]
         }
         bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
         return status
