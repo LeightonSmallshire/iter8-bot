@@ -45,7 +45,7 @@ class TimeoutsCog(commands.Cog):
         timeout_extended = (before.timed_out_until is not None) and \
                            (after.timed_out_until is not None) and \
                            (before.timed_out_until < after.timed_out_until)
-        
+
         duration_to_add = datetime.timedelta(seconds=0)
         if timeout_applied:
             duration_to_add = after.timed_out_until - now
@@ -54,7 +54,7 @@ class TimeoutsCog(commands.Cog):
         else:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        #db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
+        # db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
@@ -105,83 +105,19 @@ class TimeoutsCog(commands.Cog):
         Listener for unhandled errors that occur during event processing.
         This provides a catch-all for logic errors not caught by a command error handler.
         """
-        await bot_utils.send_dm_to_user(1416017385596653649, 'error incoming')
+        bot_utils.defer_message(self.bot_, bot_utils.Users.Leighton, 'error incoming')
 
         buf = io.StringIO()
         traceback.print_exc(file=buf)
         message = f'Event: {event}\nArgs: {args}\nkwargs: {kwargs}\nTraceback:\n{buf.read()}'
-        # await self.bot_.get_user(1416017385596653649).send(content=message)
-        await bot_utils.send_dm_to_user(1416017385596653649, message)
+        # await self.bot_.get_user(bot_utils.Users.Leighton).send(content=message)
+        bot_utils.defer_message(self.bot_, bot_utils.Users.Leighton, message)
 
         print(f'Ignoring exception in {event}')
         print("----- ERROR TRACEBACK -----")
         traceback.print_exc(file=sys.stderr)
         print("---------------------------")
         # In a real bot, you might send this traceback to a private log channel.
-
-    @commands.Cog.listener()
-    @commands.check(bot_utils.is_guild_paradise)
-    async def on_message(self, message: discord.Message):
-        if 'bot broken' in message.content:
-            await message.reply('No U')
-
-    @app_commands.command(name='crash')
-    @commands.check(bot_utils.is_guild_paradise)
-    async def do_crash(self, interaction:discord.Interaction):
-        if interaction.user.id != bot_utils.Users.Leighton:
-            return await interaction.response.send_message("No dont do it")
-
-        os.abort()
-        interaction.response.send_message('past abort somehow')
-
-    @app_commands.command(name='bash')
-    @commands.check(bot_utils.is_guild_paradise)
-    async def do_bash(self, interaction: discord.Interaction, command: str):
-        if interaction.user.id != bot_utils.Users.Leighton:
-            return await interaction.response.send_message("No shell 4 U")
-
-        try:
-            await interaction.response.defer(ephemeral=True, thinking=True)
-            process = await asyncio.create_subprocess_shell(
-                cmd=command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-
-            stdout, stderr = await process.communicate()
-            stdout = stdout.decode().strip()
-            stderr = stderr.decode().strip()
-
-            message = f'Command: {command}\n'\
-                f'Exit code: {process.returncode}\n'\
-                f'{stdout}\n\n'\
-                f'{stderr}'
-
-            message = f'{message}  - {len(message)}'
-
-            # if len(message) < 2000 and not command.startswith('cat'):
-            #     await interaction.followup.send(content=f'```{message}```'`)
-            # else:
-            if True:
-                files = []
-                
-                if len(stdout) > 0:
-                    files.append( discord.File(io.StringIO(stdout), 'stdout.txt'))
-                if len(stderr) > 0:
-                    files.append( discord.File(io.StringIO(stderr), 'stderr.txt'))
-                await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
-
-            # await interaction.user.send(content=message)
-            # await interaction.response.send_message(message, ephemeral=True)
-            # await interaction.followup.send(message, ephemeral=True)
-        except BaseException as e:
-            buf = io.StringIO()
-            traceback.print_exc(file=buf)
-            message = f'Event: {e}\nTraceback:\n{buf.read()}'
-            await interaction.user.send(message)
-
-            user = self.bot_.get_user(1416017385596653649)
-            await interaction.user.send(repr(user))
 
     # --- Slash Command ---
 
@@ -193,9 +129,9 @@ class TimeoutsCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
-        
+
         leaderboard = await bot_utils.get_timeout_data(interaction.guild)
-        #leaderboard = db_utils.get_timeout_leaderboard()
+        # leaderboard = db_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',
@@ -245,24 +181,11 @@ class TimeoutsCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def send_message(bot, message):
-    while not bot.is_ready():
-        await asyncio.sleep(1)
-    
-    paradise = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
-    leighton = discord.utils.get(paradise.members, id=bot_utils.Users.Leighton)
-    await leighton.send(message)
-
-
-
 async def setup(bot: commands.Bot):
-    # await bot_utils.send_dm_to_user(1416017385596653649, 'error incoming')
-    
-    asyncio.create_task(send_message(bot, 'timeout setup'))
-    
+    bot_utils.defer_message(bot, bot_utils.Users.Leighton, 'timeout setup')
+
     await bot.add_cog(TimeoutsCog(bot))
 
-# Optional: You can also include an 'async def teardown(bot: commands.Bot):' function
-# to clean up resources when the cog is unloaded.
-# async def teardown(bot: commands.Bot):
-#     print(f"Cog '{ModerationCog.qualified_name}' unloaded.")
+
+async def teardown(bot: commands.Bot):
+    bot_utils.defer_message(bot, bot_utils.Users.Leighton, 'timeout teardown')

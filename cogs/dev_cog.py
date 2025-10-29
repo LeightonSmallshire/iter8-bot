@@ -22,8 +22,8 @@ class DevCog(commands.Cog):
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
-    async def get_logs(self, interaction: discord.Interaction, level: Optional[str]=None):
-        rows = []#db_utils.read_logs(level=level)
+    async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None):
+        rows = []  # db_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
             return
@@ -39,37 +39,77 @@ class DevCog(commands.Cog):
     @app_commands.command(name='download')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_bash(self, interaction: discord.Interaction, path: str):
-        if interaction.user.id != bot_utils.Users.Leighton and interaction.user.id != bot_utils.Users.Nathan:
+        if interaction.user.id not in bot_utils.Misc.TrustedDevelopers:
             return await interaction.response.send_message("No files 4 U")
 
         file = discord.File(path)
         await interaction.response.send_message(file=file, ephemeral=True)
-        
 
-    # @app_commands.command(name='bash2')
-    # # @commands.check(bot_utils.is_leighton)
-    # async def do_bash(self, ctx: discord.Interaction, command: str):
-    #     if ctx.user.id != bot_utils.Users.Leighton:
-    #         return await ctx.response.send_message("No shell 4 U")
+    @commands.Cog.listener()
+    @commands.check(bot_utils.is_guild_paradise)
+    async def on_message(self, message: discord.Message):
+        if 'bot broken' in message.content:
+            await message.reply('No U')
 
-    #     await ctx.response.defer(ephemeral=True, thinking=True)
+    @app_commands.command(name='crash')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_crash(self, interaction: discord.Interaction):
+        if interaction.user.id == bot_utils.Users.Tom:
+            return await interaction.response.send_message('Damn it Tom')
+        if interaction.user.id != bot_utils.Users.Leighton:
+            return await interaction.response.send_message("No dont do it")
 
-    #     process = await asyncio.create_subprocess_shell(
-    #         cmd=command,
-    #         stdout=asyncio.PIPE,
-    #         stderr=asyncio.PIPE,
-    #     )
+        os.abort()
+        interaction.response.send_message('past abort somehow')
 
-    #     stdout, stderr = await process.communicate()
-    #     return_code = await process.returncode()
-
-    #     stdout = stdout.decode().strip()
-    #     stderr = stderr.decode().strip()
-
-    #     message = f'Exit code: {return_code}\n\n{stdout}\n\n{stderr}'
-
-    #     await ctx.followup.send(content=message)
-        
+    # @app_commands.command(name='bash')
+    # @commands.check(bot_utils.is_guild_paradise)
+    # async def do_bash(self, interaction: discord.Interaction, command: str):
+    #     if interaction.user.id != bot_utils.Users.Leighton:
+    #         return await interaction.response.send_message("No shell 4 U")
+    #
+    #     try:
+    #         await interaction.response.defer(ephemeral=True, thinking=True)
+    #         process = await asyncio.create_subprocess_shell(
+    #             cmd=command,
+    #             stdout=subprocess.PIPE,
+    #             stderr=subprocess.PIPE,
+    #         )
+    #
+    #         stdout, stderr = await process.communicate()
+    #         stdout = stdout.decode().strip()
+    #         stderr = stderr.decode().strip()
+    #
+    #         message = f'Command: {command}\n'\
+    #             f'Exit code: {process.returncode}\n'\
+    #             f'{stdout}\n\n'\
+    #             f'{stderr}'
+    #
+    #         message = f'{message}  - {len(message)}'
+    #
+    #         # if len(message) < 2000 and not command.startswith('cat'):
+    #         #     await interaction.followup.send(content=f'```{message}```'`)
+    #         # else:
+    #         if True:
+    #             files = []
+    #
+    #             if len(stdout) > 0:
+    #                 files.append( discord.File(io.StringIO(stdout), 'stdout.txt'))
+    #             if len(stderr) > 0:
+    #                 files.append( discord.File(io.StringIO(stderr), 'stderr.txt'))
+    #             await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
+    #
+    #         # await interaction.user.send(content=message)
+    #         # await interaction.response.send_message(message, ephemeral=True)
+    #         # await interaction.followup.send(message, ephemeral=True)
+    #     except BaseException as e:
+    #         buf = io.StringIO()
+    #         traceback.print_exc(file=buf)
+    #         message = f'Event: {e}\nTraceback:\n{buf.read()}'
+    #         await interaction.user.send(message)
+    #
+    #         user = self.bot_.get_user(1416017385596653649)
+    #         await interaction.user.send(repr(user))
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
@@ -150,9 +190,6 @@ class DevCog(commands.Cog):
 #             await ctx.send("File tree successfully sent to your DMs.")
 #         except discord.Forbidden:
 #             await ctx.send("I couldn't DM you. Please check your privacy settings to allow DMs from server members.")
-
-#     async def download(self, ctx):
-#         pass
 
 
 async def setup(bot: commands.Bot):
