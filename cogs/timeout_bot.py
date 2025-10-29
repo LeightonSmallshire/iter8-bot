@@ -130,6 +130,9 @@ class TimeoutsCog(commands.Cog):
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
 
+        # Getting leaderboard might take time
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         leaderboard = await bot_utils.get_timeout_data(interaction.guild)
         # leaderboard = db_utils.get_timeout_leaderboard()
 
@@ -156,7 +159,7 @@ class TimeoutsCog(commands.Cog):
             embed.add_field(name=field_name, value=value, inline=False)
 
         # Send the final response
-        await interaction.response.send_message(embed=embed, ephemeral=False)
+        await interaction.followup.send(embed=embed, ephemeral=False)
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
