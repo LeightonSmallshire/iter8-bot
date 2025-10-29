@@ -23,9 +23,9 @@ class DevCog(commands.Cog):
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
     async def get_logs(self, interaction: discord.Interaction, level: Optional[str]=None):
-        rows = db_utils.read_logs(level=level)
+        rows = []#db_utils.read_logs(level=level)
         if not rows:
-            await interaction.response.send_message("No logs found.")
+            await interaction.response.send_message("No logs found.", ephemeral=True)
             return
 
         formatted = []
