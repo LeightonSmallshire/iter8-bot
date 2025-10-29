@@ -182,10 +182,4 @@ class TimeoutsCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-    bot_utils.defer_message(bot, bot_utils.Users.Leighton, 'timeout setup')
-
     await bot.add_cog(TimeoutsCog(bot))
-
-
-async def teardown(bot: commands.Bot):
-    bot_utils.defer_message(bot, bot_utils.Users.Leighton, 'timeout teardown')

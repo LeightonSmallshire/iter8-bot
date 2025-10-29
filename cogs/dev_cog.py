@@ -48,16 +48,20 @@ class DevCog(commands.Cog):
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
     async def on_message(self, message: discord.Message):
-        if 'bot broken' in message.content:
+        if 'bot broken' in message.content.lower():
             await message.reply('No U')
+        if 'boot broekn' in message.content.lower():
+            await message.reply('No U booken')
 
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction: discord.Interaction):
         if interaction.user.id == bot_utils.Users.Tom:
-            return await interaction.response.send_message('Damn it Tom')
-        if interaction.user.id != bot_utils.Users.Leighton:
-            return await interaction.response.send_message("No dont do it")
+            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
+            return await interaction.response.send_message('Stop it Tom')
+        if not bot_utils.is_trusted_developer(interaction):
+            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
+            return await interaction.response.send_message('No')
 
         os.abort()
         interaction.response.send_message('past abort somehow')
