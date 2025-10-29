@@ -54,7 +54,7 @@ class TimeoutsCog(commands.Cog):
         else:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
+        #db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
@@ -194,7 +194,8 @@ class TimeoutsCog(commands.Cog):
     async def command_show_leaderboard(self, interaction: discord.Interaction):
         """Generates and displays the timeout leaderboard from audit logs."""
         
-        leaderboard = db_utils.get_timeout_leaderboard()
+        leaderboard = await bot_utils.get_timeout_data(interaction.guild)
+        #leaderboard = db_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',

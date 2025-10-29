@@ -118,8 +118,8 @@ class HotReloadBot(commands.Bot):
         leighton = discord.utils.get(paradise.members, id=1416017385596653649)
         await leighton.send('setup')
 
-        leaderboard = await bot_utils.get_timeout_data(paradise)
-        db_utils.init_database(leaderboard)
+        #leaderboard = await bot_utils.get_timeout_data(server)
+        #db_utils.init_database(leaderboard)
 
         try:
             await git_pull_and_reset()

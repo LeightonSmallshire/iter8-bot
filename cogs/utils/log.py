@@ -4,6 +4,7 @@ import logging
 class DatabaseHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            write_log(record.levelname, record.getMessage())
+            pass
+            #write_log(record.levelname, record.getMessage())
         except Exception:
             self.handleError(record)
