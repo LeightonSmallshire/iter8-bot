@@ -33,7 +33,7 @@ def is_guild_paradise(ctx):
 
 
 def is_trusted_developer(ctx: discord.Interaction):
-    return ctx.user in [Users.Leighton, Users.Nathan]
+    return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
 # async def send_dm_to_user(bot, user_id, message):
