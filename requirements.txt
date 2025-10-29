@@ -14,4 +14,3 @@ matplotlib
 pillow
 beautifulsoup4
 numba
-aiosqlite
