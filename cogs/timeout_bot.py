@@ -131,7 +131,7 @@ class TimeoutsCog(commands.Cog):
         """Generates and displays the timeout leaderboard from audit logs."""
 
         # Getting leaderboard might take time
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(thinking=True)
 
         leaderboard = await bot_utils.get_timeout_data(interaction.guild)
         # leaderboard = db_utils.get_timeout_leaderboard()
