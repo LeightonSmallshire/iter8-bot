@@ -5,7 +5,11 @@ import asyncio
 class DatabaseHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            asyncio.create_task(self._run_log(record))
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(self._run_log(record))
+            else:
+                loop.run_until_complete(self._run_log(record))
         except Exception:
             self.handleError(record)
 
