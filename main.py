@@ -38,8 +38,14 @@ try:
     assert __name__ == "__main__", 'Must be run directly'
 
     # --- Configuration ---
-    DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
+    # DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
+
+    DISCORD_TOKEN = 'MTQyNTQ4MzU3NzU4NzUzMTg4Ng.Gg15_P.' \
+                    'v53DG_IEsaihKUqK2PXrqVGCoD7CNEfsA2JQTg'
+
     COGS_DIR = "cogs"
+
+    os.makedirs('data', exist_ok=True)
 
     # --- Logging Setup ---
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
