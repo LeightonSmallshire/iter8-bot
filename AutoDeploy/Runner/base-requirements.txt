@@ -1,0 +1,17 @@
+uvicorn
+discord~=2.3.2
+fastapi~=0.120.0
+fastapi[standard]~=0.120.0
+gitpython~=3.1.45
+json5
+scipy
+numpy
+tqdm
+# opencv
+selenium
+pandas
+matplotlib
+pillow
+beautifulsoup4
+numba
+aiohttp
