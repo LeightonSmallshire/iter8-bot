@@ -71,20 +71,6 @@ def restart():
         IMAGE_NAME
     ], check=True)
 
-    # subprocess.run([
-    #     'docker',
-    #     'compose',
-    #     '-f', 'Runner/docker-compose.yml',
-    #     '-p', 'v4-run',
-    #     'up',
-    #     '--always-recreate-deps',
-    #     '--renew-anon-volumes',
-    #     '--remove-orphans',
-    #     '--force-recreate',
-    #     '-d',
-    #     '--build',
-    #     'iter8-runner'
-    # ], check=True, env=build_env)
     print('Worker rebuilt and restarted.')
     do_hook('Worker rebuilt and restarted.')
 
