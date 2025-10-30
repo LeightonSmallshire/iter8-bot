@@ -66,9 +66,9 @@ try:
             logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
             bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
 
-            # server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
-            # leaderboard = await bot_utils.get_timeout_data(server)
-            # await db_utils.init_database(leaderboard)
+            server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
+            leaderboard = await bot_utils.get_timeout_data(server)
+            await db_utils.init_database(leaderboard)
 
             await self.hot_reload_cogs()
 
