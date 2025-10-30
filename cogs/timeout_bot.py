@@ -12,9 +12,9 @@ import subprocess
 import os
 import io
 
-import cogs.utils.bot as bot_utils
-import cogs.utils.database as db_utils
-import cogs.utils.log as log_utils
+import utils.bot as bot_utils
+import utils.database as db_utils
+import utils.log as log_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('logs.log'))

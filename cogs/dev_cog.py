@@ -1,9 +1,9 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import cogs.utils.bot as bot_utils
-import cogs.utils.database as db_utils
-import cogs.utils.log as log_utils
+import utils.bot as bot_utils
+import utils.database as db_utils
+import utils.log as log_utils
 from typing import Optional
 import os
 import datetime
