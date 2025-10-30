@@ -175,7 +175,7 @@ async def update_timeout_leaderboard(user: int, duration: float):
             timeout = timeouts_for_user[0]
             timeout.count += 1 if duration > 0 else 0
             timeout.duration += duration
-            await db.update(timeout, "id=?", (user,))
+            await db.update(timeout, [WhereParam("id", user)])
         else:
             timeout = Timeout(user, 1 if duration > 0 else 0, duration)
             await db.insert(timeout)
