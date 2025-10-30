@@ -1,10 +1,12 @@
 import asyncio
+import glob
 import discord
 from discord import app_commands
 from discord.ext import commands
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
+import utils.files
 from typing import Optional
 import io
 import os
@@ -30,7 +32,7 @@ class DevCog(commands.Cog):
     async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No logs 4 U")
-        
+
         rows = await db_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
@@ -47,14 +49,34 @@ class DevCog(commands.Cog):
         else:
             await interaction.response.send_message(content=msg, ephemeral=True)
 
+    async def autocomplete_path(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        current = os.path.expanduser(os.path.expandvars(current))
+
+        if os.path.isdir(current):
+            pattern = os.path.join(current, "*")
+        else:
+            pattern = f'{current}*'
+
+        choices = [(f'{match}/' if os.path.isdir(match) else match)
+                   for match in glob.glob(pattern)]
+
+        return [app_commands.Choice(name=s, value=s) for s in choices]
+
     @app_commands.command(name='download')
+    @app_commands.autocomplete(path=autocomplete_path)
     @commands.check(bot_utils.is_guild_paradise)
     async def do_download(self, interaction: discord.Interaction, path: str):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No files 4 U")
 
-        file = discord.File(path)
-        await interaction.response.send_message(file=file, ephemeral=True)
+        if os.path.isdir(path):
+            zip_dir = utils.files.zip_directory(path)
+            file = discord.File(zip_dir, f'{path}.zip')
+            return await interaction.response.send_message(file=file, ephemeral=True)
+
+        elif os.path.isfile(path):
+            file = discord.File(path)
+            return await interaction.response.send_message(file=file, ephemeral=True)
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
