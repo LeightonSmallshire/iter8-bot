@@ -10,7 +10,7 @@ import datetime
 import logging
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 

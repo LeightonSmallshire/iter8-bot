@@ -53,7 +53,7 @@ try:
 
     # file_handler.setLevel(logging.DEBUG)
     # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    logger.addHandler(logging.FileHandler('logs.log'))
+    logger.addHandler(logging.FileHandler('data/logs.log'))
     logger.addHandler(log_utils.DatabaseHandler())
 
     do_hook('loggers work')
