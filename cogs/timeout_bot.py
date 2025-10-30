@@ -55,7 +55,7 @@ class TimeoutsCog(commands.Cog):
         elif timeout_extended:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        # await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
+        await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
@@ -134,8 +134,7 @@ class TimeoutsCog(commands.Cog):
         # Getting leaderboard might take time
         await interaction.response.defer(thinking=True)
 
-        leaderboard = await bot_utils.get_timeout_data(interaction.guild)
-        # leaderboard = await db_utils.get_timeout_leaderboard()
+        leaderboard = await db_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',
