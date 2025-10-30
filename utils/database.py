@@ -1,4 +1,5 @@
 import aiosqlite
+import sqlite3
 import datetime
 from .model import *
 from dataclasses import dataclass, fields, asdict, Field
@@ -18,6 +19,8 @@ class OrderParam:
 class Database:
     def __init__(self, path: str):
         self.path = path
+        aiosqlite.register_adapter(datetime.datetime, lambda d: d.isoformat(timespec="seconds"))
+        aiosqlite.register_converter("DATETIME", lambda b: datetime.datetime.fromisoformat(b.decode()))
         
     async def close(self) -> None:
         await self.con.close()
@@ -26,7 +29,7 @@ class Database:
         await self.con.commit()
 
     async def __aenter__(self):
-        self.con = await aiosqlite.connect(self.path)
+        self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.con.row_factory = aiosqlite.Row
         return self
 
