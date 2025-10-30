@@ -38,10 +38,14 @@ class DevCog(commands.Cog):
 
         formatted = []
         for r in rows:
-            formatted.append(f"[{r.timestamp:%Y-%m-%d %H:%M:%S}] [{r.level}] {r.message}")
+            formatted.append(f"[{r.timestamp}] [{r.level}] {r.message}")
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
-        await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
+        if len(msg) > 1950:
+            file = discord.file.File(io.StringIO(msg), 'database.log')
+            await interaction.response.send_message(file=msg, ephemeral=True)
+        else:
+            await interaction.response.send_message(content=msg, ephemeral=True)
 
     @app_commands.command(name='download')
     @commands.check(bot_utils.is_guild_paradise)
