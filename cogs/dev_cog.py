@@ -1,29 +1,30 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import cogs.utils.bot as bot_utils
-import cogs.utils.database as db_utils
-import cogs.utils.log as log_utils
+import utils.bot as bot_utils
+import utils.database as db_utils
+import utils.log as log_utils
 from typing import Optional
 import os
 import datetime
 import logging
 
 _log = logging.getLogger(__name__)
-_log.addHandler(log_utils.DatabaseHandler())
 _log.addHandler(logging.FileHandler('logs.log'))
+_log.addHandler(log_utils.DatabaseHandler())
 
 
 class DevCog(commands.Cog):
-    def __init__(self, bot: discord.Client):
+    def __init__(self, client: discord.Client):
+        self.bot_ = client
         super().__init__()
-        self.bot_ = bot
+        _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
     async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None):
-        rows = []  # db_utils.read_logs(level=level)
+        rows = []  # await db_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
             return

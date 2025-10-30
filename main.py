@@ -1,20 +1,15 @@
-# import json
-# import os
-# import logging
-import time
-#
-# import cogs.utils.bot as bot_utils
-# import cogs.utils.database as db_utils
-# import cogs.utils.log as log_utils
-# import discord
-# from discord.ext import commands
+import json
+import os
+import logging
+
+import utils.bot as bot_utils
+import utils.database as db_utils
+import utils.log as log_utils
+import discord
+from discord.ext import commands
 
 assert __name__ == "__main__", 'Must be run directly'
 
-
-while True:
-    print('hello world')
-    time.sleep(10)
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
@@ -29,18 +24,17 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.FileHandler('logs.log'))
 logger.addHandler(log_utils.DatabaseHandler())
 
-
 class HotReloadBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
     async def on_ready(self):
-        """Starts the FastAPI server once the bot is connected."""
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
         bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
 
+        # server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
         # leaderboard = await bot_utils.get_timeout_data(server)
-        # db_utils.init_database(leaderboard)
+        # await db_utils.init_database(leaderboard)
 
         await self.hot_reload_cogs()
 
