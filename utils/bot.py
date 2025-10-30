@@ -9,14 +9,14 @@ from .model import Timeout
 
 class Guilds:
     TestServer = 1427287847085281382
-    Paradise = TestServer
+    Paradise = 1416007094339113071
     Innov8 = 1325821294427766784
     Innov8_DevOps = 1425873966035238975
 
 
 class Users:
     Nathan = 1326156803108503566
-    Leighton = Nathan
+    Leighton = 1416017385596653649
     Charlotte = 1401855871633330349
     Ed = 1356197937520181339
     Matt = 1333425159729840188
@@ -25,8 +25,8 @@ class Users:
 
 class Channels:
     TestServerBotSpam = 1432698704191815680
-    ParadiseBotBrokenSpam = TestServerBotSpam
-    ParadiseClockwork = TestServerBotSpam
+    ParadiseBotBrokenSpam = 1427971106920202240
+    ParadiseClockwork = 1416059475873239181
 
 
 def is_guild_paradise(ctx):
