@@ -38,7 +38,7 @@ class DevCog(commands.Cog):
 
         formatted = []
         for r in rows:
-            formatted.append(f"[{r.timestamp}] [{r.level}] {r.message}")
+            formatted.append(f"[{r.timestamp:%Y-%m-%d %H:%M:%S}] [{r.level}] {r.message}")
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         if len(msg) > 1950:
