@@ -10,6 +10,7 @@ import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.database as db_utils
+from view.shop_view import ShopView
 from typing import Optional
 
 _log = logging.getLogger(__name__)
@@ -29,21 +30,20 @@ class ShopCog(commands.Cog):
     async def command_display_shop(self, interaction: discord.Interaction):
         """Generates and displays the timeout shop."""
 
-        # Getting leaderboard might take time
         await interaction.response.defer(thinking=True)
 
         shop = await db_utils.get_shop_contents()
 
-        embed = discord.Embed(
-            title='Timeout Shop 🛒',
-            color=discord.Color.blue()
-        )
-
+        embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
         for item in shop:
-            embed.add_field(name=item.description, value=f"Price: {datetime.timedelta(seconds=item.cost)}", inline=False)
-            
-        # Send the final response
-        await interaction.followup.send(embed=embed, ephemeral=False)
+            embed.add_field(
+                name=item.description,
+                value=f"Price: {datetime.timedelta(seconds=item.cost)}",
+                inline=False,
+            )
+
+        view = ShopView(shop)
+        await interaction.followup.send(embed=embed, view=view)
 
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
