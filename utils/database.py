@@ -181,7 +181,7 @@ async def write_log(level: str, message: str) -> None:
 async def read_logs(limit: int=100, level: Optional[str]=None):
     async with Database(DATABASE_NAME) as db:
         params = [WhereParam("level", level)] if level is not None else []
-        logs = await db.select(Log, params=[WhereParam("level", level)], order=[OrderParam("id", True)], limit=limit)
+        logs = await db.select(Log, params=params, order=[OrderParam("id", True)], limit=limit)
         logs.reverse()
         return logs
     
