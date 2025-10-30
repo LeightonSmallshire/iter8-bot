@@ -1,6 +1,8 @@
 import json
 import os
 import logging
+import time
+
 import cogs.utils.bot as bot_utils
 import cogs.utils.database as db_utils
 import cogs.utils.log as log_utils
@@ -8,6 +10,11 @@ import discord
 from discord.ext import commands
 
 assert __name__ == "__main__", 'Must be run directly'
+
+
+while True:
+    print('hello world')
+    time.sleep(10)
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
