@@ -13,12 +13,12 @@ from typing import Optional
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('logs.log'))
+_log.addHandler(log_utils.DatabaseHandler())
 
 
 class BotBrokenCog(commands.Cog):
     def __init__(self, client: discord.Client):
         self.bot_ = client
-        _log.addHandler(log_utils.DatabaseHandler(client.loop))
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
 

@@ -3,12 +3,15 @@ import logging
 import asyncio
     
 class DatabaseHandler(logging.Handler):
-    def __init__(self, loop):
-        self.loop = loop
-
     def emit(self, record: logging.LogRecord) -> None:
         try:
-            fut = asyncio.run_coroutine_threadsafe(write_log(record.levelname, record.getMessage()), self.loop)
-            fut.result()
+            asyncio.create_task(self._run_log(record))
         except Exception:
             self.handleError(record)
+
+    async def _run_log(self, record: logging.LogRecord):
+        try:
+            await write_log(record.levelname, record.getMessage())
+        except Exception:
+            self.handleError(record)
+
