@@ -102,25 +102,33 @@ class Database:
             sql += " AND " if idx > 0 else " WHERE "
             sql += f"{param.field} = ?"          
 
-    
-
         for idx, param in enumerate(order):
             sql += " ORDER BY " if idx == 0 else ", "
-            sql += f"{param.field} {"DESC" if param.descending else ""}"
+            sql += f"{param.field} {'DESC' if param.descending else ''}"
 
         cur = await self.con.execute(sql, [p.value for p in params])
         results = await cur.fetchmany(limit) if limit else await cur.fetchall()
         return [model(**dict(row)) for row in results]
 
-    async def update(self, obj: T, where: str, params: tuple[Any]) -> None:
+    async def update(self, obj: T, params: list[WhereParam] = []) -> None:
         data = asdict(obj)
         assigns = ", ".join(f"{k}=?" for k in data.keys())
-        sql = f"UPDATE {python_to_table_name(type(obj))} SET {assigns} WHERE {where}"
-        await self.con.execute(sql, tuple(data.values()) + params)
+        sql = f"UPDATE {python_to_table_name(type(obj))} SET {assigns}"
+        
+        for idx, param in enumerate(params):            
+            sql += " AND " if idx > 0 else " WHERE "
+            sql += f"{param.field} = ?"        
+            
+        await self.con.execute(sql, list(data.values()) + [p.value for p in params])
 
-    async def delete(self, model: Type[T], where: str, params: tuple[Any]) -> None:
-        sql = f"DELETE FROM {python_to_table_name(model)} WHERE {where}"
-        await self.con.execute(sql, params)
+    async def delete(self, model: Type[T], params: list[WhereParam] = []) -> None:
+        sql = f"DELETE FROM {python_to_table_name(model)}"
+        
+        for idx, param in enumerate(params):            
+            sql += " AND " if idx > 0 else " WHERE "
+            sql += f"{param.field} = ?"       
+
+        await self.con.execute(sql, [p.value for p in params])
 
 
 DATABASE_NAME = "data/storage.db"
@@ -160,6 +168,10 @@ async def update_timeout_leaderboard(user: int, duration: float):
             timeout = Timeout(user, 1 if duration > 0 else 0, duration)
             await db.insert(timeout)
 
+
+async def erase_timeout_user(user: int):
+    async with Database(DATABASE_NAME) as db:
+        await db.delete(Timeout, [WhereParam("id", user), ])
 
 async def write_log(level: str, message: str) -> None:
     async with Database(DATABASE_NAME) as db:

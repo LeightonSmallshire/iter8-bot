@@ -146,7 +146,10 @@ class TimeoutsCog(commands.Cog):
             value = (f"**{timeout.count}** Timeout{'s' if timeout.count != 1 else ''}"
                      + f' {datetime.timedelta(seconds=round(timeout.duration))}')
 
-            user = await interaction.guild.fetch_member(timeout.id)
+            try:
+                user = await interaction.guild.fetch_member(timeout.id)
+            except:
+                await db_utils.erase_timeout_user(timeout.id)
 
             if rank == 1:
                 field_name = f"🥇 {user.display_name}"
