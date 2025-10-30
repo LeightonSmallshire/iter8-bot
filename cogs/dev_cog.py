@@ -1,3 +1,4 @@
+import asyncio
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -5,9 +6,12 @@ import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
 from typing import Optional
+import io
 import os
 import datetime
 import logging
+import subprocess
+import traceback
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log'))
@@ -70,54 +74,33 @@ class DevCog(commands.Cog):
         os.abort()
         interaction.response.send_message('past abort somehow')
 
-    # @app_commands.command(name='bash')
-    # @commands.check(bot_utils.is_guild_paradise)
-    # async def do_bash(self, interaction: discord.Interaction, command: str):
-    #     if interaction.user.id != bot_utils.Users.Leighton:
-    #         return await interaction.response.send_message("No shell 4 U")
-    #
-    #     try:
-    #         await interaction.response.defer(ephemeral=True, thinking=True)
-    #         process = await asyncio.create_subprocess_shell(
-    #             cmd=command,
-    #             stdout=subprocess.PIPE,
-    #             stderr=subprocess.PIPE,
-    #         )
-    #
-    #         stdout, stderr = await process.communicate()
-    #         stdout = stdout.decode().strip()
-    #         stderr = stderr.decode().strip()
-    #
-    #         message = f'Command: {command}\n'\
-    #             f'Exit code: {process.returncode}\n'\
-    #             f'{stdout}\n\n'\
-    #             f'{stderr}'
-    #
-    #         message = f'{message}  - {len(message)}'
-    #
-    #         # if len(message) < 2000 and not command.startswith('cat'):
-    #         #     await interaction.followup.send(content=f'```{message}```'`)
-    #         # else:
-    #         if True:
-    #             files = []
-    #
-    #             if len(stdout) > 0:
-    #                 files.append( discord.File(io.StringIO(stdout), 'stdout.txt'))
-    #             if len(stderr) > 0:
-    #                 files.append( discord.File(io.StringIO(stderr), 'stderr.txt'))
-    #             await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
-    #
-    #         # await interaction.user.send(content=message)
-    #         # await interaction.response.send_message(message, ephemeral=True)
-    #         # await interaction.followup.send(message, ephemeral=True)
-    #     except BaseException as e:
-    #         buf = io.StringIO()
-    #         traceback.print_exc(file=buf)
-    #         message = f'Event: {e}\nTraceback:\n{buf.read()}'
-    #         await interaction.user.send(message)
-    #
-    #         user = self.bot_.get_user(1416017385596653649)
-    #         await interaction.user.send(repr(user))
+    @app_commands.command(name='bash')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_bash(self, interaction: discord.Interaction, command: str):
+        if not bot_utils.is_trusted_developer(interaction):
+            return await interaction.response.send_message("No shell 4 U")
+
+        try:
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            process = await asyncio.create_subprocess_shell(
+                cmd=command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            stdout, stderr = await process.communicate()
+            stdout = stdout.decode().strip()
+            stderr = stderr.decode().strip()
+
+            files = []
+
+            if len(stdout) > 0:
+                files.append(discord.File(io.StringIO(stdout), 'stdout.txt'))
+            if len(stderr) > 0:
+                files.append(discord.File(io.StringIO(stderr), 'stderr.txt'))
+            await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
+        except BaseException as e:
+            await interaction.user.send("".join(traceback.format_exc()))
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
@@ -134,70 +117,6 @@ class DevCog(commands.Cog):
             pass
         else:
             _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
-
-
-# class FilesystemCog(commands.Cog):
-#     def __init__(self, bot):
-#         self.bot = bot
-
-#     def _get_file_tree(self, start_dir='.'):
-#         output = []
-#         EXCLUDED_DIRS = {'.git', '__pycache__',
-#                          'venv', 'node_modules', '.idea'}
-#         EXCLUDED_FILES = ['.DS_Store', 'Thumbs.db', 'LICENSE', 'README.md']
-
-#         def walk_dir(root, prefix=""):
-#             try:
-#                 items = os.listdir(root)
-#             except Exception:
-#                 return
-
-#             dirs = sorted([d for d in items if os.path.isdir(
-#                 os.path.join(root, d)) and d not in EXCLUDED_DIRS])
-#             files = sorted([f for f in items if os.path.isfile(
-#                 os.path.join(root, f)) and f not in EXCLUDED_FILES])
-
-#             all_items = dirs + files
-
-#             for index, item in enumerate(all_items):
-#                 path = os.path.join(root, item)
-#                 is_last = index == len(all_items) - 1
-#                 pointer = "└── " if is_last else "├── "
-#                 output.append(f"{prefix}{pointer}{item}")
-
-#                 if os.path.isdir(path):
-#                     new_prefix = prefix + ("    " if is_last else "│   ")
-#                     walk_dir(path, new_prefix)
-
-#         output.append(f"/{os.path.basename(os.getcwd())}")
-#         try:
-#             walk_dir(start_dir)
-#         except Exception as e:
-#             output.append(f"Error accessing directory: {e}")
-#         return '\n'.join(output)
-
-#     @app_commands.command(name='filetree', description='Show timeout leaderboards')
-#     # @commands.command(name='filetree')
-#     # @commands.is_owner()
-#     async def file_tree_command(self, ctx):
-#         await ctx.defer()
-#         file_tree = self._get_file_tree()
-
-#         chunks = [file_tree[i:i + 1990]
-#                   for i in range(0, len(file_tree), 1990)]
-
-#         if not chunks:
-#             await ctx.author.send("The file tree is empty or could not be generated.")
-#             await ctx.send("File tree failed to generate.")
-#             return
-
-#         try:
-#             await ctx.author.send(f"**File Tree for `{os.getcwd()}`**")
-#             for chunk in chunks:
-#                 await ctx.author.send(f"```\n{chunk}\n```")
-#             await ctx.send("File tree successfully sent to your DMs.")
-#         except discord.Forbidden:
-#             await ctx.send("I couldn't DM you. Please check your privacy settings to allow DMs from server members.")
 
 
 async def setup(bot: commands.Bot):

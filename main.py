@@ -4,6 +4,7 @@ import json
 
 COUNT = 0
 
+
 def do_hook(message: str):
     global COUNT
     try:
@@ -21,8 +22,6 @@ def do_hook(message: str):
 
 
 try:
-    do_hook('startup')
-    
     import json
     import os
     import logging
@@ -32,8 +31,6 @@ try:
     import utils.log as log_utils
     import discord
     from discord.ext import commands
-
-    do_hook('imports work')
 
     assert __name__ == "__main__", 'Must be run directly'
 
@@ -56,8 +53,6 @@ try:
     logger.addHandler(logging.FileHandler('data/logs.log'))
     logger.addHandler(log_utils.DatabaseHandler())
 
-    do_hook('loggers work')
-
     class HotReloadBot(commands.Bot):
         def __init__(self):
             super().__init__(command_prefix="!", intents=discord.Intents.all())
@@ -66,9 +61,9 @@ try:
             logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
             bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
 
-            server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
-            leaderboard = await bot_utils.get_timeout_data(server)
-            await db_utils.init_database(leaderboard)
+            # server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.TestServer)
+            # leaderboard = await bot_utils.get_timeout_data(server)
+            # await db_utils.init_database(leaderboard)
 
             await self.hot_reload_cogs()
 
@@ -127,9 +122,7 @@ try:
     # --- Main Execution ---
     logger.setLevel(logging.DEBUG)
     logger.info("Starting Discord Bot...")
-    
-    do_hook('bot starting')
-    
+
     bot = HotReloadBot()
     bot.run(DISCORD_TOKEN)
 
@@ -139,4 +132,4 @@ except BaseException as e:
     message = ''.join(lines)
     do_hook(message)
     import time
-    time.sleep(600)
+    time.sleep(60 * 60) # 1 hour nap after a bad crash
