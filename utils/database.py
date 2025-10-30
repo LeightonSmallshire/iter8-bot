@@ -136,6 +136,10 @@ class Database:
 
 DATABASE_NAME = "data/storage.db"
 
+
+#-----------------------------------------------------------------
+#   Initialisation
+
 async def init_database(timeout_data: list[Timeout]):
     async with Database(DATABASE_NAME) as db:
         await db.drop_table(Timeout)
@@ -154,6 +158,11 @@ async def init_database(timeout_data: list[Timeout]):
 
         for item in PURCHASE_OPTIONS:
             await db.insert(item)
+
+
+
+#-----------------------------------------------------------------
+#   Timeouts
 
 async def get_timeout_leaderboard() -> list[Timeout]:
     async with Database(DATABASE_NAME) as db:
@@ -176,6 +185,10 @@ async def erase_timeout_user(user: int):
     async with Database(DATABASE_NAME) as db:
         await db.delete(Timeout, [WhereParam("id", user), ])
 
+
+#-----------------------------------------------------------------
+#   Logs
+
 async def write_log(level: str, message: str) -> None:
     async with Database(DATABASE_NAME) as db:
         log = Log(None, datetime.datetime.now(datetime.timezone.utc), level, message)
@@ -189,6 +202,14 @@ async def read_logs(limit: int=100, level: Optional[str]=None):
         return logs
     
 
+
+
+#-----------------------------------------------------------------
+#   Purchases
+
 async def get_shop_contents() -> list[ShopItem]:
     async with Database(DATABASE_NAME) as db:
         return await db.select(ShopItem)
+    
+async def purchase(user: int, item: int):
+    return False, "The shop is not yet open for business. Please come back later."
