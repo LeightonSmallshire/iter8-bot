@@ -38,8 +38,7 @@ class DevCog(commands.Cog):
 
         formatted = []
         for r in rows:
-            ts = datetime.datetime.fromisoformat(r["timestamp"])
-            formatted.append(f"[{ts:%Y-%m-%d %H:%M:%S}] [{r['level']}] {r['message']}")
+            formatted.append(f"[{r.timestamp:%Y-%m-%d %H:%M:%S}] [{r.level}] {r.message}")
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         await interaction.response.send_message(msg[:2000], ephemeral=True)  # Discord limit
