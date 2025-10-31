@@ -93,12 +93,18 @@ class ShopOptionsView(discord.ui.View):
 
             if await db_utils.can_afford_purchase(interaction.user.id, cost):
                 count = duration if duration else 1
-                await db_utils.purchase(interaction.user.id, view.item, count)
-                await shop_utils.do_purchase(interaction, view.item, view.context)
+                try:
+                    await shop_utils.do_purchase(interaction, view.item, view.context)
+                    await db_utils.purchase(interaction.user.id, view.item, count)
 
-                await interaction.edit_original_response(
-                    view=None, content=f"✅ Purchased **{view.item.description}** ({desc})."
-                )
+                    await interaction.edit_original_response(
+                        view=None, content=f"✅ Purchased **{view.item.description}** ({desc})."
+                    )
+                except:
+                    await interaction.edit_original_response(
+                        view=None, content=f"❌ Purchase failed to process."
+                    )
+
             else:
                 await interaction.edit_original_response(
                     view=None, content=f"❌ You can't afford this purchase."

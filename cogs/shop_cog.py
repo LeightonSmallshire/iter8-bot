@@ -55,6 +55,7 @@ class ShopCog(commands.Cog):
         await interaction.response.defer(thinking=True)
         
         credit = await db_utils.get_shop_credit(interaction.user.id)
+        credit = datetime.timedelta(seconds=round(credit.total_seconds()))
 
         await interaction.followup.send(f"💰 You have {credit} worth of credit.")
 
