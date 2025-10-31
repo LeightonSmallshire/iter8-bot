@@ -10,8 +10,10 @@ def zip_directory(path: str):
         for root, _, files in os.walk(path):
             for file in files:
                 file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, start=path)
-                zipf.write(file_path, arcname)
+
+                if os.path.isfile(file_path) and os.access(file_path):
+                    arcname = os.path.relpath(file_path, start=path)
+                    zipf.write(file_path, arcname)
 
     zip_buffer.seek(0)
     return zip_buffer
