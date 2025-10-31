@@ -41,9 +41,12 @@ def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
         payload = json.dumps({'content': message, 'flags': suppress_notifications})
         conn = http.client.HTTPSConnection('discord.com')
         url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
-        if edit_message_id is not None:
-            url = f'{url}/messages/{edit_message_id}'
-        conn.request(method='POST', url=f'{url}?wait=1', body=payload, headers={'Content-Type': 'application/json'})
+        if edit_message_id is None:
+            conn.request(method='POST', url=f'{url}?wait=1',
+                         body=payload, headers={'Content-Type': 'application/json'})
+        else:
+            conn.request(method='PATCH', url=f'{url}/messages/{edit_message_id}?wait=1',
+                         body=payload, headers={'Content-Type': 'application/json'})
         response = conn.getresponse()
 
         response_payload: dict = json.loads(response.read())
@@ -57,8 +60,8 @@ def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
 
 def restart(repo_commit: str | None = None):
     print('Rebuilding worker image and recreating container...')
-    message_suffix = f' ({repo_commit})' if repo_commit else ''
-    message_id = do_hook(f'Restart requested{message_suffix}')
+    message_suffix = f' ({repo_commit[:8]})' if repo_commit else ''
+    message_id = do_hook(f'Update started{message_suffix}')
 
     build_env = os.environ.copy()
     build_env['CACHE_BUST'] = str(time.time_ns())
