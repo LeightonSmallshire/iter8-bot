@@ -56,7 +56,7 @@ class GifCog(commands.Cog):
         
     # --- Slash Command ---
 
-    @app_commands.command(name='rio', description='RIOT!')
+    @app_commands.command(name='riot', description='RIOT!')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_gif_riot(self, interaction: discord.Interaction):
         url = await self.find_best_gif("rioters", 12)
@@ -67,7 +67,7 @@ class GifCog(commands.Cog):
         await interaction.response.send_message(embed=embed)
 
 
-    @app_commands.command(name='rio', description='Fuiyooooh!')
+    @app_commands.command(name='wok', description='Fuiyooooh!')
     @commands.check(bot_utils.is_guild_paradise)
     async def wok(self, interaction: discord.Interaction):
         url = await self.find_best_gif("wok", 10)

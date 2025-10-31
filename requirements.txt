@@ -15,3 +15,4 @@ pillow
 beautifulsoup4
 numba
 aiosqlite
+aiohttp
