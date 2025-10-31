@@ -300,6 +300,8 @@ async def init_database(timeout_data: list[User]):
         
         await db.drop_table(PurchaseHandler)
         await db.create_table(PurchaseHandler)
+
+        await db.create_table(AdminRollInfo)
         
         for timeout in timeout_data:
             await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
@@ -405,21 +407,29 @@ async def can_afford_purchase(user: int, cost: int) -> bool:
 #-----------------------------------------------------------------
 #   Admin Roll
 
-async def get_admin_roll_table() -> list[int]:
+async def get_extra_admin_rolls() -> list[int]:
     async with Database(DATABASE_NAME) as db:
-        users = await db.select(User)
         bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminTicket.id), WhereParam("used", False)])
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", ShopOptions.AdminTicket.id)])
 
-        return [u.id for u in users] + [t.user_id for t in bonus_tickets]
+        return [t.user_id for t in bonus_tickets]
     
-async def use_admin_reroll_token(user: int) -> bool:
+async def use_admin_reroll_token(user: int) -> (bool, str):
     async with Database(DATABASE_NAME) as db:
         tokens = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminReroll.id), WhereParam("used", False)])
         if not tokens:
-            return False
+            return False, "Naughty naughty, you haven't purchased a reroll token."
+
+        roll_info = await db.select(AdminRollInfo, order=[OrderParam("last_roll", True)])
+        roll_info = roll_info[0] if roll_info else AdminRollInfo(0, datetime.datetime.min)
+
+        if datetime.datetime.now() - roll_info.last_roll > datetime.timedelta(minutes=5):
+            return False, "You can only use a reroll within 10 minutes of the admin roll."
         
         token = tokens[0]
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
 
-        return True
+        roll_info.last_roll = datetime.datetime.now()
+        await db.insert_or_update(roll_info)
+
+        return True, None

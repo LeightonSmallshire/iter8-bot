@@ -27,7 +27,8 @@ class AdminRollCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
         if not await bot_utils.is_user_role(interaction, bot_utils.Roles.DiceRoller):
-            await interaction.response.send_message(f"Only <@{bot_utils.Roles.DiceRoller}> may roll the admin.")
+            await interaction.response.send_message(f"Only <@&{bot_utils.Roles.DiceRoller}> may roll the admin.")
+            return
 
         await self.do_admin_roll(interaction, False)
 
@@ -35,8 +36,10 @@ class AdminRollCog(commands.Cog):
     @app_commands.command(name='reroll', description='Use a purchased reroll token to re-roll the admin.')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_reroll_admin(self, interaction: discord.Interaction):
-        if not await db_utils.use_admin_reroll_token(interaction.user.id):
-            await interaction.response.send_message("Naughty naughty, you haven't purchased a reroll token.")
+        allowed, reason = await db_utils.use_admin_reroll_token(interaction.user.id)
+        if not allowed:
+            await interaction.response.send_message(reason)
+            return
 
         await self.do_admin_roll(interaction, True)
 
@@ -48,17 +51,19 @@ class AdminRollCog(commands.Cog):
         admin = interaction.guild.get_role(bot_utils.Roles.Admin) or await interaction.guild.fetch_role(bot_utils.Roles.Admin)
         prev_admin = admin.members[0]
 
-        roll_table = await db_utils.get_admin_roll_table()
+        roll_table = [x.id for x in interaction.guild.members]
+        roll_table += await db_utils.get_extra_admin_rolls()
         roll_table = await bot_utils.filter_bots(interaction, roll_table)
         
-        title = "🎲 Let's roll the dice! 🎲" if not reroll else f"🚨 <@{interaction.user.id}> called for a reroll! 🚨"
+        title = "🎲 Let's roll the dice! 🎲" if not reroll else f"🚨 {interaction.user.display_name} called for a reroll! 🚨"
+
+        def make_emoji_number(num: int):
+            return "".join([f":number_{d}:" for d in str(num)])
 
         embed = discord.Embed(title=title, color=discord.Color.yellow())
         for idx, user_id in enumerate(roll_table, 1):
-            number = "".join([f":number_{d}:" for d in str(idx)])
-
             embed.add_field(
-                name=number,
+                name=make_emoji_number(idx),
                 value=f"<@{user_id}>",
                 inline=False,
             )
@@ -66,14 +71,19 @@ class AdminRollCog(commands.Cog):
         await interaction.followup.send(embed=embed)
         msg = await interaction.followup.send("Rolling...", wait=True)
 
-        choice = random.choice(roll_table)
+        # Sleep for dramatic effect
+        await asyncio.sleep(3)
+
+        index = random.randrange(0, len(roll_table))
+        await msg.edit(content=f"A :number_{make_emoji_number(index)}: was rolled")
+
+        await asyncio.sleep(1)
+
+        choice = roll_table[index]
         new_admin = await interaction.guild.fetch_member(choice)
 
         await new_admin.add_roles(admin)
         await prev_admin.remove_roles(admin)
-
-        # Sleep for dramatic effect
-        await asyncio.sleep(1)
 
         await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>")
 
