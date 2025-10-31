@@ -85,7 +85,10 @@ class PurchaseHandler:
     id: int
     handler: str
 
-
+@dataclass
+class AdminRollInfo:
+    id: int
+    last_roll: datetime.datetime
 
 class ChoiceHandlers:
     User = PurchaseHandler(1, "UserChoice")
@@ -99,7 +102,7 @@ class ShopOptions:
     BullyTimeout = ShopItem(0, 60, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
 
     MakeAdmin = ShopItem(0, 18000, "👑 Make yourself admin", 0, True)
-    AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the admin dice roll", 0, False)
+    AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the next admin dice roll", 0, False)
     AdminReroll = ShopItem(0, 3600, "🎲 Reroll the admin dice roll", 0, False)
 
 PURCHASE_OPTIONS = [
