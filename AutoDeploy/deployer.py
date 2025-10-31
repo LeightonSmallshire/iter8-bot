@@ -47,7 +47,7 @@ def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
         response = conn.getresponse()
 
         response_payload: dict = json.loads(response.read())
-        message_id = response_payload['id']
+        message_id = response_payload.get('id')
         conn.close()
         return message_id
     except:
@@ -57,7 +57,8 @@ def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
 
 def restart(repo_commit: str | None = None):
     print('Rebuilding worker image and recreating container...')
-    message_id = do_hook(f'Restart requested ({repo_commit})')
+    message_suffix = f' ({repo_commit})' if repo_commit else ''
+    message_id = do_hook(f'Restart requested{message_suffix}')
 
     build_env = os.environ.copy()
     build_env['CACHE_BUST'] = str(time.time_ns())
@@ -86,7 +87,7 @@ def restart(repo_commit: str | None = None):
     ], check=True)
 
     print('Worker rebuilt and restarted.')
-    do_hook(f'Worker rebuilt and restarted. ({repo_commit})', message_id)
+    do_hook(f'Worker rebuilt and restarted{message_suffix}', message_id)
 
 
 @app.post('/webhook')
