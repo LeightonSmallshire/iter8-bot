@@ -6,7 +6,7 @@ import zipfile
 def zip_directory(path: str):
     zip_buffer = io.BytesIO()
 
-    with zipfile.ZipFile(zip_buffer, zipfile.ZIP_DEFLATED) as zipf:
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for root, _, files in os.walk(path):
             for file in files:
                 file_path = os.path.join(root, file)
