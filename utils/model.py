@@ -75,6 +75,7 @@ class ShopItem:
 @dataclass
 class Purchase:
     id: int
+    item_id: int
     cost: int
     user_id: int = ForeignKey(User)
     used: bool = False
