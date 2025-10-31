@@ -171,6 +171,41 @@ class Database:
 
         await self.con.execute(sql, [p.value for p in where])
 
+    async def insert_or_update(self, obj: T, where: list[WhereParam] = []) -> int:
+        """
+        Insert a row. If a row with the same primary key exists, update it instead.
+        Returns the object's id.
+        """
+        data = asdict(obj)
+        table = python_to_table_name(type(obj))
+
+        keys = list(data.keys())
+        if "id" not in keys:
+            raise ValueError("UPSERT requires 'id' primary key")
+
+        non_id = [k for k in keys if k != "id"]
+        columns = ", ".join(keys)
+        placeholders = ", ".join("?" for _ in keys)
+
+        # update to incoming values (excluded.*)
+        set_clause = ", ".join(f"{k}=excluded.{k}" for k in non_id)
+
+        where_sql = ""
+        where_params: list[object] = []
+        if where:
+            where_sql = " WHERE " + " AND ".join(f"{p.field}=?" for p in where)
+            where_params = [p.value for p in where]
+
+        sql = (
+            f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
+            f"ON CONFLICT(id) DO UPDATE SET {set_clause}{where_sql}"
+        )
+
+        params = [data[k] for k in keys] + where_params
+        cur = await self.con.execute(sql, params)
+        # optional: await self.con.commit()
+        return int(getattr(obj, "id"))
+
 
     async def join_select(
         self,
@@ -272,7 +307,7 @@ async def init_database(timeout_data: list[User]):
             await db.insert(User(user, 0, 0))
 
         for timeout in timeout_data:
-            await db.update(timeout, where=[WhereParam("id", timeout.id)])
+            await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
 
         for item in PURCHASE_OPTIONS:
             await db.insert(item)
