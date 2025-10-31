@@ -152,6 +152,9 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
 
+        if member not in guild.members:
+            continue
+
         was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
         now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
         was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
