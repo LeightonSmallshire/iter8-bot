@@ -382,7 +382,7 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
 async def purchase(user_id: int, item: ShopItem, count: int = 1):
     async with Database(DATABASE_NAME) as db:
         for _ in range(count):
-            await db.insert(Purchase(None, item.cost, user_id, item.auto_use))
+            await db.insert(Purchase(None, item.id, item.cost, user_id, item.auto_use))
 
 async def get_handlers(item_id: int) -> list[str]:
     async with Database(DATABASE_NAME) as db:
@@ -412,7 +412,7 @@ async def get_admin_roll_table() -> list[int]:
     async with Database(DATABASE_NAME) as db:
         users = await db.select(User)
         bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminTicket.id), WhereParam("used", False)])
-        await db.update(Purchase(None, None, True), where=[WhereParam("item_id", ShopOptions.AdminTicket.id)])
+        await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", ShopOptions.AdminTicket.id)])
 
         return [u.id for u in users] + [t.user_id for t in bonus_tickets]
     
@@ -423,6 +423,6 @@ async def use_admin_reroll_token(user: int) -> bool:
             return False
         
         token = tokens[0]
-        await db.update(Purchase(None, None, True), where=[WhereParam("id", token.id)])
+        await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
 
         return True
