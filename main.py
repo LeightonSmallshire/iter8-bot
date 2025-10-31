@@ -1,15 +1,15 @@
 import http.client
 import traceback
-import json
 
 COUNT = 0
 
-
+# dumb hook for death logging
 def do_hook(message: str):
     global COUNT
     try:
+        suppress_notifications = 1 << 12
         COUNT += 1
-        payload = json.dumps({'content': f'```{COUNT}. {message}```'})
+        payload = json.dumps({'content': f'```{COUNT}. {message}```', 'flags': suppress_notifications})
         conn = http.client.HTTPSConnection('discord.com')
         conn.request(method='POST',
                      url='/api/webhooks/1416059591522783312/O7wVzYh9tMOFdrVxdUC4tm3fT5ppB_sqWzIccNT_zUuvVjkZqXxByJpfWMKejM6P2OIQ',
@@ -35,10 +35,7 @@ try:
     assert __name__ == "__main__", 'Must be run directly'
 
     # --- Configuration ---
-    # DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-
-    DISCORD_TOKEN = 'MTQyNTQ4MzU3NzU4NzUzMTg4Ng.Gg15_P.' \
-                    'v53DG_IEsaihKUqK2PXrqVGCoD7CNEfsA2JQTg'
+    DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
     COGS_DIR = "cogs"
 
@@ -52,6 +49,7 @@ try:
     # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(logging.FileHandler('data/logs.log'))
     logger.addHandler(log_utils.DatabaseHandler())
+
 
     class HotReloadBot(commands.Bot):
         def __init__(self):
@@ -71,7 +69,6 @@ try:
             """Unloads, reloads, and reports the status of all cogs."""
 
             logger.info('--- Loading cogs ---')
-            bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Reloading cogs')
 
             reloaded_cogs = []
             failed_cogs = []
@@ -119,6 +116,7 @@ try:
             bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
             return status
 
+
     # --- Main Execution ---
     logger.setLevel(logging.DEBUG)
     logger.info("Starting Discord Bot...")
@@ -132,4 +130,5 @@ except BaseException as e:
     message = ''.join(lines)
     do_hook(message)
     import time
-    time.sleep(60 * 60) # 1 hour nap after a bad crash
+
+    time.sleep(60 * 60)  # 1 hour nap after a bad crash

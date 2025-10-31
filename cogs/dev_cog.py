@@ -45,7 +45,7 @@ class DevCog(commands.Cog):
         msg = "```\n" + "\n".join(formatted) + "\n```"
         if len(msg) > 1950:
             file = discord.file.File(io.StringIO(msg), 'database.log')
-            await interaction.response.send_message(file=msg, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
         else:
             await interaction.response.send_message(content=msg, ephemeral=True)
 
@@ -77,27 +77,15 @@ class DevCog(commands.Cog):
         elif os.path.isfile(path):
             file = discord.File(path)
             return await interaction.response.send_message(file=file, ephemeral=True)
-
-    @commands.Cog.listener()
-    @commands.check(bot_utils.is_guild_paradise)
-    async def on_message(self, message: discord.Message):
-        if 'bot broken' in message.content.lower():
-            await message.reply('No U')
-        if 'boot broekn' in message.content.lower():
-            await message.reply('No U booken')
-
+        
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction: discord.Interaction):
-        if interaction.user.id == bot_utils.Users.Tom:
-            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
-            return await interaction.response.send_message('Stop it Tom')
         if not bot_utils.is_trusted_developer(interaction):
-            await interaction.user.timeout(datetime.timedelta(60), reason='Attemtpting to crash bot')
-            return await interaction.response.send_message('No')
+            return await interaction.response.send_message(f'Stop it {interaction.user.mention}')
 
         os.abort()
-        interaction.response.send_message('past abort somehow')
+        interaction.response.send_message('past abort somehow - very impressive')
 
     @app_commands.command(name='bash')
     @commands.check(bot_utils.is_guild_paradise)
