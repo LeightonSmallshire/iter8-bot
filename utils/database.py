@@ -2,14 +2,9 @@ import aiosqlite
 import sqlite3
 import datetime
 from .model import *
-from .bot import Users
+from .bot import Users, filter_bots
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
-
-@dataclass
-class JoinParam:
-    left: str
-    right: str
 
 @dataclass
 class WhereParam:
@@ -78,9 +73,12 @@ class Database:
             except aiosqlite.Error: pass
         await self.con.close()
 
+    async def drop_table_with_name(self, table: str) -> None:
+        sql = f"DROP TABLE IF EXISTS {table}"
+        await self.con.execute(sql)
+
     async def drop_table(self, model: Type[T]) -> None:
-         sql = f"DROP TABLE IF EXISTS {python_to_table_name(model)}"
-         await self.con.execute(sql)
+        await self.drop_table_with_name(python_to_table_name(model))
 
     async def create_table(self, model: Type[T]) -> None:
         cols = []
@@ -375,16 +373,16 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
             return datetime.timedelta(seconds=0)
         
         user = user[0]
-        purchases = await db.join_select(ShopItem, Purchase, where=[WhereParam("r.user_id", user_id)])
+        purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
         
-        credit = user.duration - sum([i.cost for (i, p) in purchases])
+        credit = user.duration - sum([p.cost for p in purchases])
 
         return datetime.timedelta(seconds=credit)
     
 async def purchase(user_id: int, item: ShopItem, count: int = 1):
     async with Database(DATABASE_NAME) as db:
         for _ in range(count):
-            await db.insert(Purchase(None, user_id, item.id, item.auto_use))
+            await db.insert(Purchase(None, item.cost, user_id, item.auto_use))
 
 async def get_handlers(item_id: int) -> list[str]:
     async with Database(DATABASE_NAME) as db:

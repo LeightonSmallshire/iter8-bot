@@ -63,6 +63,12 @@ def is_trusted_developer(ctx: discord.Interaction):
     return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
+async def filter_bots(ctx: discord.Interaction, users: list[int]) -> list[int]:
+    async def filter_bot(user: int):
+        member = ctx.guild.get_member(user) or await ctx.guild.fetch_member(user)
+        return not member.bot
+    return [u for u in users if await filter_bot(u)]
+
 # async def send_dm_to_user(bot, user_id, message):
 #     try:
 #         # Use fetch_user to get the user object from Discord API
