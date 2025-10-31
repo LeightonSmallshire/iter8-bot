@@ -1,10 +1,10 @@
 import logging
 import discord
-import operator
+import random
 import asyncio
 import datetime
-from typing import Dict
-from .model import Timeout
+from typing import Optional
+from .model import User
 
 
 class Guilds:
@@ -22,16 +22,42 @@ class Users:
     Matt = 1333425159729840188
     Tom = 1339198017324187681
 
+    @staticmethod
+    def all_users():
+        ids = [v for k, v in vars(Users).items()
+           if isinstance(v, int) and not k.startswith("__")]
+        return list(dict.fromkeys(ids))
+
+    @staticmethod
+    def random(filter: list[int] = []):
+        ids = {v for k, v in vars(Users).items() if isinstance(v, int)}
+        for f in filter:
+            ids.discard(f)
+        if not ids:
+            raise ValueError("No users available after exclusion.")
+        return random.choice(list(ids))
+
 
 class Channels:
     TestServerBotSpam = 1432698704191815680
     ParadiseBotBrokenSpam = 1427971106920202240
     ParadiseClockwork = 1416059475873239181
 
+class Roles:
+    Admin = 1416037888847511646
+    DiceRoller = 1430187659678187581
+    BullyTarget = 1432752493670170624
+
 
 def is_guild_paradise(ctx):
     return ctx.guild and ctx.guild.id == Guilds.Paradise
 
+
+async def is_user_role(ctx: discord.Interaction, role_id: int):
+    guild = ctx.guild
+    member = guild.get_member(ctx.user.id) or await guild.fetch_member(ctx.user.id)
+    role = guild.get_role(role_id) or await guild.fetch_role(role_id)
+    return role in member.roles
 
 def is_trusted_developer(ctx: discord.Interaction):
     return ctx.user.id in [Users.Leighton, Users.Nathan]
@@ -111,11 +137,11 @@ class DiscordHandler(logging.Handler):
             print(f"Failed to send error DM: {e}")
 
 
-async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
+async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
     if guild is None:
         return []
 
-    leaderboard: list[Timeout] = []
+    leaderboard: list[User] = []
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
@@ -135,25 +161,25 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[Timeout]:
         if timeout_added:
             duration = (now_timeout - entry.created_at).total_seconds()
             # print('added', duration)
-            leaderboard.append(Timeout(member.id, 1, duration))
+            leaderboard.append(User(member.id, 1, duration))
 
         if timeout_changed:
             duration = (now_timeout - was_timeout).total_seconds()
             # print('changed', duration)
-            leaderboard.append(Timeout(member.id, 0, duration))
+            leaderboard.append(User(member.id, 0, duration))
 
         if timeout_removed:
             duration = (entry.created_at - was_timeout).total_seconds()
             # print('removed', duration)
-            leaderboard.append(Timeout(member.id, 0, duration))
+            leaderboard.append(User(member.id, 0, duration))
 
-    acc: dict[int, Timeout] = {}
+    acc: dict[int, User] = {}
     for t in leaderboard:
         if t.id in acc:
             acc[t.id].count += t.count
             acc[t.id].duration += t.duration
         else:
-            acc[t.id] = Timeout(t.id, t.count, t.duration)
+            acc[t.id] = User(t.id, t.count, t.duration)
 
     sorted_leaderboard = sorted(
         acc.values(),
