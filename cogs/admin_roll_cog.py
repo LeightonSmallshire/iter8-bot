@@ -28,6 +28,7 @@ class AdminRollCog(commands.Cog):
     async def command_roll_admin(self, interaction: discord.Interaction):
         if not await bot_utils.is_user_role(interaction, bot_utils.Roles.DiceRoller):
             await interaction.response.send_message(f"Only <@&{bot_utils.Roles.DiceRoller}> may roll the admin.")
+            return
 
         await self.do_admin_roll(interaction, False)
 
@@ -38,6 +39,7 @@ class AdminRollCog(commands.Cog):
         allowed, reason = await db_utils.use_admin_reroll_token(interaction.user.id)
         if not allowed:
             await interaction.response.send_message(reason)
+            return
 
         await self.do_admin_roll(interaction, True)
 
@@ -49,7 +51,8 @@ class AdminRollCog(commands.Cog):
         admin = interaction.guild.get_role(bot_utils.Roles.Admin) or await interaction.guild.fetch_role(bot_utils.Roles.Admin)
         prev_admin = admin.members[0]
 
-        roll_table = await db_utils.get_admin_roll_table()
+        roll_table = [x.id for x in interaction.guild.members]
+        roll_table += await db_utils.get_extra_admin_rolls()
         roll_table = await bot_utils.filter_bots(interaction, roll_table)
         
         title = "🎲 Let's roll the dice! 🎲" if not reroll else f"🚨 {interaction.user.display_name} called for a reroll! 🚨"
