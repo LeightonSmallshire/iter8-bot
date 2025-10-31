@@ -45,7 +45,7 @@ class DevCog(commands.Cog):
         msg = "```\n" + "\n".join(formatted) + "\n```"
         if len(msg) > 1950:
             file = discord.file.File(io.StringIO(msg), 'database.log')
-            await interaction.response.send_message(file=msg, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
         else:
             await interaction.response.send_message(content=msg, ephemeral=True)
 
