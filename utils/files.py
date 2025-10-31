@@ -13,4 +13,5 @@ def zip_directory(path: str):
                 arcname = os.path.relpath(file_path, start=path)
                 zipf.write(file_path, arcname)
 
+    zip_buffer.seek(0)
     return zip_buffer
