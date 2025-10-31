@@ -26,8 +26,8 @@ class AdminRollCog(commands.Cog):
     @app_commands.command(name='roll_admin', description='Commence the weekly admin dice roll.')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
-        if not bot_utils.is_user_role(interaction, bot_utils.Roles.DiceRoller):
-            await interaction.response.send_message("Only the Vessel of the Dice may roll the admin.")
+        if not await bot_utils.is_user_role(interaction, bot_utils.Roles.DiceRoller):
+            await interaction.response.send_message(f"Only <@{bot_utils.Roles.DiceRoller}> may roll the admin.")
 
         await self.do_admin_roll(interaction, False)
 
@@ -75,7 +75,7 @@ class AdminRollCog(commands.Cog):
         # Sleep for dramatic effect
         await asyncio.sleep(1)
 
-        await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{new_admin}>")
+        await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>")
 
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---

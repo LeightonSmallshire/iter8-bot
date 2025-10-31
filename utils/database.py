@@ -301,9 +301,6 @@ async def init_database(timeout_data: list[User]):
         await db.drop_table(PurchaseHandler)
         await db.create_table(PurchaseHandler)
         
-        for user in Users.all_users():
-            await db.insert(User(user, 0, 0))
-
         for timeout in timeout_data:
             await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
 
