@@ -10,15 +10,16 @@ COPY --chown=nonroot:nonroot --from=base_builder /python-base-packages/ /python-
 
 FROM base_builder AS repo_builder
 #ARG CACHE_BUST=${CACHE_BUST}
-ADD https://github.com/LeightonSmallshire/iter8-bot/archive/refs/heads/spam.zip /app/
+ARG REPO_URL="github.com/LeightonSmallshire/iter8-bot"
+ARG REPO_BRANCH="main"
+ADD [ "https://${REPO_URL}#${REPO_BRANCH}", "/app/" ]
 #ADD https://github.com/LeightonSmallshire/iter8-bot.git /app/
-RUN python -m pip install --no-cache-dir -r /app/requirements.txt --target /python-extra-packages/
-
-
-FROM base_runner AS final_runner
-COPY --chown=nonroot:nonroot --from=repo_builder /app/ /app/
-COPY --chown=nonroot:nonroot --from=repo_builder /python-extra-packages/ /python-extra-packages/
-
-WORKDIR /app
-ENTRYPOINT ["python3"]
-CMD ["main.py"]
+#RUN python -m pip install --no-cache-dir -r /app/requirements.txt --target /python-extra-packages/
+#
+#FROM base_runner AS final_runner
+#COPY --chown=nonroot:nonroot --from=repo_builder /app/ /app/
+#COPY --chown=nonroot:nonroot --from=repo_builder /python-extra-packages/ /python-extra-packages/
+#
+#WORKDIR /app
+#ENTRYPOINT ["python3"]
+#CMD ["main.py"]

@@ -15,11 +15,11 @@ import hashlib
 
 assert __name__ == '__main__', 'Must be run directly'
 
-REPO_PATH = 'Runner/repo'
-REPO_URL = 'https://github.com/LeightonSmallshire/iter8-bot'
-REPO_REMOTE = 'origin'
-REPO_BRANCH = 'main'
-REPO_REF = f'refs/heads/{REPO_BRANCH}'
+REPO_URL = 'github.com/LeightonSmallshire/iter8-bot'
+# REPO_REMOTE = 'origin'
+# REPO_BRANCH = 'main'
+REPO_BRANCH = 'spam'
+# REPO_REF = f'refs/heads/{REPO_BRANCH}'
 
 CONTAINER_NAME = 'iter8-runner'
 IMAGE_NAME = 'iter8-runner'
@@ -64,17 +64,16 @@ def restart(repo_commit: str | None = None):
     message_suffix = f' ({repo_commit[:8]})' if repo_commit else ''
     message_id = do_hook(f'Update started{message_suffix}')
 
-    build_env = os.environ.copy()
-    build_env['CACHE_BUST'] = str(time.time_ns())
-    # build_env['COMMIT_HASH'] = repo_commit
-
     print('Image rebuild')
     subprocess.run([
         'docker', 'build',
         '-t', IMAGE_NAME,
         '-f', DOCKERFILE_NAME,
+        '--build-arg', f'REPO_URL={REPO_URL}',
+        '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
+        '--build-arg', f'CACHE_BUST={time.time_ns()}',
         '.',
-    ], check=True, cwd='/app/Runner', env=build_env)
+    ], check=True, cwd='/app/Runner')
 
     print('Container kill')
     subprocess.run(['docker', 'rm', '-f', CONTAINER_NAME], check=False)
