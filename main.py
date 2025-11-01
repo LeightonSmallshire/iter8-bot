@@ -5,20 +5,21 @@ COUNT = 0
 
 # dumb hook for death logging
 def do_hook(message: str):
-    global COUNT
-    try:
-        suppress_notifications = 1 << 12
-        COUNT += 1
-        payload = json.dumps({'content': f'```{COUNT}. {message}```', 'flags': suppress_notifications})
-        conn = http.client.HTTPSConnection('discord.com')
-        conn.request(method='POST',
-                     url='/api/webhooks/1416059591522783312/O7wVzYh9tMOFdrVxdUC4tm3fT5ppB_sqWzIccNT_zUuvVjkZqXxByJpfWMKejM6P2OIQ',
-                     body=payload, headers={'Content-Type': 'application/json'})
-        response = conn.getresponse()
-        print(response.status)
-        conn.close()
-    except:
-        traceback.print_exc()
+    print(message)
+    # global COUNT
+    # try:
+    #     suppress_notifications = 1 << 12
+    #     COUNT += 1
+    #     payload = json.dumps({'content': f'```{COUNT}. {message}```', 'flags': suppress_notifications})
+    #     conn = http.client.HTTPSConnection('discord.com')
+    #     conn.request(method='POST',
+    #                  url='/api/webhooks/1416059591522783312/O7wVzYh9tMOFdrVxdUC4tm3fT5ppB_sqWzIccNT_zUuvVjkZqXxByJpfWMKejM6P2OIQ',
+    #                  body=payload, headers={'Content-Type': 'application/json'})
+    #     response = conn.getresponse()
+    #     print(response.status)
+    #     conn.close()
+    # except:
+    #     traceback.print_exc()
 
 
 try:

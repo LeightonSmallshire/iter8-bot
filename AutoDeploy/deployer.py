@@ -24,8 +24,8 @@ REPO_REF = f'refs/heads/{REPO_BRANCH}'
 CONTAINER_NAME = 'iter8-runner'
 IMAGE_NAME = 'iter8-runner'
 VOLUME_NAME = 'iter8-bot-data'
-DOCKERFILE_NAME = 'Dockerfile'
-# DOCKERFILE_NAME = 'Dockerfile-distroless'
+# DOCKERFILE_NAME = 'Dockerfile'
+DOCKERFILE_NAME = 'Dockerfile-distroless'
 
 WEBHOOK_SECRET = os.environ['WEBHOOK_SECRET']
 DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
@@ -36,26 +36,27 @@ app = FastAPI()
 
 
 def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
-    try:
-        suppress_notifications = 1 << 12
-        payload = json.dumps({'content': message, 'flags': suppress_notifications})
-        conn = http.client.HTTPSConnection('discord.com')
-        url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
-        if edit_message_id is None:
-            conn.request(method='POST', url=f'{url}?wait=1',
-                         body=payload, headers={'Content-Type': 'application/json'})
-        else:
-            conn.request(method='PATCH', url=f'{url}/messages/{edit_message_id}?wait=1',
-                         body=payload, headers={'Content-Type': 'application/json'})
-        response = conn.getresponse()
-
-        response_payload: dict = json.loads(response.read())
-        message_id = response_payload.get('id')
-        conn.close()
-        return message_id
-    except:
-        traceback.print_exc()
-        return None
+    print(message)
+    # try:
+    #     suppress_notifications = 1 << 12
+    #     payload = json.dumps({'content': message, 'flags': suppress_notifications})
+    #     conn = http.client.HTTPSConnection('discord.com')
+    #     url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
+    #     if edit_message_id is None:
+    #         conn.request(method='POST', url=f'{url}?wait=1',
+    #                      body=payload, headers={'Content-Type': 'application/json'})
+    #     else:
+    #         conn.request(method='PATCH', url=f'{url}/messages/{edit_message_id}?wait=1',
+    #                      body=payload, headers={'Content-Type': 'application/json'})
+    #     response = conn.getresponse()
+    #
+    #     response_payload: dict = json.loads(response.read())
+    #     message_id = response_payload.get('id')
+    #     conn.close()
+    #     return message_id
+    # except:
+    #     traceback.print_exc()
+    #     return None
 
 
 def restart(repo_commit: str | None = None):

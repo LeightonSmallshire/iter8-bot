@@ -4,7 +4,7 @@ FROM python:3.11 AS base_builder
 COPY base-requirements.txt /
 RUN python -m pip install --no-cache-dir -r /base-requirements.txt
 
-ARG CACHE_BUST=${CACHE_BUST}
+#ARG CACHE_BUST=${CACHE_BUST}
 ADD https://github.com/LeightonSmallshire/iter8-bot.git /app/
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 
