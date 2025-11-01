@@ -1,5 +1,3 @@
-name: iter8-deployer-group
-
 services:
   iter8-deployer:
     container_name: iter8-deployer

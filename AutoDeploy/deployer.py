@@ -69,8 +69,8 @@ def restart(repo_commit: str | None = None):
         'docker', 'build',
         '-t', IMAGE_NAME,
         '-f', DOCKERFILE_NAME,
-        '--build-arg', f'REPO_URL={REPO_URL}',
-        '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
+        # '--build-arg', f'REPO_URL={REPO_URL}',
+        # '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
         '--build-arg', f'CACHE_BUST={time.time_ns()}',
         '.',
     ], check=True, cwd='/app/Runner')

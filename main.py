@@ -1,7 +1,13 @@
 import http.client
 import traceback
+import time
 
 COUNT = 0
+
+while True:
+    print(time.time_ns())
+    time.sleep(1)
+
 
 # dumb hook for death logging
 def do_hook(message: str):
