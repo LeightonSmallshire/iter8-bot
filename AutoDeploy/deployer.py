@@ -19,7 +19,7 @@ REPO_URL = 'github.com/LeightonSmallshire/iter8-bot'
 # REPO_REMOTE = 'origin'
 # REPO_BRANCH = 'main'
 REPO_BRANCH = 'spam'
-# REPO_REF = f'refs/heads/{REPO_BRANCH}'
+REPO_REF = f'refs/heads/{REPO_BRANCH}'
 
 CONTAINER_NAME = 'iter8-runner'
 IMAGE_NAME = 'iter8-runner'
