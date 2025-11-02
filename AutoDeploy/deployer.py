@@ -7,7 +7,7 @@ from typing import Any
 import uvicorn
 import subprocess
 import fastapi
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 import http.client
 import json
 import hmac
@@ -94,7 +94,7 @@ def restart(repo_commit: str | None = None):
 
 
 @app.post('/webhook')
-async def handle_webhook(request: fastapi.Request):
+async def handle_webhook(request: fastapi.Request, background_tasks: BackgroundTasks):
     # Verify the webhook headers & hmac
 
     if 'X-Hub-Signature-256' not in request.headers:
@@ -115,14 +115,8 @@ async def handle_webhook(request: fastapi.Request):
     if payload.get('ref') != REPO_REF:
         return fastapi.Response(f'Only care about {REPO_REF}', 200)
 
-    latest_commit = payload.get('after')
-
-    try:
-        restart(latest_commit)
-        return fastapi.Response('Accepted', 202)
-    except BaseException as e:
-        lines = traceback.format_exception(e)
-        return fastapi.Response(''.join(lines), 500)
+    background_tasks.add_task(restart, payload.get('after'))
+    return fastapi.Response('Accepted', 202)
 
 
 @app.get('/restart')

@@ -10,4 +10,3 @@ services:
       - /root/.docker    # anonymous
     ports:
       - "8080:8080"
-
