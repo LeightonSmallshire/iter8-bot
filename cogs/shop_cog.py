@@ -10,6 +10,7 @@ import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.database as db_utils
+import utils.shop as shop_utils
 from view.shop_view import ShopView
 from typing import Optional
 
@@ -45,6 +46,18 @@ class ShopCog(commands.Cog):
         view = ShopView(shop)
         await interaction.followup.send(embed=embed, view=view)
 
+
+    @app_commands.command(name='credit', description='Find out how much shop credit you have')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def command_display_credit(self, interaction: discord.Interaction):
+        """Calculates and displays available shop credit."""
+
+        await interaction.response.defer(thinking=True)
+        
+        credit = await db_utils.get_shop_credit(interaction.user.id)
+        credit = datetime.timedelta(seconds=round(credit.total_seconds()))
+
+        await interaction.followup.send(f"💰 You have {credit} worth of credit.")
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 

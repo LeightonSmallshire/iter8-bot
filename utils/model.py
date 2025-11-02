@@ -21,6 +21,7 @@ class HasIdDataclass(Protocol):
     id: int # required field
 
 T = TypeVar("T", bound=HasIdDataclass)
+U = TypeVar("U", bound=HasIdDataclass)
 
 def python_to_sql_type(py_type: Any) -> str:
     return TYPE_MAP.get(py_type, "TEXT")
@@ -51,7 +52,7 @@ def ForeignKey(model: Type[Any], column: str = "id", **extra):
 
 
 @dataclass
-class Timeout:
+class User:
     id: int
     count: int
     duration: float
@@ -68,22 +69,50 @@ class ShopItem:
     id: int
     cost: int
     description: str
+    handlers: int
+    auto_use: bool
 
 @dataclass
 class Purchase:
     id: int
-    item_id: int = ForeignKey(ShopItem)
+    item_id: int
+    cost: int
+    user_id: int = ForeignKey(User)
+    used: bool = False
 
+@dataclass
+class PurchaseHandler:
+    id: int
+    handler: str
 
+@dataclass
+class AdminRollInfo:
+    id: int
+    last_roll: datetime.datetime
 
+class ChoiceHandlers:
+    User = PurchaseHandler(1, "UserChoice")
+    Duration = PurchaseHandler(2, "DurationChoice")
+
+class ShopOptions:
+    AdminTimeout = ShopItem(0, 600, "⏱️ Timeout admin (price per minute)", ChoiceHandlers.Duration.id, True)
+    UserTimeout = ShopItem(0, 300, "⏱️ Timeout a person (price per minute)", ChoiceHandlers.User.id | ChoiceHandlers.Duration.id, True)
+    BullyReroll = ShopItem(0, 1800, "🎲 Reroll bully target", 0, True)
+    BullyChoose = ShopItem(0, 3600, "🤕 Choose bully target", ChoiceHandlers.User.id, True)
+    BullyTimeout = ShopItem(0, 60, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
+
+    MakeAdmin = ShopItem(0, 18000, "👑 Make yourself admin", 0, True)
+    AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the next admin dice roll", 0, False)
+    AdminReroll = ShopItem(0, 3600, "🎲 Reroll the admin dice roll", 0, False)
 
 PURCHASE_OPTIONS = [
-    ShopItem(0, 3600, "⏱️ Timeout admin"),
-    ShopItem(0, 1800, "⏱️ Timeout a person"),
-    ShopItem(0, 1800, "🎲 Reroll bully target"),
-    ShopItem(0, 600, "⏱️ Timeout the bully target"),
+    ShopOptions.AdminTimeout,
+    ShopOptions.UserTimeout,
+    ShopOptions.BullyReroll,
+    ShopOptions.BullyChoose,
+    ShopOptions.BullyTimeout,
 
-    ShopItem(0, 18000, "👑 Make yourself admin"),
-    ShopItem(0, 3600, "🎟️ Add an extra ticket in the admin dice roll"),
-    ShopItem(0, 3600, "🎲 Reroll the admin dice roll"),
+    ShopOptions.MakeAdmin,
+    ShopOptions.AdminTicket,
+    ShopOptions.AdminReroll,
 ]

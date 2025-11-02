@@ -50,6 +50,16 @@ class BotBrokenCog(commands.Cog):
         await channel.send(message)
         await interaction.delete_original_response()
 
+    @commands.Cog.listener()
+    @commands.check(bot_utils.is_guild_paradise)
+    async def on_message(self, message: discord.Message):
+        if message.author == self.bot_.user:
+            return  # ignore self
+        if 'bot broken' in message.content.lower():
+            await message.reply('No U')
+        if 'boot broekn' in message.content.lower():
+            await message.reply('No U broekn')
+
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
