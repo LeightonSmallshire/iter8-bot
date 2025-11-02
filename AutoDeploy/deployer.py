@@ -7,7 +7,7 @@ from typing import Any
 import uvicorn
 import subprocess
 import fastapi
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 import http.client
 import json
 import hmac
@@ -15,17 +15,17 @@ import hashlib
 
 assert __name__ == '__main__', 'Must be run directly'
 
-REPO_PATH = 'Runner/repo'
-REPO_URL = 'https://github.com/LeightonSmallshire/iter8-bot'
-REPO_REMOTE = 'origin'
-REPO_BRANCH = 'main'
+REPO_URL = 'github.com/LeightonSmallshire/iter8-bot'
+# REPO_REMOTE = 'origin'
+# REPO_BRANCH = 'main'
+REPO_BRANCH = 'spam'
 REPO_REF = f'refs/heads/{REPO_BRANCH}'
 
 CONTAINER_NAME = 'iter8-runner'
 IMAGE_NAME = 'iter8-runner'
 VOLUME_NAME = 'iter8-bot-data'
-DOCKERFILE_NAME = 'Dockerfile'
-# DOCKERFILE_NAME = 'Dockerfile-distroless'
+# DOCKERFILE_NAME = 'Dockerfile'
+DOCKERFILE_NAME = 'Dockerfile-distroless'
 
 WEBHOOK_SECRET = os.environ['WEBHOOK_SECRET']
 DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
@@ -36,26 +36,27 @@ app = FastAPI()
 
 
 def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
-    try:
-        suppress_notifications = 1 << 12
-        payload = json.dumps({'content': message, 'flags': suppress_notifications})
-        conn = http.client.HTTPSConnection('discord.com')
-        url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
-        if edit_message_id is None:
-            conn.request(method='POST', url=f'{url}?wait=1',
-                         body=payload, headers={'Content-Type': 'application/json'})
-        else:
-            conn.request(method='PATCH', url=f'{url}/messages/{edit_message_id}?wait=1',
-                         body=payload, headers={'Content-Type': 'application/json'})
-        response = conn.getresponse()
-
-        response_payload: dict = json.loads(response.read())
-        message_id = response_payload.get('id')
-        conn.close()
-        return message_id
-    except:
-        traceback.print_exc()
-        return None
+    print(message)
+    # try:
+    #     suppress_notifications = 1 << 12
+    #     payload = json.dumps({'content': message, 'flags': suppress_notifications})
+    #     conn = http.client.HTTPSConnection('discord.com')
+    #     url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
+    #     if edit_message_id is None:
+    #         conn.request(method='POST', url=f'{url}?wait=1',
+    #                      body=payload, headers={'Content-Type': 'application/json'})
+    #     else:
+    #         conn.request(method='PATCH', url=f'{url}/messages/{edit_message_id}?wait=1',
+    #                      body=payload, headers={'Content-Type': 'application/json'})
+    #     response = conn.getresponse()
+    #
+    #     response_payload: dict = json.loads(response.read())
+    #     message_id = response_payload.get('id')
+    #     conn.close()
+    #     return message_id
+    # except:
+    #     traceback.print_exc()
+    #     return None
 
 
 def restart(repo_commit: str | None = None):
@@ -63,17 +64,16 @@ def restart(repo_commit: str | None = None):
     message_suffix = f' ({repo_commit[:8]})' if repo_commit else ''
     message_id = do_hook(f'Update started{message_suffix}')
 
-    build_env = os.environ.copy()
-    build_env['CACHE_BUST'] = str(time.time_ns())
-    # build_env['COMMIT_HASH'] = repo_commit
-
     print('Image rebuild')
     subprocess.run([
         'docker', 'build',
         '-t', IMAGE_NAME,
         '-f', DOCKERFILE_NAME,
+        # '--build-arg', f'REPO_URL={REPO_URL}',
+        # '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
+        '--build-arg', f'CACHE_BUST={time.time_ns()}',
         '.',
-    ], check=True, cwd='/app/Runner', env=build_env)
+    ], check=True, cwd='/app/Runner')
 
     print('Container kill')
     subprocess.run(['docker', 'rm', '-f', CONTAINER_NAME], check=False)
@@ -94,7 +94,7 @@ def restart(repo_commit: str | None = None):
 
 
 @app.post('/webhook')
-async def handle_webhook(request: fastapi.Request):
+async def handle_webhook(request: fastapi.Request, background_tasks: BackgroundTasks):
     # Verify the webhook headers & hmac
 
     if 'X-Hub-Signature-256' not in request.headers:
@@ -115,14 +115,8 @@ async def handle_webhook(request: fastapi.Request):
     if payload.get('ref') != REPO_REF:
         return fastapi.Response(f'Only care about {REPO_REF}', 200)
 
-    latest_commit = payload.get('after')
-
-    try:
-        restart(latest_commit)
-        return fastapi.Response('Accepted', 202)
-    except BaseException as e:
-        lines = traceback.format_exception(e)
-        return fastapi.Response(''.join(lines), 500)
+    background_tasks.add_task(restart, payload.get('after'))
+    return fastapi.Response('Accepted', 202)
 
 
 @app.get('/restart')
