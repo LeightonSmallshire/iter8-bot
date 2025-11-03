@@ -32,7 +32,8 @@ async def do_admin_timeout(interaction: discord.Interaction, duration: int):
     role = await interaction.guild.fetch_role(Roles.Admin)
     member = role.members[0]
 
-    start = member.timed_out_until if member.timed_out_until else discord.utils.utcnow()
+    now = discord.utils.utcnow()
+    start = max(now, member.timed_out_until) if member.timed_out_until else now
     until = start + datetime.timedelta(seconds=duration)
 
     await role.members[0].timeout(until, reason="The power of the bot cannot be contained.")
@@ -41,7 +42,11 @@ async def do_admin_timeout(interaction: discord.Interaction, duration: int):
 async def do_user_timeout(interaction: discord.Interaction, user: int, duration: int):
     target = await interaction.guild.fetch_member(user)
     
-    start = target.timed_out_until if target.timed_out_until else discord.utils.utcnow()
+    if target.id == interaction.user.id:
+        return await interaction.response.send_message('No timeout farming')    
+    
+    now = discord.utils.utcnow()
+    start = max(now, target.timed_out_until) if target.timed_out_until else now
     until = start + datetime.timedelta(seconds=duration)
 
     await target.timeout(until, reason=f"<@{interaction.user.id}> used the power of the shop.")
@@ -70,8 +75,12 @@ async def do_bully_choose(interaction: discord.Interaction, user: int):
 async def do_bully_timeout(interaction: discord.Interaction, duration: int):
     role = await interaction.guild.fetch_role(Roles.BullyTarget)
     member = role.members[0]
+    
+    if member.id == interaction.user.id:
+        return await interaction.response.send_message('No timeout farming')    
 
-    start = member.timed_out_until if member.timed_out_until else discord.utils.utcnow()
+    now = discord.utils.utcnow()
+    start = max(now, member.timed_out_until) if member.timed_out_until else now
     until = start + datetime.timedelta(seconds=duration)
 
     await role.members[0].timeout(until, reason="Bully the prey of the dice.")
