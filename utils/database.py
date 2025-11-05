@@ -73,6 +73,9 @@ class Database:
             except aiosqlite.Error: pass
         await self.con.close()
 
+    async def execute(self, query: str) -> aiosqlite.Cursor:
+        return await self.con.execute(query)
+
     async def drop_table_with_name(self, table: str) -> None:
         sql = f"DROP TABLE IF EXISTS {table}"
         await self.con.execute(sql)
@@ -414,7 +417,7 @@ async def get_extra_admin_rolls() -> list[int]:
 
         return [t.user_id for t in bonus_tickets]
     
-async def use_admin_reroll_token(user: int) -> (bool, str):
+async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
     async with Database(DATABASE_NAME) as db:
         tokens = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminReroll.id), WhereParam("used", False)])
         if not tokens:
@@ -433,3 +436,16 @@ async def use_admin_reroll_token(user: int) -> (bool, str):
         await db.insert_or_update(roll_info)
 
         return True, None
+    
+
+
+#-----------------------------------------------------------------
+#   Utility
+async def execute_raw_query(query: str):
+    async with Database(DATABASE_NAME) as db:
+        cur = await db.execute(query)
+        if cur.description is None:
+            return None, None  # no result set
+        headers = [d[0] for d in cur.description]
+        rows = await cur.fetchall()
+        return headers, rows
