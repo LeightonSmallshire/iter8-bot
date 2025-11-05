@@ -417,6 +417,18 @@ async def get_extra_admin_rolls() -> list[int]:
 
         return [t.user_id for t in bonus_tickets]
     
+
+async def get_last_admin_roll() -> Optional[AdminRollInfo]:
+    async with Database(DATABASE_NAME) as db:
+        roll_info = await db.select(AdminRollInfo, limit=1)
+        return roll_info[0] if roll_info else None
+    
+async def update_last_admin_roll():
+    async with Database(DATABASE_NAME) as db:
+        roll_info = AdminRollInfo(datetime.datetime.now())
+        await db.insert_or_update(roll_info)
+    
+    
 async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
     async with Database(DATABASE_NAME) as db:
         tokens = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminReroll.id), WhereParam("used", False)])
@@ -424,16 +436,13 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
             return False, "Naughty naughty, you haven't purchased a reroll token."
 
         roll_info = await db.select(AdminRollInfo, order=[OrderParam("last_roll", True)])
-        roll_info = roll_info[0] if roll_info else AdminRollInfo(0, datetime.datetime.min)
+        roll_info = roll_info[0] if roll_info else AdminRollInfo(datetime.datetime.min)
 
-        if datetime.datetime.now() - roll_info.last_roll > datetime.timedelta(minutes=5):
-            return False, "You can only use a reroll within 10 minutes of the admin roll."
+        if datetime.datetime.now() - roll_info.last_roll > datetime.timedelta(minutes=15):
+            return False, "You can only use a reroll within 15 minutes of the admin roll."
         
         token = tokens[0]
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
-
-        roll_info.last_roll = datetime.datetime.now()
-        await db.insert_or_update(roll_info)
 
         return True, None
     
