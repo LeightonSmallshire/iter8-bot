@@ -10,8 +10,9 @@ import utils.files
 from typing import Optional
 import io
 import os
-import datetime
+import inspect
 import logging
+import contextlib
 import subprocess
 import traceback
 
@@ -23,6 +24,7 @@ _log.addHandler(log_utils.DatabaseHandler())
 class DevCog(commands.Cog):
     def __init__(self, client: discord.Client):
         self.bot_ = client
+        self.envs: dict[int, dict[str, object]] = {}  # user_id -> locals()
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
 
@@ -87,33 +89,61 @@ class DevCog(commands.Cog):
         os.abort()
         interaction.response.send_message('past abort somehow - very impressive')
 
-    @app_commands.command(name='bash')
+    def get_env(self, uid: int):
+        env = self.envs.get(uid)
+        if env is None:
+            env = {
+                "__builtins__": __builtins__,
+            }
+            self.envs[uid] = env
+        return env
+
+    @app_commands.command(name="exec", description="Execute Python in your persistent REPL.")
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_bash(self, interaction: discord.Interaction, command: str):
+    async def exec_code(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):        
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No shell 4 U")
+            return await interaction.response.send_message(f'No REPL 4 U')
+        
+        if not code and not file:
+            return await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
 
+        await interaction.response.defer(ephemeral=True)
+        env = self.get_env(interaction.user.id)
+
+        src = (await file.read()).decode("utf-8", "ignore") if file else code
+        src = src.strip("` \n")
+
+        buf = io.StringIO()
+        out = ""
         try:
-            await interaction.response.defer(ephemeral=True, thinking=True)
-            process = await asyncio.create_subprocess_shell(
-                cmd=command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+            try:
+                # Try eval first
+                compiled = compile(src, "<expr>", "eval")
+                value = eval(compiled, env)
+                if inspect.isawaitable(value):
+                    value = await value
+                env["_"] = value
+                out = repr(value)
+            except SyntaxError:
+                # Fallback to exec
+                with contextlib.redirect_stdout(buf):
+                    exec(compile(src, "<exec>", "exec"), env)
+                out = buf.getvalue() or "Command completed with no output."
+        except Exception:
+            out = buf.getvalue() + traceback.format_exc()
 
-            stdout, stderr = await process.communicate()
-            stdout = stdout.decode().strip()
-            stderr = stderr.decode().strip()
+        if len(out) > 1900:
+            out = out[:1900] + "…"
+        await interaction.followup.send(f"```\n{out}\n```", ephemeral=True)
 
-            files = []
-
-            if len(stdout) > 0:
-                files.append(discord.File(io.StringIO(stdout), 'stdout.txt'))
-            if len(stderr) > 0:
-                files.append(discord.File(io.StringIO(stderr), 'stderr.txt'))
-            await interaction.followup.send(content=f'Command: {command}\nExit code: {process.returncode}', files=files)
-        except BaseException as e:
-            await interaction.user.send("".join(traceback.format_exc()))
+    @app_commands.command(name="reset_repl", description="Clear your REPL environment.")
+    @commands.check(bot_utils.is_guild_paradise)
+    async def reset_env(self, interaction): 
+        if not bot_utils.is_trusted_developer(interaction):
+            return await interaction.response.send_message(f'No REPL 4 U')
+        
+        self.envs.pop(interaction.user.id, None)
+        await interaction.response.send_message("Environment cleared.", ephemeral=True)
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
