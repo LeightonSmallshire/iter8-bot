@@ -75,7 +75,7 @@ class AdminRollCog(commands.Cog):
         await asyncio.sleep(3)
 
         index = random.randrange(0, len(roll_table))
-        await msg.edit(content=f"A :number_{make_emoji_number(index)}: was rolled")
+        await msg.edit(content=f"A :number_{make_emoji_number(index)}: was rolled!")
 
         await asyncio.sleep(1)
 
@@ -85,7 +85,7 @@ class AdminRollCog(commands.Cog):
         await new_admin.add_roles(admin)
         await prev_admin.remove_roles(admin)
 
-        await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>")
+        await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>.")
 
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
