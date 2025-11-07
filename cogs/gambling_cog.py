@@ -88,6 +88,7 @@ class GamblingCog(commands.Cog):
                 return self.parse_duration(value)
             except ValueError as e:
                 # Surface a friendly error in the UI
+                await interaction.response.send_message(content=str(e), ephemeral=True)
                 raise app_commands.AppCommandError(str(e))
     
     @app_commands.command(name='bet', description='iter8 does not condone gambling. BUT HAVE FUN!')
