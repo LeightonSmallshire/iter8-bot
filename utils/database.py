@@ -383,8 +383,7 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
     
 async def purchase(user_id: int, item: ShopItem, count: int = 1):
     async with Database(DATABASE_NAME) as db:
-        for _ in range(count):
-            await db.insert(Purchase(None, item.id, item.cost, user_id, item.auto_use))
+        await db.insert(Purchase(None, item.id, item.cost * count, user_id, item.auto_use))
 
 async def get_handlers(item_id: int) -> list[str]:
     async with Database(DATABASE_NAME) as db:
