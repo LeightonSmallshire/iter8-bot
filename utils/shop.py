@@ -64,7 +64,7 @@ class UserTimeoutItem(ShopItem):
         target = await ctx.guild.fetch_member(params['user'])
         
         if target.id == ctx.user.id:
-            return await ctx.response.send_message('No timeout farming')    
+            return await ctx.edit_original_response('No timeout farming')    
         
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
@@ -124,7 +124,7 @@ class BullyTimeoutItem(ShopItem):
         member = role.members[0]
         
         if member.id == ctx.user.id:
-            return await ctx.response.send_message('No timeout farming')    
+            return await ctx.edit_original_response('No timeout farming')    
 
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
