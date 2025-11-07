@@ -33,17 +33,15 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(thinking=True)
 
-        shop = await db_utils.get_shop_contents()
-
         embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
-        for item in shop:
+        for item in shop_utils.SHOP_ITEMS:
             embed.add_field(
-                name=item.description,
-                value=f"Price: {datetime.timedelta(seconds=item.cost)}",
+                name=item.DESCRIPTION,
+                value=f"Price: {datetime.timedelta(seconds=item.COST)}",
                 inline=False,
             )
 
-        view = ShopView(shop)
+        view = ShopView()
         await interaction.followup.send(embed=embed, view=view)
 
 
