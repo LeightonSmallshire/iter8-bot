@@ -75,14 +75,6 @@ class Log:
     level: str
     message: str
 
-# @dataclass
-# class ShopItem:
-#     id: int
-#     cost: int
-#     description: str
-#     handlers: int
-#     auto_use: bool
-
 @dataclass
 class Purchase:
     id: int
@@ -90,6 +82,13 @@ class Purchase:
     cost: int
     user_id: int = foreign_key(User)
     used: bool = False
+
+@dataclass
+class AdminBet:
+    id: int
+    amount: float
+    gamble_user_id: int = foreign_key(User)
+    bet_user_id: int = foreign_key(User)
 
 @single_value_table
 @dataclass

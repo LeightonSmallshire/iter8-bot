@@ -22,6 +22,8 @@ class DurationSelect(discord.ui.Select):
         super().__init__(placeholder="Choose duration", options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        context = self.view.context
+        context["duration"] = int(self.values[0])
         await interaction.response.defer()
 
 
