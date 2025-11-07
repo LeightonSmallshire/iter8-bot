@@ -45,6 +45,34 @@ def build_duration_choice(item: ShopItem, buyer_id: int):
 
     return [DurationSelect()]
 
+@register_shop_builder("ColourChoice")
+def build_duration_choice(item: ShopItem, buyer_id: int):
+    return [discord.ui.Button(
+            label="Pick a Colour",
+            url=f"http://0.0.0.0:75321/?user_id={buyer_id}"
+        )]
+
+@register_shop_builder("TextChoice")
+def build_duration_choice(item: ShopItem, buyer_id: int):
+    class TextModal(discord.ui.Modal):
+        def __init__(self, view):
+            self.view = view
+            self.text_input = discord.ui.TextInput(label="Your text", placeholder="Type here...")
+            super().__init__()
+
+        async def on_submit(self, interaction: discord.Interaction):
+            self.view.context["text"] = self.text_input.value
+            await interaction.response.defer()
+
+    class TextSelect(discord.ui.Button):
+        def __init__(self):
+            super().__init__(label="Enter text", style=discord.ButtonStyle.primary)
+
+        async def callback(self, interaction: discord.Interaction):
+            await interaction.response.send_modal(TextModal(self.view))
+
+    return [TextSelect()]
+
 class ShopOptionsView(discord.ui.View):
     def __init__(self, item: ShopItem, buyer_id: int, handler_keys: list[str]):
         super().__init__(timeout=120)

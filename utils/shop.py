@@ -36,7 +36,7 @@ async def do_admin_timeout(interaction: discord.Interaction, duration: int):
     start = max(now, member.timed_out_until) if member.timed_out_until else now
     until = start + datetime.timedelta(minutes=duration)
 
-    await role.members[0].timeout(until, reason="The power of the bot cannot be contained.")
+    await role.members[0].timeout(until, reason=f"<@{interaction.user.id}> invoked the power of the bot. It cannot be contained.")
 
 @register_shop_handler(ShopOptions.UserTimeout.id)
 async def do_user_timeout(interaction: discord.Interaction, user: int, duration: int):
@@ -83,7 +83,7 @@ async def do_bully_timeout(interaction: discord.Interaction, duration: int):
     start = max(now, member.timed_out_until) if member.timed_out_until else now
     until = start + datetime.timedelta(minutes=duration)
 
-    await role.members[0].timeout(until, reason="Bully the prey of the dice.")
+    await role.members[0].timeout(until, reason=f"<@{interaction.user.id}> chose to bully the prey of the dice.")
 
 @register_shop_handler(ShopOptions.MakeAdmin.id)
 async def do_make_admin(interaction: discord.Interaction):

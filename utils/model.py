@@ -81,7 +81,7 @@ class Purchase:
     used: bool = False
 
 @dataclass
-class PurchaseHandler:
+class InputHandler:
     id: int
     handler: str
 
@@ -90,20 +90,24 @@ class AdminRollInfo:
     id: int
     last_roll: datetime.datetime
 
-class ChoiceHandlers:
-    User = PurchaseHandler(1, "UserChoice")
-    Duration = PurchaseHandler(2, "DurationChoice")
+class InputHandlers:
+    User = InputHandler(1, "UserChoice")
+    Duration = InputHandler(2, "DurationChoice")
+    Colour = InputHandler(3, "ColourChoice")
+    Duration = InputHandler(4, "DurationChoice")
 
 class ShopOptions:
-    AdminTimeout = ShopItem(0, 300, "⏱️ Timeout admin (price per minute)", ChoiceHandlers.Duration.id, True)
-    UserTimeout = ShopItem(0, 60, "⏱️ Timeout a person (price per minute)", ChoiceHandlers.User.id | ChoiceHandlers.Duration.id, True)
+    AdminTimeout = ShopItem(0, 300, "⏱️ Timeout admin (price per minute)", InputHandlers.Duration.id, True)
+    UserTimeout = ShopItem(0, 60, "⏱️ Timeout a person (price per minute)", InputHandlers.User.id | InputHandlers.Duration.id, True)
     BullyReroll = ShopItem(0, 1800, "🎲 Reroll bully target", 0, True)
-    BullyChoose = ShopItem(0, 3600, "🤕 Choose bully target", ChoiceHandlers.User.id, True)
-    BullyTimeout = ShopItem(0, 30, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
+    BullyChoose = ShopItem(0, 3600, "🤕 Choose bully target", InputHandlers.User.id, True)
+    BullyTimeout = ShopItem(0, 30, "⏱️ Timeout the bully target (price per minute)", InputHandlers.Duration.id, True)
 
     MakeAdmin = ShopItem(0, 18000, "👑 Make yourself admin", 0, True)
     AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the next admin dice roll", 0, False)
     AdminReroll = ShopItem(0, 3600, "🎲 Reroll the admin dice roll", 0, False)
+
+    ChooseColour = ShopItem(0, 0, "🎨 Choose your own colour", InputHandlers.User.id, True)
 
 PURCHASE_OPTIONS = [
     ShopOptions.AdminTimeout,
