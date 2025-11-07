@@ -76,7 +76,7 @@ class AdminRollCog(commands.Cog):
         prev_admin = admin.members[0]
 
         roll_table = [x.id for x in interaction.guild.members]
-        roll_table += await db_utils.get_extra_admin_rolls()
+        roll_table += await db_utils.get_extra_admin_rolls(consume=True)
         roll_table = await bot_utils.filter_bots(interaction, roll_table)
         
         title = "🎲 Let's roll the dice! 🎲" if not reroll else f"🚨 {interaction.user.display_name} called for a reroll! 🚨"

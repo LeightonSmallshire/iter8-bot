@@ -5,6 +5,7 @@ from packaging.version import Version
 from .model import *
 from .bot import Users, filter_bots
 from .shop import *
+from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
 
@@ -318,6 +319,8 @@ async def init_database(timeout_data: list[User]):
         
         await db.create_table(Purchase)
 
+        await db.create_table(AdminBet)
+
         await db.create_table(AdminRollInfo)
 
         await db.create_table(DatabaseVersion)
@@ -382,7 +385,9 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         user = user[0]
         purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
         
-        credit = user.duration - sum([p.cost for p in purchases])
+        bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+        
+        credit = user.duration - sum([p.cost for p in purchases]) - sum([b.amount for b in bets])
 
         return datetime.timedelta(seconds=credit)
 
@@ -399,10 +404,12 @@ async def can_afford_purchase(user: int, cost: int) -> bool:
 #-----------------------------------------------------------------
 #   Admin Roll
 
-async def get_extra_admin_rolls() -> list[int]:
+async def get_extra_admin_rolls(consume: bool) -> list[int]:
     async with Database(DATABASE_NAME) as db:
         bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", AdminTicketItem.ITEM_ID), WhereParam("used", False)])
-        await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
+
+        if consume:
+            await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
 
         return [t.user_id for t in bonus_tickets]
     
@@ -434,11 +441,28 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
 
         return True, None
+
+
+#-----------------------------------------------------------------
+#   Gamble
+async def record_gamble(gamble_user: int, bet_user: int, amount: float) -> int:
+    async with Database(DATABASE_NAME) as db:
+        gamble = AdminBet(None, amount, gamble_user, bet_user)
+        return await db.insert(gamble)
     
+async def get_bets(user_id: int) -> dict[int, float]:
+    async with Database(DATABASE_NAME) as db:
+        bets = await db.select(AdminBet, where=[WhereParam("bet_user_id", user_id)])
+        groups: dict[int, float] = { x.gamble_user_id: 0 for x in bets}
+        for x in bets:
+            groups[x.gamble_user_id] += x.amount
+
+        return groups
 
 
 #-----------------------------------------------------------------
 #   Utility
+
 async def execute_raw_query(query: str):
     async with Database(DATABASE_NAME) as db:
         cur = await db.execute(query)

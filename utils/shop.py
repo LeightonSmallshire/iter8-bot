@@ -2,9 +2,11 @@ import discord
 import discord.utils
 import discord.ui
 import datetime
+import logging
 from typing import Callable, Awaitable, Protocol, ClassVar
 from .bot import Users, Roles
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
+
 
 SHOP_ITEMS = list[type['ShopItem']]()
 
@@ -47,7 +49,7 @@ class AdminTimeoutItem(ShopItem):
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=duration)
 
-        await role.members[0].timeout(until, reason="The power of the bot cannot be contained.")
+        await member.timeout(until, reason=f"<@{ctx.user.id}> used power of the bot. It cannot be contained!.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
@@ -130,7 +132,7 @@ class BullyTimeoutItem(ShopItem):
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
 
-        await role.members[0].timeout(until, reason="Bully the prey of the dice.")
+        await role.members[0].timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
