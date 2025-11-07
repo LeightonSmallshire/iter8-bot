@@ -95,11 +95,11 @@ class ChoiceHandlers:
     Duration = PurchaseHandler(2, "DurationChoice")
 
 class ShopOptions:
-    AdminTimeout = ShopItem(0, 600, "⏱️ Timeout admin (price per minute)", ChoiceHandlers.Duration.id, True)
-    UserTimeout = ShopItem(0, 300, "⏱️ Timeout a person (price per minute)", ChoiceHandlers.User.id | ChoiceHandlers.Duration.id, True)
+    AdminTimeout = ShopItem(0, 300, "⏱️ Timeout admin (price per minute)", ChoiceHandlers.Duration.id, True)
+    UserTimeout = ShopItem(0, 60, "⏱️ Timeout a person (price per minute)", ChoiceHandlers.User.id | ChoiceHandlers.Duration.id, True)
     BullyReroll = ShopItem(0, 1800, "🎲 Reroll bully target", 0, True)
     BullyChoose = ShopItem(0, 3600, "🤕 Choose bully target", ChoiceHandlers.User.id, True)
-    BullyTimeout = ShopItem(0, 60, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
+    BullyTimeout = ShopItem(0, 30, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
 
     MakeAdmin = ShopItem(0, 18000, "👑 Make yourself admin", 0, True)
     AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the next admin dice roll", 0, False)
