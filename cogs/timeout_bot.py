@@ -55,8 +55,6 @@ class TimeoutsCog(commands.Cog):
         elif timeout_extended:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
-
         if timeout_applied or timeout_extended:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
 
@@ -71,6 +69,10 @@ class TimeoutsCog(commands.Cog):
                     break
             else:
                 _log.debug("Moderator/Reason not found in recent audit logs.")
+
+            if moderator is not None and moderator != after.guild.owner:
+                # Do not count timeouts by server owner
+                await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
             await self.on_member_timeout(after, after.timed_out_until, moderator, reason)
 

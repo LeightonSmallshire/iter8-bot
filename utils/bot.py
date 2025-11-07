@@ -25,7 +25,7 @@ class Users:
     @staticmethod
     def all_users():
         ids = [v for k, v in vars(Users).items()
-           if isinstance(v, int) and not k.startswith("__")]
+               if isinstance(v, int) and not k.startswith("__")]
         return list(dict.fromkeys(ids))
 
     @staticmethod
@@ -43,6 +43,7 @@ class Channels:
     ParadiseBotBrokenSpam = 1427971106920202240
     ParadiseClockwork = 1416059475873239181
 
+
 class Roles:
     Admin = 1416037888847511646
     DiceRoller = 1430187659678187581
@@ -58,6 +59,7 @@ async def is_user_role(ctx: discord.Interaction, role_id: int):
     member = guild.get_member(ctx.user.id) or await guild.fetch_member(ctx.user.id)
     role = guild.get_role(role_id) or await guild.fetch_role(role_id)
     return role in member.roles
+
 
 def is_trusted_developer(ctx: discord.Interaction):
     return ctx.user.id in [Users.Leighton, Users.Nathan]
@@ -155,6 +157,10 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
         if member not in guild.members:
             continue
 
+        moderator = entry.user
+        if moderator == guild.owner:
+            continue
+
         was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
         now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
         was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
@@ -169,17 +175,14 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
 
         if timeout_added:
             duration = (now_timeout - entry.created_at).total_seconds()
-            # print('added', duration)
             leaderboard.append(User(member.id, 1, duration))
 
         if timeout_changed:
             duration = (now_timeout - was_timeout).total_seconds()
-            # print('changed', duration)
             leaderboard.append(User(member.id, 0, duration))
 
         if timeout_removed:
             duration = (entry.created_at - was_timeout).total_seconds()
-            # print('removed', duration)
             leaderboard.append(User(member.id, 0, duration))
 
     acc: dict[int, User] = {}
