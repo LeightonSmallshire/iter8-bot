@@ -8,10 +8,12 @@ import utils.database as db_utils
 import utils.log as log_utils
 from utils.model import Purchase
 import utils.shop as shop_utils
+import traceback
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log'))
 _log.addHandler(log_utils.DatabaseHandler())
+
 
 class ShopOptionsView(discord.ui.View):
     def __init__(self, item: type['shop_utils.ShopItem'], buyer_id: int):
@@ -65,18 +67,17 @@ class ShopOptionsView(discord.ui.View):
                     await interaction.edit_original_response(
                         view=None, content=f"✅ Purchased **{view.item.DESCRIPTION}** ({desc})."
                     )
-                except:
+                except BaseException as e:
                     await db.rollback()
                     await interaction.edit_original_response(
                         view=None, content=f"❌ Purchase failed to process."
                     )
-                    
+                    traceback.print_exception(e)
 
             else:
                 await interaction.edit_original_response(
                     view=None, content=f"❌ You can't afford this purchase."
                 )
-
 
 
 class ShopSelect(discord.ui.Select):
