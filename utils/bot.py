@@ -68,7 +68,7 @@ def is_trusted_developer(ctx: discord.Interaction):
 async def filter_bots(ctx: discord.Interaction, users: list[int]) -> list[int]:
     async def filter_bot(user: int):
         member = ctx.guild.get_member(user) or await ctx.guild.fetch_member(user)
-        return not member.bot
+        return not member.bot and not ctx.guild.owner_id == member.id
     return [u for u in users if await filter_bot(u)]
 
 # async def send_dm_to_user(bot, user_id, message):
@@ -134,7 +134,7 @@ class DiscordHandler(logging.Handler):
             # await leighton.send('setup')
 
             # user = await self.bot.fetch_user(self.user_id)
-            if user:
+            if user and not user.bot:
                 if len(message) > 1950:
                     message = message[:1950] + "\n... (truncated)"
 
@@ -149,7 +149,7 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
     if guild is None:
         return []
 
-    leaderboard: list[User] = []
+    leaderboard: list[User] = [User(x.id, 0, 0) for x in guild.members if not x.bot]
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
