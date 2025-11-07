@@ -7,14 +7,14 @@ import re
 import utils.database as db_utils
 import utils.log as log_utils
 from utils.model import Purchase
-from utils.shop import ShopItem
+import utils.shop as shop_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 class ShopOptionsView(discord.ui.View):
-    def __init__(self, item: type['ShopItem'], buyer_id: int):
+    def __init__(self, item: type['shop_utils.ShopItem'], buyer_id: int):
         super().__init__(timeout=120)
         self.item = item
         self.buyer_id = buyer_id
