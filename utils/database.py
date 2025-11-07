@@ -1,8 +1,10 @@
 import aiosqlite
 import sqlite3
 import datetime
+from packaging.version import Version
 from .model import *
 from .bot import Users, filter_bots
+from .shop import *
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
 
@@ -48,16 +50,31 @@ def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
 
 # --- core ORM ---
 class Database:
-    def __init__(self, path: str):
+    def __init__(self, path: str, defer_commit: bool = False):
         self.path = path
+        self.defer_commit = defer_commit
+
         aiosqlite.register_adapter(datetime.datetime, lambda d: d.isoformat(timespec="seconds"))
         aiosqlite.register_converter("DATETIME", lambda b: datetime.datetime.fromisoformat(b.decode()))
         
-    async def close(self) -> None:
-        await self.con.close()
+        aiosqlite.register_adapter(Version, lambda v: v.__str__())
+        aiosqlite.register_converter("VERSION", lambda v: Version(v.decode()))
+        
+        aiosqlite.register_adapter(bool, lambda b: str(b))
+        aiosqlite.register_converter("BOOLEAN", lambda b: bool(b.decode()))
 
+    async def connect(self):
+        self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        self.con.row_factory = aiosqlite.Row
+        return self
+        
     async def commit(self) -> None:
         await self.con.commit()
+        await self.con.close()
+
+    async def rollback(self) -> None:
+        await self.con.rollback()
+        await self.con.close()
 
     async def __aenter__(self):
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -65,6 +82,9 @@ class Database:
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
+        if self.defer_commit:
+            return
+
         if exc_type:
             try: await self.con.rollback()
             except aiosqlite.Error: pass
@@ -295,25 +315,15 @@ async def init_database(timeout_data: list[User]):
 
         await db.drop_table(Log)
         await db.create_table(Log)
-
-        await db.drop_table(ShopItem)
-        await db.create_table(ShopItem)
         
         await db.create_table(Purchase)
-        
-        await db.drop_table(PurchaseHandler)
-        await db.create_table(PurchaseHandler)
 
         await db.create_table(AdminRollInfo)
+
+        await db.create_table(DatabaseVersion)
         
         for timeout in timeout_data:
             await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
-
-        for item in PURCHASE_OPTIONS:
-            await db.insert(item)
-
-        await db.insert(ChoiceHandlers.User)
-        await db.insert(ChoiceHandlers.Duration)
 
 
 
@@ -363,11 +373,6 @@ async def read_logs(limit: int=100, level: Optional[str]=None):
 #-----------------------------------------------------------------
 #   Purchases
 
-async def get_shop_contents() -> list[ShopItem]:
-    async with Database(DATABASE_NAME) as db:
-        return await db.select(ShopItem)
-    
-
 async def get_shop_credit(user_id: int) -> datetime.timedelta:
     async with Database(DATABASE_NAME) as db:
         user = await db.select(User, [WhereParam("id", user_id)])
@@ -380,21 +385,6 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         credit = user.duration - sum([p.cost for p in purchases])
 
         return datetime.timedelta(seconds=credit)
-    
-async def purchase(user_id: int, item: ShopItem, count: int = 1):
-    async with Database(DATABASE_NAME) as db:
-        await db.insert(Purchase(None, item.id, item.cost * count, user_id, item.auto_use))
-
-async def get_handlers(item_id: int) -> list[str]:
-    async with Database(DATABASE_NAME) as db:
-        items = await db.select(ShopItem, where=[WhereParam("id", item_id)], limit=1)
-        if not items:
-            return []
-        
-        item = items[0]
-        handlers = await db.select(PurchaseHandler)
-        return [h.handler for h in handlers if item.handlers & h.id]
-    
 
 async def can_afford_purchase(user: int, cost: int) -> bool:
     async with Database(DATABASE_NAME) as db:
@@ -411,8 +401,8 @@ async def can_afford_purchase(user: int, cost: int) -> bool:
 
 async def get_extra_admin_rolls() -> list[int]:
     async with Database(DATABASE_NAME) as db:
-        bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminTicket.id), WhereParam("used", False)])
-        await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", ShopOptions.AdminTicket.id)])
+        bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", AdminTicketItem.ITEM_ID), WhereParam("used", False)])
+        await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
 
         return [t.user_id for t in bonus_tickets]
     
@@ -430,7 +420,7 @@ async def update_last_admin_roll():
     
 async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
     async with Database(DATABASE_NAME) as db:
-        tokens = await db.select(Purchase, where=[WhereParam("item_id", ShopOptions.AdminReroll.id), WhereParam("used", False)])
+        tokens = await db.select(Purchase, where=[WhereParam("item_id", AdminRerollItem.ITEM_ID), WhereParam("used", False)])
         if not tokens:
             return False, "Naughty naughty, you haven't purchased a reroll token."
 

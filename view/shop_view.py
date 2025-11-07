@@ -2,64 +2,27 @@ import discord
 from discord import app_commands
 import discord.ui
 from typing import Callable
-import datetime
+import logging
+import re
 import utils.database as db_utils
-import utils.shop as shop_utils
-from utils.model import ShopItem, PurchaseHandler
+import utils.log as log_utils
+from utils.model import Purchase
+from utils.shop import ShopItem
 
-SHOP_HANDLER_FUNCS: dict[str, Callable] = {}
-
-def register_shop_builder(name: str):
-    """Decorator to register a handler function by name."""
-    def decorator(func):
-        SHOP_HANDLER_FUNCS[name] = func
-        return func
-    return decorator
-
-@register_shop_builder("UserChoice")
-def build_user_choice(item: ShopItem, buyer_id: int):
-    class UserSelect(discord.ui.UserSelect):
-        def __init__(self):
-            super().__init__(placeholder="Select a user to target")
-
-        async def callback(self, interaction: discord.Interaction):
-            context = self.view.context
-            context["user"] = self.values[0].id
-            await interaction.response.defer()
-
-    return [UserSelect()]
-
-@register_shop_builder("DurationChoice")
-def build_duration_choice(item: ShopItem, buyer_id: int):
-    class DurationSelect(discord.ui.Select):
-        def __init__(self):
-            options = [
-                discord.SelectOption(label=f"{m} minute(s)", value=str(m))
-                for m in [1, 2, 5, 10, 15, 30, 60]
-            ]
-            super().__init__(placeholder="Choose duration", options=options)
-
-        async def callback(self, interaction: discord.Interaction):
-            self.view.context["duration"] = int(self.values[0])
-            await interaction.response.defer()
-
-    return [DurationSelect()]
+_log = logging.getLogger(__name__)
+_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(log_utils.DatabaseHandler())
 
 class ShopOptionsView(discord.ui.View):
-    def __init__(self, item: ShopItem, buyer_id: int, handler_keys: list[str]):
+    def __init__(self, item: type['ShopItem'], buyer_id: int):
         super().__init__(timeout=120)
         self.item = item
         self.buyer_id = buyer_id
         self.context: dict = {}
 
         # Collect components from handlers
-        for key in handler_keys:
-            builder = SHOP_HANDLER_FUNCS.get(key)
-            if not builder:
-                continue
-            components = builder(item, buyer_id)
-            for comp in components:
-                self.add_item(comp)
+        for comp in self.item.get_input_handlers():
+            self.add_item(comp)
 
         # Always add confirm button
         self.add_item(self.ConfirmButton())
@@ -78,7 +41,7 @@ class ShopOptionsView(discord.ui.View):
 
             await interaction.response.edit_message(view=None, content="Processing purchase…")
 
-            cost = view.item.cost
+            item = view.item
 
             # Example: consume view.context for final logic
             user = view.context.get("user")
@@ -87,23 +50,27 @@ class ShopOptionsView(discord.ui.View):
             if user:
                 summary.append(f"Target: <@{user}>")
             if duration:
-                cost *= duration
+                view.item.COST *= duration
                 summary.append(f"Duration: {duration}m")
             desc = ", ".join(summary) or ""
 
-            if await db_utils.can_afford_purchase(interaction.user.id, cost):
+            if await db_utils.can_afford_purchase(interaction.user.id, item.COST):
                 count = duration if duration else 1
+                db = await db_utils.Database(db_utils.DATABASE_NAME, defer_commit=True).connect()
                 try:
-                    await shop_utils.do_purchase(interaction, view.item, view.context)
-                    await db_utils.purchase(interaction.user.id, view.item, count)
+                    await db.insert(Purchase(None, item.ITEM_ID, item.COST * count, interaction.user.id, item.AUTO_USE))
+                    await view.item.handle_purchase(interaction, view.context)
+                    await db.commit()
 
                     await interaction.edit_original_response(
-                        view=None, content=f"✅ Purchased **{view.item.description}** ({desc})."
+                        view=None, content=f"✅ Purchased **{view.item.DESCRIPTION}** ({desc})."
                     )
                 except:
+                    await db.rollback()
                     await interaction.edit_original_response(
                         view=None, content=f"❌ Purchase failed to process."
                     )
+                    
 
             else:
                 await interaction.edit_original_response(
@@ -113,24 +80,22 @@ class ShopOptionsView(discord.ui.View):
 
 
 class ShopSelect(discord.ui.Select):
-    def __init__(self, items: list[ShopItem]):
+    def __init__(self):
+        self.items = shop_utils.SHOP_ITEMS
         super().__init__(
             placeholder="Choose an item…",
-            options=[discord.SelectOption(label=i.description, value=str(i.id)) for i in items],
+            options=[discord.SelectOption(label=i.DESCRIPTION, value=str(i.ITEM_ID)) for i in self.items],
         )
-        self.items = items
 
     async def callback(self, interaction: discord.Interaction):
-        item = next(i for i in self.items if str(i.id) == self.values[0])
-        handlers = await db_utils.get_handlers(item.id)
-
-        view = ShopOptionsView(item, interaction.user.id, handlers)
+        item = next(i for i in self.items if str(i.ITEM_ID) == self.values[0])
+        view = ShopOptionsView(item, interaction.user.id)
         await interaction.response.send_message(
-            f"Configure your **{item.description}** purchase:", view=view, ephemeral=True
+            f"Configure your **{item.DESCRIPTION}** purchase:", view=view, ephemeral=True
         )
 
 
 class ShopView(discord.ui.View):
-    def __init__(self, items):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.add_item(ShopSelect(items))
+        self.add_item(ShopSelect())

@@ -1,7 +1,8 @@
 import datetime
 import re
+from packaging.version import Version
 from dataclasses import dataclass, field, fields, asdict, Field
-from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
+from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar, Literal
 
 
 # --- type mapping ---
@@ -12,16 +13,29 @@ TYPE_MAP = {
     float: "REAL",
     str: "TEXT",
     bytes: "BLOB",
-    bool: "INTEGER",
+    bool: "BOOLEAN",
+    Version: "VERSION"
 }
 
-# Combined: a dataclass TYPE whose instances have id:int
-class HasIdDataclass(Protocol):
-    __dataclass_fields__: ClassVar[dict[str, Any]]
-    id: int # required field
+def single_value_table(cls):
+    setattr(cls, "__single_value_table__", True)
+    return cls
 
-T = TypeVar("T", bound=HasIdDataclass)
-U = TypeVar("U", bound=HasIdDataclass)
+# --- A dataclass type that has an int id ---
+class HasIdTable(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+    id: int
+
+# --- A dataclass type marked as single-value ---
+class SingleValueTable(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+    __single_value_table__: ClassVar[Literal[True]]
+
+# --- Either one is acceptable ---
+IsDatabaseTable = HasIdTable | SingleValueTable
+
+T = TypeVar("T", bound=IsDatabaseTable)
+U = TypeVar("U", bound=IsDatabaseTable)
 
 def python_to_sql_type(py_type: Any) -> str:
     return TYPE_MAP.get(py_type, "TEXT")
@@ -29,7 +43,7 @@ def python_to_sql_type(py_type: Any) -> str:
 def python_to_table_name(model: Type[T]) -> str:
     def pascal_to_snake(name: str) -> str:
         return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
-    return f"{pascal_to_snake(model.__name__)}s"
+    return f"{pascal_to_snake(model.__name__)}{'' if getattr(model, "__single_value_table__", False) is True else 's'}"
 
 
 def assert_field_exists(model: Type[Any], name: str) -> None:
@@ -37,7 +51,7 @@ def assert_field_exists(model: Type[Any], name: str) -> None:
         valid = ", ".join(f.name for f in fields(model))
         raise ValueError(f"{name!r} not in {model.__name__} fields: {valid}")
 
-def ForeignKey(model: Type[Any], column: str = "id", **extra):
+def foreign_key(model: Type[Any], column: str = "id", **extra):
     assert_field_exists(model, column)
     return field(metadata={
         "fk": {
@@ -46,9 +60,6 @@ def ForeignKey(model: Type[Any], column: str = "id", **extra):
         },
         **extra
     })
-
-
-
 
 
 @dataclass
@@ -64,55 +75,28 @@ class Log:
     level: str
     message: str
 
-@dataclass
-class ShopItem:
-    id: int
-    cost: int
-    description: str
-    handlers: int
-    auto_use: bool
+# @dataclass
+# class ShopItem:
+#     id: int
+#     cost: int
+#     description: str
+#     handlers: int
+#     auto_use: bool
 
 @dataclass
 class Purchase:
     id: int
     item_id: int
     cost: int
-    user_id: int = ForeignKey(User)
+    user_id: int = foreign_key(User)
     used: bool = False
 
-@dataclass
-class PurchaseHandler:
-    id: int
-    handler: str
-
+@single_value_table
 @dataclass
 class AdminRollInfo:
-    id: int
     last_roll: datetime.datetime
 
-class ChoiceHandlers:
-    User = PurchaseHandler(1, "UserChoice")
-    Duration = PurchaseHandler(2, "DurationChoice")
-
-class ShopOptions:
-    AdminTimeout = ShopItem(0, 300, "⏱️ Timeout admin (price per minute)", ChoiceHandlers.Duration.id, True)
-    UserTimeout = ShopItem(0, 60, "⏱️ Timeout a person (price per minute)", ChoiceHandlers.User.id | ChoiceHandlers.Duration.id, True)
-    BullyReroll = ShopItem(0, 1800, "🎲 Reroll bully target", 0, True)
-    BullyChoose = ShopItem(0, 3600, "🤕 Choose bully target", ChoiceHandlers.User.id, True)
-    BullyTimeout = ShopItem(0, 30, "⏱️ Timeout the bully target (price per minute)", ChoiceHandlers.Duration.id, True)
-
-    MakeAdmin = ShopItem(0, 18000, "👑 Make yourself admin", 0, True)
-    AdminTicket = ShopItem(0, 3600, "🎟️ Add an extra ticket in the next admin dice roll", 0, False)
-    AdminReroll = ShopItem(0, 3600, "🎲 Reroll the admin dice roll", 0, False)
-
-PURCHASE_OPTIONS = [
-    ShopOptions.AdminTimeout,
-    ShopOptions.UserTimeout,
-    ShopOptions.BullyReroll,
-    ShopOptions.BullyChoose,
-    ShopOptions.BullyTimeout,
-
-    ShopOptions.MakeAdmin,
-    ShopOptions.AdminTicket,
-    ShopOptions.AdminReroll,
-]
+@single_value_table
+@dataclass
+class DatabaseVersion:
+    version: Version
