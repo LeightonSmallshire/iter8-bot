@@ -97,7 +97,7 @@ class GamblingCog(commands.Cog):
         
         await interaction.response.defer(thinking=True)
 
-        if (user.bot):
+        if (user.bot or interaction.guild.owner_id == user.id):
             await interaction.followup.send(f"❌ You can't bet on bots.")
             return
 
