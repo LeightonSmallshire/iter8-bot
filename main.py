@@ -3,6 +3,7 @@ import traceback
 
 COUNT = 0
 
+
 # dumb hook for death logging
 
 
@@ -51,6 +52,7 @@ try:
     # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     logger.addHandler(logging.FileHandler('data/logs.log'))
     logger.addHandler(log_utils.DatabaseHandler())
+
 
     class HotReloadBot(commands.Bot):
         def __init__(self):
@@ -106,7 +108,8 @@ try:
             logger.info('Syncing...')
             self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Paradise))
             synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Paradise))
-            logger.info(f'Synced: {"\n".join(repr(s) for s in synced)}')
+            synced_msg = '[' + "\n\t".join(str(s) for s in synced) + ']'
+            logger.info(f'Synced: {synced_msg}')
 
             status = {
                 'status': 'Cogs reloaded successfully',
@@ -116,6 +119,7 @@ try:
             }
             bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
             return status
+
 
     # --- Main Execution ---
     logger.setLevel(logging.DEBUG)

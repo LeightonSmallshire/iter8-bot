@@ -17,8 +17,8 @@ assert __name__ == '__main__', 'Must be run directly'
 
 REPO_URL = 'github.com/LeightonSmallshire/iter8-bot'
 # REPO_REMOTE = 'origin'
-# REPO_BRANCH = 'main'
-REPO_BRANCH = 'spam'
+REPO_BRANCH = 'main'
+# REPO_BRANCH = 'spam'
 REPO_REF = f'refs/heads/{REPO_BRANCH}'
 
 CONTAINER_NAME = 'iter8-runner'
@@ -61,25 +61,37 @@ def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
 
 def restart(repo_commit: str | None = None):
     print('Rebuilding worker image and recreating container...')
+    yield 'Rebuilding worker image and recreating container...\n'
     message_suffix = f' ({repo_commit[:8]})' if repo_commit else ''
     message_id = do_hook(f'Update started{message_suffix}')
 
     print('Image rebuild')
-    subprocess.run([
+    yield 'Image rebuild\n'
+    process = subprocess.Popen([
         'docker', 'build',
         '-t', IMAGE_NAME,
         '-f', DOCKERFILE_NAME,
         # '--build-arg', f'REPO_URL={REPO_URL}',
-        # '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
-        '--build-arg', f'CACHE_BUST={time.time_ns()}',
+        '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
+        # '--build-arg', f'CACHE_BUST={time.time_ns()}',
         '.',
-    ], check=True, cwd='/app/Runner')
+    ], cwd='/app/Runner',
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        universal_newlines=True
+    )
+    yield from process.stdout
+    assert process.wait() == 0, 'Docker build failed'
 
+    yield 'Container kill\n'
     print('Container kill')
     subprocess.run(['docker', 'rm', '-f', CONTAINER_NAME], check=False)
 
+    yield 'Container start\n'
     print('Container start')
-    subprocess.run([
+    process = subprocess.Popen([
         'docker', 'run', '-d',
         '--name', CONTAINER_NAME,
         '--restart', 'unless-stopped',
@@ -87,8 +99,16 @@ def restart(repo_commit: str | None = None):
         '--env-file', 'Runner/.env',
         '-v', f'{VOLUME_NAME}:/app/data',
         IMAGE_NAME
-    ], check=True)
+    ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        universal_newlines=True)
+    yield from process.stdout
+    assert process.wait() == 0, 'Docker build failed'
 
+    yield 'Worker rebuilt and restarted.\n'
     print('Worker rebuilt and restarted.')
     do_hook(f'Worker rebuilt and restarted{message_suffix}', message_id)
 
@@ -115,22 +135,28 @@ async def handle_webhook(request: fastapi.Request, background_tasks: BackgroundT
     if payload.get('ref') != REPO_REF:
         return fastapi.Response(f'Only care about {REPO_REF}', 200)
 
-    background_tasks.add_task(restart, payload.get('after'))
-    return fastapi.Response('Accepted', 202)
+    return fastapi.responses.StreamingResponse(
+        content=restart(payload.get('after')),
+        media_type="text/plain"
+    )
 
 
 @app.get('/restart')
 def manual_restart():
     try:
-        restart()
-        return fastapi.Response('Accepted', 202)
+        return fastapi.responses.StreamingResponse(
+            content=restart(),
+            media_type="text/plain"
+        )
     except BaseException as e:
         lines = traceback.format_exception(e)
         return fastapi.Response(''.join(lines), 500)
 
 
 try:
-    restart()
+    # run to completion
+    for message in restart():
+        print(message, end='')
 except BaseException as e:
     traceback.print_exc()
     time.sleep(10)
