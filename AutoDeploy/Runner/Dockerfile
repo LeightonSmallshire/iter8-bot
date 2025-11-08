@@ -1,13 +1,20 @@
-#FROM python:3.11 AS base_builder
-#
-#COPY base-requirements.txt /
-#RUN python -m pip install --no-cache-dir -r /base-requirements.txt
-#
-##ARG CACHE_BUST=${CACHE_BUST}
-#ADD https://github.com/LeightonSmallshire/iter8-bot.git /app/
-#RUN python -m pip install --no-cache-dir -r /app/requirements.txt
-#ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages/"
-#
-#WORKDIR /app
-#ENTRYPOINT ["python3"]
-#CMD ["main.py"]
+FROM python:3.11-slim AS base_builder
+COPY base-requirements.txt .
+RUN python -m pip install --no-cache-dir -r base-requirements.txt
+RUN python -m venv /venv --system-site-packages
+
+FROM gcr.io/distroless/python3-debian12:debug-nonroot AS base_runner
+ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages"
+COPY --chown=nonroot:nonroot --from=base_builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+
+FROM base_builder AS repo_builder
+ARG REPO_BRANCH=${REPO_BRANCH}
+ADD [ "https://github.com/LeightonSmallshire/iter8-bot.git#${REPO_BRANCH}", "/app/" ]
+RUN /venv/bin/pip install --no-cache-dir -r /app/requirements.txt
+
+FROM base_runner AS final_runner
+COPY --chown=nonroot:nonroot --from=repo_builder /venv/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+COPY --chown=nonroot:nonroot --from=repo_builder /app/ /app/
+
+WORKDIR /app
+ENTRYPOINT ["python3", "-u", "/app/entrypoint.py"]

@@ -25,7 +25,7 @@ CONTAINER_NAME = 'iter8-runner'
 IMAGE_NAME = 'iter8-runner'
 VOLUME_NAME = 'iter8-bot-data'
 # DOCKERFILE_NAME = 'Dockerfile'
-DOCKERFILE_NAME = 'Dockerfile-distroless'
+DOCKERFILE_NAME = 'Dockerfile'
 
 WEBHOOK_SECRET = os.environ['WEBHOOK_SECRET']
 DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
@@ -73,7 +73,6 @@ def restart(repo_commit: str | None = None):
         '-f', DOCKERFILE_NAME,
         # '--build-arg', f'REPO_URL={REPO_URL}',
         '--build-arg', f'REPO_BRANCH={REPO_BRANCH}',
-        # '--build-arg', f'CACHE_BUST={time.time_ns()}',
         '.',
     ], cwd='/app/Runner',
         stdout=subprocess.PIPE,
