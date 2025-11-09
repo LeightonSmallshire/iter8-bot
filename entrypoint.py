@@ -3,6 +3,8 @@ import traceback
 import os
 import json
 
+assert __name__ == "__main__", 'Must be run directly'
+
 DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
 DISCORD_WEBOOK_TOKEN = os.environ['DISCORD_WEBOOK_TOKEN']
 

@@ -8,8 +8,6 @@ import utils.log as log_utils
 import discord
 from discord.ext import commands
 
-assert __name__ == "__main__", 'Must be run directly'
-
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
