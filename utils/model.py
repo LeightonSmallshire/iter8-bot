@@ -43,7 +43,7 @@ def python_to_sql_type(py_type: Any) -> str:
 def python_to_table_name(model: Type[T]) -> str:
     def pascal_to_snake(name: str) -> str:
         return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
-    return f"{pascal_to_snake(model.__name__)}{'' if getattr(model, "__single_value_table__", False) is True else 's'}"
+    return f"{pascal_to_snake(model.__name__)}{'' if getattr(model, '__single_value_table__', False) is True else 's'}"
 
 
 def assert_field_exists(model: Type[Any], name: str) -> None:
