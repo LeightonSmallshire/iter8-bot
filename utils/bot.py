@@ -149,12 +149,15 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
     if guild is None:
         return []
 
-    leaderboard: list[User] = [User(x.id, 0, 0) for x in guild.members if not x.bot and not guild.owner_id == x.id]
+    leaderboard: list[User] = [User(x.id, 0, 0) for x in guild.members]
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
 
         if member not in guild.members:
+            continue
+
+        if member.bot or member.id == guild.owner_id:
             continue
 
         moderator = entry.user
