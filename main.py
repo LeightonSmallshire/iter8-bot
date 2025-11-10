@@ -32,6 +32,7 @@ class HotReloadBot(commands.Bot):
     async def on_ready(self):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
         bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
+        bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
 
         server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
         leaderboard = await bot_utils.get_timeout_data(server)
