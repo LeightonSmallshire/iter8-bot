@@ -320,6 +320,7 @@ async def init_database(timeout_data: list[User]):
         await db.create_table(Purchase)
 
         await db.create_table(AdminBet)
+        await db.create_table(GambleWinnings)
 
         await db.create_table(AdminRollInfo)
 
@@ -384,10 +385,14 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         
         user = user[0]
         purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
+        winnings = await db.select(GambleWinnings, where=[WhereParam("user_id", user_id)])
         
         bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+        credit = user.duration
         
-        credit = user.duration - sum([p.cost for p in purchases]) - sum([b.amount for b in bets])
+        credit -= sum([p.cost for p in purchases])
+        credit -= sum([b.amount for b in bets])
+        credit += sum([w.amount for w in winnings])
 
         return datetime.timedelta(seconds=credit)
 
@@ -458,7 +463,20 @@ async def get_bets(user_id: int) -> dict[int, float]:
             groups[x.gamble_user_id] += x.amount
 
         return groups
+    
+async def get_gamble_results(new_admin: int) -> dict[int, float]:
+    async with Database(DATABASE_NAME) as db:
+        bets = await db.select(AdminBet)
+        total_bets = sum(bet.amount for bet in bets)
+        winning_users = [bet.gamble_user_id for bet in bets if bet.bet_user_id == new_admin]
 
+        results = {x: total_bets / len(winning_users) for x in winning_users}
+
+        for (user_id, amount) in results.items():
+            await db.insert(GambleWinnings(None, amount, user_id))
+        
+        await db.delete(AdminBet)  # clear all bets after resolution
+        return results
 
 #-----------------------------------------------------------------
 #   Utility

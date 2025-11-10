@@ -90,6 +90,12 @@ class AdminBet:
     gamble_user_id: int = foreign_key(User)
     bet_user_id: int = foreign_key(User)
 
+@dataclass
+class GambleWinnings:
+    id: int
+    amount: float
+    user_id: int = foreign_key(User)
+
 @single_value_table
 @dataclass
 class AdminRollInfo:
