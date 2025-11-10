@@ -89,9 +89,10 @@ class AdminBet:
     amount: float
     gamble_user_id: int = foreign_key(User)
     bet_user_id: int = foreign_key(User)
+    used: bool = False
 
 @dataclass
-class GambleWinnings:
+class GambleWin:
     id: int
     amount: float
     user_id: int = foreign_key(User)

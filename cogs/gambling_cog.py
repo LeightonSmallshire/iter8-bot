@@ -68,6 +68,8 @@ class GamblingCog(commands.Cog):
                 inline=False,
             )
 
+        embed.set_footer(text=f"Place your bets with /bet <user> <duration>")
+
         await interaction.followup.send(embed=embed)
     
     class DurationTransformer(app_commands.Transformer):
