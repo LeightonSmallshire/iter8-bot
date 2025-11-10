@@ -320,7 +320,7 @@ async def init_database(timeout_data: list[User]):
         await db.create_table(Purchase)
 
         await db.create_table(AdminBet)
-        await db.create_table(GambleWinnings)
+        await db.create_table(GambleWin)
 
         await db.create_table(AdminRollInfo)
 
@@ -384,12 +384,12 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
             return datetime.timedelta(seconds=0)
         
         user = user[0]
+
         purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
-        winnings = await db.select(GambleWinnings, where=[WhereParam("user_id", user_id)])
-        
+        winnings = await db.select(GambleWin, where=[WhereParam("user_id", user_id)])
         bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+
         credit = user.duration
-        
         credit -= sum([p.cost for p in purchases])
         credit -= sum([b.amount for b in bets])
         credit += sum([w.amount for w in winnings])
@@ -397,12 +397,10 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         return datetime.timedelta(seconds=credit)
 
 async def can_afford_purchase(user: int, cost: int) -> bool:
-    async with Database(DATABASE_NAME) as db:
-        credit = await get_shop_credit(user)
-        credit = credit.total_seconds()
+    credit = await get_shop_credit(user)
+    credit = credit.total_seconds()
 
-        return cost <= credit
-
+    return cost <= credit
 
 
 
@@ -466,16 +464,16 @@ async def get_bets(user_id: int) -> dict[int, float]:
     
 async def get_gamble_results(new_admin: int) -> dict[int, float]:
     async with Database(DATABASE_NAME) as db:
-        bets = await db.select(AdminBet)
+        bets = await db.select(AdminBet, where=[WhereParam("used", False)])
         total_bets = sum(bet.amount for bet in bets)
         winning_users = [bet.gamble_user_id for bet in bets if bet.bet_user_id == new_admin]
 
         results = {x: total_bets / len(winning_users) for x in winning_users}
 
         for (user_id, amount) in results.items():
-            await db.insert(GambleWinnings(None, amount, user_id))
+            await db.insert(GambleWin(None, amount, user_id))
         
-        await db.delete(AdminBet)  # clear all bets after resolution
+        await db.update(AdminBet(None, None, None, None, True))  # Set all bets to used
         return results
 
 #-----------------------------------------------------------------
