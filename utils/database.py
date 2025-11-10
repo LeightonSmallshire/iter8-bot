@@ -397,12 +397,10 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         return datetime.timedelta(seconds=credit)
 
 async def can_afford_purchase(user: int, cost: int) -> bool:
-    async with Database(DATABASE_NAME) as db:
-        credit = await get_shop_credit(user)
-        credit = credit.total_seconds()
+    credit = await get_shop_credit(user)
+    credit = credit.total_seconds()
 
-        return cost <= credit
-
+    return cost <= credit
 
 
 
