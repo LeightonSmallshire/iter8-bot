@@ -457,7 +457,7 @@ async def record_gamble(gamble_user: int, bet_user: int, amount: float) -> int:
     
 async def get_bets(user_id: int) -> dict[int, float]:
     async with Database(DATABASE_NAME) as db:
-        bets = await db.select(AdminBet, where=[WhereParam("bet_user_id", user_id)])
+        bets = await db.select(AdminBet, where=[WhereParam("bet_user_id", user_id), WhereParam("used", False)])
         groups: dict[int, float] = { x.gamble_user_id: 0 for x in bets}
         for x in bets:
             groups[x.gamble_user_id] += x.amount
