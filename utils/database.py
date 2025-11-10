@@ -61,8 +61,10 @@ class Database:
         aiosqlite.register_adapter(Version, lambda v: v.__str__())
         aiosqlite.register_converter("VERSION", lambda v: Version(v.decode()))
         
-        aiosqlite.register_adapter(bool, lambda b: str(b))
-        aiosqlite.register_converter("BOOLEAN", lambda b: bool(b.decode()))
+        aiosqlite.register_adapter(bool, int)  # True->1, False->0
+        aiosqlite.register_converter(
+            "BOOLEAN", lambda b: b.strip().lower() in (b"1", b"t", b"true", b"y", b"yes")
+)
 
     async def connect(self):
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
@@ -450,7 +452,7 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
 #   Gamble
 async def record_gamble(gamble_user: int, bet_user: int, amount: float) -> int:
     async with Database(DATABASE_NAME) as db:
-        gamble = AdminBet(None, amount, gamble_user, bet_user)
+        gamble = AdminBet(None, amount, gamble_user, bet_user, False)
         return await db.insert(gamble)
     
 async def get_bets(user_id: int) -> dict[int, float]:
