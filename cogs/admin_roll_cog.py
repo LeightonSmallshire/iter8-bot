@@ -117,6 +117,19 @@ class AdminRollCog(commands.Cog):
 
         await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>.")
 
+        await asyncio.sleep(2)
+
+        gamble_results = await db_utils.get_gamble_results(choice)
+        if len(gamble_results) > 0:
+            gamble_embed = discord.Embed(
+                title="Gambling Winnings 💰",
+                description="\n".join([f"From <@{user_id}>: {timedelta(seconds=round(amount))}" for (user_id, amount) in gamble_results.items()]),
+                color=discord.Color.green(),
+            )
+            await msg.edit(content=None, embed=gamble_embed)
+        else:
+            await msg.edit(content="No gambling winnings this time. What a bunch of losers!")
+
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
