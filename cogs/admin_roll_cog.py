@@ -124,6 +124,8 @@ class AdminRollCog(commands.Cog):
 
         gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
+        await asyncio.sleep(2)
+
         gamble_results = await db_utils.get_gamble_results(choice)
         if len(gamble_results) > 0:
             gamble_embed = discord.Embed(
