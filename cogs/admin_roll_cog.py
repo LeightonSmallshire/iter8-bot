@@ -73,7 +73,7 @@ class AdminRollCog(commands.Cog):
         await interaction.response.defer()
 
         admin = interaction.guild.get_role(bot_utils.Roles.Admin) or await interaction.guild.fetch_role(bot_utils.Roles.Admin)
-        prev_admin = admin.members[0]
+        prev_admin = admin.members[0] if admin.members else None
 
         roll_table = [x.id for x in interaction.guild.members]
         roll_table += await db_utils.get_extra_admin_rolls(consume=True)
@@ -113,9 +113,16 @@ class AdminRollCog(commands.Cog):
         new_admin = await interaction.guild.fetch_member(choice)
 
         await new_admin.add_roles(admin)
-        await prev_admin.remove_roles(admin)
 
-        await msg.edit(content=f"<@{prev_admin.id}> is dead. Long live <@{choice}>.")
+        if prev_admin is not None:
+            await prev_admin.remove_roles(admin)
+
+        message_contents = f"<@{prev_admin.id}> is dead. Long live <@{choice}>." if prev_admin else f"Long live <@{choice}>."
+        await msg.edit(content=message_contents)
+
+        await asyncio.sleep(2)
+
+        gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
         await asyncio.sleep(2)
 
@@ -123,12 +130,12 @@ class AdminRollCog(commands.Cog):
         if len(gamble_results) > 0:
             gamble_embed = discord.Embed(
                 title="Gambling Winnings 💰",
-                description="\n".join([f"From <@{user_id}>: {timedelta(seconds=round(amount))}" for (user_id, amount) in gamble_results.items()]),
+                description="\n".join([f"<@{user_id}> - {timedelta(seconds=round(amount))}" for (user_id, amount) in gamble_results.items()]),
                 color=discord.Color.green(),
             )
-            await msg.edit(content=None, embed=gamble_embed)
+            await gamble_msg.edit(content=None, embed=gamble_embed)
         else:
-            await msg.edit(content="No gambling winnings this time. What a bunch of losers!")
+            await gamble_msg.edit(content="No gambling winnings this time. What a bunch of losers!")
 
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
