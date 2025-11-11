@@ -46,13 +46,13 @@ class AdminRollCog(commands.Cog):
     @app_commands.command(name='roll_admin', description='Commence the weekly admin dice roll.')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
-        # if not is_correct_time(interaction):
-        #     await interaction.response.send_message(f"Wait till you've had your samosa!")
-        #     return
+        if not is_correct_time(interaction):
+            await interaction.response.send_message(f"Wait till you've had your samosa!")
+            return
 
-        # if not await is_first_roll(interaction):
-        #     await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).")
-        #     return
+        if not await is_first_roll(interaction):
+            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).")
+            return
         
         await self.do_admin_roll(interaction, False)
         await db_utils.update_last_admin_roll()
