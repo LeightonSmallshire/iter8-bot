@@ -466,17 +466,19 @@ async def get_bets(user_id: int) -> dict[int, float]:
     
 async def get_gamble_results(new_admin: int) -> dict[int, float]:
     async with Database(DATABASE_NAME) as db:
-        bets = await db.select(AdminBet, where=[WhereParam("used", False)])
-        total_bets = sum(bet.amount for bet in bets)
-        winning_users = [bet.gamble_user_id for bet in bets if bet.bet_user_id == new_admin]
+        all_bets = await db.select(AdminBet, where=[WhereParam("used", False)])
+        total_bet = sum(bet.amount for bet in all_bets)
+        
+        winners = await get_bets(new_admin)
+        winning_bets = sum(winners.values())
 
-        results = {x: total_bets / len(winning_users) for x in winning_users}
+        winners = { user_id: total_bet * (amount / winning_bets) for (user_id, amount) in winners.items() }
 
-        for (user_id, amount) in results.items():
+        for (user_id, amount) in winners.items():
             await db.insert(GambleWin(None, amount, user_id))
         
         await db.update(AdminBet(None, None, None, None, True))  # Set all bets to used
-        return results
+        return winners
 
 #-----------------------------------------------------------------
 #   Utility

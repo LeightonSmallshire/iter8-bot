@@ -97,10 +97,46 @@ class DevCog(commands.Cog):
             }
             self.envs[uid] = env
         return env
+    
+    async def eval_code(self, src: str, env: dict[str, object]):
+        buf = io.StringIO()
+        compiled = compile(src, "<expr>", "eval")
+        value = eval(compiled, env)
+        if inspect.isawaitable(value):
+            value = await value
+        env["_"] = value
+        return repr(value)
+        
+    async def exec_code(self, src: str, env: dict[str, object]):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            exec(compile(src, "<exec>", "exec"), env)
+
+        ret = None
+        main = env.get("main")
+        if callable(main):
+            try:
+                if inspect.iscoroutinefunction(main):
+                    ret = await main()
+                else:
+                    maybe = main()
+                    if inspect.isawaitable(maybe):
+                        ret = await maybe
+                    else:
+                        ret = maybe
+            except TypeError as e:
+                # main() requires args; surface a clear error
+                raise TypeError("Detected main but it requires arguments") from e
+            
+        if ret:
+            return buf.getvalue() + repr(ret)
+        else:
+            return buf.getvalue() or "Command completed with no output."
 
     @app_commands.command(name="exec", description="Execute Python in your persistent REPL.")
     @commands.check(bot_utils.is_guild_paradise)
-    async def exec_code(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):        
+    @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
+    async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):        
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message(f'No REPL 4 U')
         
@@ -118,17 +154,10 @@ class DevCog(commands.Cog):
         try:
             try:
                 # Try eval first
-                compiled = compile(src, "<expr>", "eval")
-                value = eval(compiled, env)
-                if inspect.isawaitable(value):
-                    value = await value
-                env["_"] = value
-                out = repr(value)
+                out = await self.eval_code(src, env)
             except SyntaxError:
                 # Fallback to exec
-                with contextlib.redirect_stdout(buf):
-                    exec(compile(src, "<exec>", "exec"), env)
-                out = buf.getvalue() or "Command completed with no output."
+                out = await self.exec_code(src, env)
         except Exception:
             out = buf.getvalue() + traceback.format_exc()
 
