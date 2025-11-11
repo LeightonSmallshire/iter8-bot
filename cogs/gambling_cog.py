@@ -42,7 +42,7 @@ class GamblingCog(commands.Cog):
 
         counts = Counter(users)
 
-        embed = discord.Embed(title="Welcome to the Bookies 🎰", color=discord.Color.blue())
+        embed = discord.Embed(title="🎰 Welcome to the Bookies 🎰", color=discord.Color.blue())
 
         member_by_id = {m.id: m for m in interaction.guild.members}
 

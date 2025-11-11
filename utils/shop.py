@@ -172,3 +172,89 @@ class AdminRerollItem(ShopItem):
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
         pass
+
+class ChooseNicknameOwnItem(ShopItem):
+    ITEM_ID = len(SHOP_ITEMS) + 1
+    COST = 60
+    DESCRIPTION = "✏️ Change your own nickname"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        new_nick = params['text']
+        member = await ctx.guild.fetch_member(ctx.user.id)
+        await member.edit(nick=new_nick)
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")]
+    
+class ChooseNicknameOtherItem(ShopItem):
+    ITEM_ID = len(SHOP_ITEMS) + 1
+    COST = 300
+    DESCRIPTION = "✏️ Change another user's nickname"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        new_nick = params['text']
+        target = await ctx.guild.fetch_member(params['user'])
+        await target.edit(nick=new_nick)
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [
+            UserSelect(),
+            TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")
+        ]
+    
+
+def colour_from_hex(code: str) -> discord.Color:
+    code = code.lstrip('#')
+    if len(code) == 3:  # expand #RGB -> #RRGGBB
+        code = ''.join(ch*2 for ch in code)
+    return discord.Color(int(code, 16))
+
+async def set_colour(ctx: discord.Interaction, target: discord.Member, params: dict):
+    colour = colour_from_hex(params['colour'])
+
+    role = discord.utils.get(ctx.guild.roles, name=target.name)
+    if role:
+        await role.edit(colour=colour, reason="Update color role")
+    else:
+        # parameter name is 'colour' in discord.py
+        role = await ctx.guild.create_role(name=target.name, colour=colour, reason="Create color role")
+
+    await target.add_roles(role)
+
+class ChooseColourOwnItem(ShopItem):
+    ITEM_ID = len(SHOP_ITEMS) + 1
+    COST = 60
+    DESCRIPTION = "🖌️ Change your own colour"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        await set_colour(ctx, ctx.user, params)
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [ColourSelect()]
+
+class ChooseColourOtherItem(ShopItem):
+    ITEM_ID = len(SHOP_ITEMS) + 1
+    COST = 300
+    DESCRIPTION = "🖌️ Change another user's colour"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        target = await ctx.guild.fetch_member(params['user'])
+        await set_colour(ctx, target, params)
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [
+            UserSelect(),
+            ColourSelect(),
+        ]

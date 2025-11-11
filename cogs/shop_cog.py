@@ -54,7 +54,7 @@ class ShopCog(commands.Cog):
         users = { user: await db_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
         users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
 
-        embed = discord.Embed(title="How much is everyone worth? 💵", color=discord.Color.blue())
+        embed = discord.Embed(title="💵 How much is everyone worth? 💵", color=discord.Color.blue())
         for (user, credit) in users:
             embed.add_field(
                 name=user.display_name,
