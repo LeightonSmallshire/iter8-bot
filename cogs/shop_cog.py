@@ -44,18 +44,25 @@ class ShopCog(commands.Cog):
         view = ShopView()
         await interaction.followup.send(embed=embed, view=view)
 
-
-    @app_commands.command(name='credit', description='Find out how much shop credit you have')
+    @app_commands.command(name='credit', description='Find out how much shop credit everyone has')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_display_credit(self, interaction: discord.Interaction):
         """Calculates and displays available shop credit."""
 
         await interaction.response.defer(thinking=True)
-        
-        credit = await db_utils.get_shop_credit(interaction.user.id)
-        credit = datetime.timedelta(seconds=round(credit.total_seconds()))
 
-        await interaction.followup.send(f"💰 You have {credit} worth of credit.")
+        users = { user: await db_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
+        users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
+
+        embed = discord.Embed(title="How much is everyone worth? 💵", color=discord.Color.blue())
+        for (user, credit) in users:
+            embed.add_field(
+                name=user.display_name,
+                value=f"Credit: {datetime.timedelta(seconds=round(credit.total_seconds()))}",
+                inline=False,
+            )
+
+        await interaction.followup.send(embed=embed)
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
