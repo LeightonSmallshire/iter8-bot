@@ -86,13 +86,15 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        roll_table = [x.id for x in ctx.guild.members]
+        roll_table = await filter_bots(ctx, roll_table)
+
         await do_role_roll(
             ctx,
             Roles.BullyTarget,
+            roll_table,
             f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
-            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!"),
-            extra_tickets=False,
-            
+            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
         )
 
 class BullyChooseItem(ShopItem):
