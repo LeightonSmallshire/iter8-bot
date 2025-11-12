@@ -106,7 +106,23 @@ class Database:
     async def drop_table(self, model: Type[T]) -> None:
         await self.drop_table_with_name(python_to_table_name(model))
 
-    async def create_table(self, model: Type[T]) -> None:
+    async def create_single_value_table(self, model: Type[T]):
+        cols = []
+        hints = get_type_hints(model)
+        for f in fields(model):
+            if f.name == "__single_value_table__":
+                continue
+            sql_type = python_to_sql_type(hints[f.name])
+            cols.append(f"{f.name} {sql_type}")
+        cols.append("guard INTEGER NOT NULL DEFAULT 0 CHECK (guard = 0)")
+        sql = (
+            f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} "
+            f"({', '.join(cols)}, UNIQUE(guard))"
+        )
+        await self.con.execute(sql)
+        return
+    
+    async def create_id_table(self, model: Type[T]):
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
@@ -127,8 +143,29 @@ class Database:
         sql = f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} ({', '.join(cols)})"
         await self.con.execute(sql)
 
+    async def create_table(self, model: Type[T]) -> None:
+        is_single = getattr(model, "__single_value_table__", False)
+        if is_single:
+            await self.create_single_value_table(model)
+        else:
+            await self.create_id_table(model)
+
     async def insert(self, obj: T) -> int:
+        is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
+        
+        if is_single:
+            # Insert once only. If a row already exists the UNIQUE(guard) constraint fires.
+            table = python_to_table_name(type(obj))
+            keys = ", ".join(data.keys())            # do NOT include `guard`; default 0 will be used
+            qs   = ", ".join("?" for _ in data)
+            sql  = f"INSERT INTO {table} ({keys}) VALUES ({qs})"
+            try:
+                await self.con.execute(sql, tuple(data.values()))
+            except aiosqlite.IntegrityError as e:
+                # Violates UNIQUE(guard) → singleton already exists
+                raise ValueError(f"Insert refused: {table} already has a row") from e
+            return 1
 
         # Treat missing/None/0 as "no id provided"
         unset = ("id" not in data) or (data.get("id") is None) or (data.get("id") == 0)
@@ -144,12 +181,13 @@ class Database:
         if unset:
             new_id = cur.lastrowid
             try:
-                setattr(obj, "id", new_id)
+                if hasattr(obj, "id"):
+                    setattr(obj, "id", new_id)
             except Exception:
                 pass
             return new_id # type: ignore[return-value]
         
-        return data.get("id") # type: ignore[return-value]
+        return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
     async def select(self, model: Type[T], where: list[WhereParam] = [], order: list[OrderParam] = [], limit: Optional[int] = None) -> list[T]:
@@ -200,12 +238,20 @@ class Database:
         Insert a row. If a row with the same primary key exists, update it instead.
         Returns the object's id.
         """
+        is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
         table = python_to_table_name(type(obj))
-
         keys = list(data.keys())
-        if "id" not in keys:
-            raise ValueError("UPSERT requires 'id' primary key")
+        non_keys = keys.copy()
+
+        if is_single:
+            set_clause = ", ".join(f"{k}=excluded.{k}" for k in non_keys)
+            sql = (
+                f"INSERT INTO {table} ({', '.join(keys)}) VALUES ({', '.join('?' for _ in keys)}) "
+                f"ON CONFLICT(guard) DO UPDATE SET {set_clause}"
+            )
+            await self.con.execute(sql, [data[k] for k in keys])
+            return 1
 
         non_id = [k for k in keys if k != "id"]
         columns = ", ".join(keys)
@@ -228,7 +274,7 @@ class Database:
         params = [data[k] for k in keys] + where_params
         cur = await self.con.execute(sql, params)
         # optional: await self.con.commit()
-        return int(getattr(obj, "id"))
+        return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
     async def join_select(
@@ -395,6 +441,8 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         credit -= sum([p.cost for p in purchases])
         credit -= sum([b.amount for b in bets])
         credit += sum([w.amount for w in winnings])
+
+        credit = max(credit, 0)
 
         return datetime.timedelta(seconds=credit)
 
