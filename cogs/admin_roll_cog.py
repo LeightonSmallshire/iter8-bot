@@ -17,7 +17,6 @@ _log.addHandler(logging.FileHandler('data/logs.log'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
-ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
 def is_correct_time(interaction: discord.Interaction) -> bool:
     UK = ZoneInfo("Europe/London")
@@ -34,9 +33,6 @@ async def is_first_roll(interaction: discord.Interaction) -> bool:
     time_passed = (dt_utc - roll_info.last_roll) > timedelta(days=6) if roll_info else True
 
     return time_passed
-
-def make_emoji_number(num: int):
-    return "".join([f":number_{d}:" for d in str(num)])
 
 class AdminRollCog(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -59,25 +55,31 @@ class AdminRollCog(commands.Cog):
         
         await interaction.response.defer()
 
-        new_admin = await self.do_roll(
+        roll_table = [x.id for x in interaction.guild.members]
+        roll_table += await db_utils.get_extra_admin_rolls(consume=True)
+        roll_table = await bot_utils.filter_bots(interaction, roll_table)
+
+        new_admin = await bot_utils.do_role_roll(
             interaction, 
-            bot_utils.Roles.Admin, 
+            bot_utils.Roles.Admin,
+            roll_table,
             "🎲 Let's roll the dice! 🎲", 
-            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>."),
-            extra_tickets=True
+            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
 
         await db_utils.update_last_admin_roll()
 
         await asyncio.sleep(2)
+        
+        roll_table = [x.id for x in interaction.guild.members if x.id != new_admin]
+        roll_table = await bot_utils.filter_bots(interaction, roll_table)
 
-        await self.do_roll(
+        await bot_utils.do_role_roll(
             interaction, 
-            bot_utils.Roles.BullyTarget, 
+            bot_utils.Roles.BullyTarget,
+            roll_table,
             "🎲 Who's getting bullied? 🎲", 
             ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!"),
-            extra_tickets=False,
-            filter_users=[new_admin]
         )
         
         await asyncio.sleep(2)
@@ -94,64 +96,17 @@ class AdminRollCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        await self.do_roll(
-            interaction, 
-            bot_utils.Roles.Admin, 
-            f"🚨 {interaction.user.display_name} called for a reroll! 🚨", 
-            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>."),
-            extra_tickets=False
-        )
 
-    async def do_roll(self, interaction:discord.Interaction, role_id: int, embed_title: str, response: tuple[str, str], extra_tickets: bool, filter_users: list[int] = []):
-        role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)
-        prev_user = role.members[0] if role.members else None
-
-        roll_table = [x.id for x in interaction.guild.members if x.id not in filter_users]
-        if (extra_tickets):
-            roll_table += await db_utils.get_extra_admin_rolls(consume=True)
+        roll_table = [x.id for x in interaction.guild.members]
         roll_table = await bot_utils.filter_bots(interaction, roll_table)
 
-        list_embed = discord.Embed(title=embed_title, color=discord.Color.yellow())
-        for idx, user_id in enumerate(roll_table, 1):
-            list_embed.add_field(
-                name=make_emoji_number(idx),
-                value=f"<@{user_id}>",
-                inline=False,
-            )
-
-        await interaction.followup.send(embed=list_embed)
-
-        if not roll_table:
-            await interaction.followup.send(content="There are no users for this roll.")
-            return 0
-        
-        await asyncio.sleep(3)
-
-        roll_embed = discord.Embed(title="Rolling...")
-        roll_embed.set_image(url=ROLL_GIF_URL)
-
-        msg = await interaction.followup.send(embed=roll_embed, wait=True)
-
-        # Sleep for dramatic effect
-        await asyncio.sleep(4)
-
-        index = random.randrange(0, len(roll_table))
-        await msg.edit(content=f"A {make_emoji_number(index + 1)} was rolled!", embed=None)
-
-        await asyncio.sleep(3)
-
-        choice = roll_table[index]
-        new_user = await interaction.guild.fetch_member(choice)
-
-        if prev_user is not None:
-            await prev_user.remove_roles(role)
-
-        await new_user.add_roles(role)
-
-        message_contents = response[0].format(prev_user.id, choice) if prev_user else response[1].format(choice)
-        await msg.edit(content=message_contents)
-
-        return new_user.id
+        await bot_utils.do_role_roll(
+            interaction, 
+            bot_utils.Roles.Admin, 
+            roll_table,
+            f"🚨 {interaction.user.display_name} called for a reroll! 🚨", 
+            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
+        )
 
 
     async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int):

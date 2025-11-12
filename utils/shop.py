@@ -4,7 +4,7 @@ import discord.ui
 import datetime
 import logging
 from typing import Callable, Awaitable, Protocol, ClassVar
-from .bot import Users, Roles
+from .bot import Roles, do_role_roll, filter_bots
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
 
 
@@ -86,14 +86,14 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        role = await ctx.guild.fetch_role(Roles.BullyTarget)
-        current_target = role.members[0]
-        new_target = Users.random(filter=[current_target.id])
-
-        new_user = ctx.guild.get_member(new_target) or await ctx.guild.fetch_member(new_target)
-        
-        await current_target.remove_roles(role)
-        await new_user.add_roles(role)
+        await do_role_roll(
+            ctx,
+            Roles.BullyTarget,
+            f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
+            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!"),
+            extra_tickets=False,
+            
+        )
 
 class BullyChooseItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
@@ -166,12 +166,21 @@ class AdminTicketItem(ShopItem):
 class AdminRerollItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
     COST = 3600
-    DESCRIPTION = "🎲 Reroll the admin dice roll"
-    AUTO_USE = False
+    DESCRIPTION = "🎲 Reroll the admin"
+    AUTO_USE = True
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        pass
+        roll_table = [x.id for x in ctx.guild.members]
+        roll_table = await filter_bots(ctx, roll_table)
+
+        await do_role_roll(
+            ctx,
+            Roles.Admin,
+            roll_table,
+            f"🚨 {ctx.user.display_name} called for a reroll! 🚨", 
+            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")            
+        )
 
 class ChooseNicknameOwnItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
