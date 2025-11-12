@@ -55,9 +55,8 @@ class AdminRollCog(commands.Cog):
         
         await interaction.response.defer()
 
-        roll_table = [x.id for x in interaction.guild.members]
+        roll_table = bot_utils.get_non_bot_users(interaction)
         roll_table += await db_utils.get_extra_admin_rolls(consume=True)
-        roll_table = await bot_utils.filter_bots(interaction, roll_table)
 
         new_admin = await bot_utils.do_role_roll(
             interaction, 
@@ -71,8 +70,7 @@ class AdminRollCog(commands.Cog):
 
         await asyncio.sleep(2)
         
-        roll_table = [x.id for x in interaction.guild.members if x.id != new_admin]
-        roll_table = await bot_utils.filter_bots(interaction, roll_table)
+        roll_table = bot_utils.get_non_bot_users(interaction)
 
         await bot_utils.do_role_roll(
             interaction, 
@@ -97,8 +95,7 @@ class AdminRollCog(commands.Cog):
 
         await interaction.response.defer()
 
-        roll_table = [x.id for x in interaction.guild.members]
-        roll_table = await bot_utils.filter_bots(interaction, roll_table)
+        roll_table = bot_utils.get_non_bot_users(interaction)
 
         await bot_utils.do_role_roll(
             interaction, 

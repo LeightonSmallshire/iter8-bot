@@ -4,7 +4,7 @@ import discord.ui
 import datetime
 import logging
 from typing import Callable, Awaitable, Protocol, ClassVar
-from .bot import Roles, do_role_roll, filter_bots
+from .bot import Roles, do_role_roll, get_non_bot_users
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
 
 
@@ -66,7 +66,7 @@ class UserTimeoutItem(ShopItem):
         target = await ctx.guild.fetch_member(params['user'])
         
         if target.id == ctx.user.id:
-            return await ctx.edit_original_response('No timeout farming')    
+            return await ctx.edit_original_response(content='No timeout farming')    
         
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
@@ -86,8 +86,7 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        roll_table = [x.id for x in ctx.guild.members]
-        roll_table = await filter_bots(ctx, roll_table)
+        roll_table = get_non_bot_users(ctx)
 
         await do_role_roll(
             ctx,
@@ -173,8 +172,7 @@ class AdminRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        roll_table = [x.id for x in ctx.guild.members]
-        roll_table = await filter_bots(ctx, roll_table)
+        roll_table = get_non_bot_users(ctx)
 
         await do_role_roll(
             ctx,
