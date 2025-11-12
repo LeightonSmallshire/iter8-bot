@@ -52,7 +52,6 @@ class ShopOptionsView(discord.ui.View):
             if user:
                 summary.append(f"Target: <@{user}>")
             if duration:
-                view.item.COST *= duration
                 summary.append(f"Duration: {duration}m")
             desc = ", ".join(summary) or ""
 

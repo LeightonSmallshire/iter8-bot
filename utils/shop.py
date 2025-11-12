@@ -80,7 +80,7 @@ class UserTimeoutItem(ShopItem):
 
 class BullyRerollItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 1800
+    COST = 900
     DESCRIPTION = "🎲 Reroll bully target"
     AUTO_USE = True
 
@@ -97,7 +97,7 @@ class BullyRerollItem(ShopItem):
 
 class BullyChooseItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 3600
+    COST = 1800
     DESCRIPTION = "🤕 Choose bully target"
     AUTO_USE = True
 
