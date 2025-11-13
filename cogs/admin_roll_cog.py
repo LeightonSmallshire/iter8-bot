@@ -6,7 +6,7 @@ from discord import app_commands
 import logging
 from zoneinfo import ZoneInfo
 from datetime import time, timedelta
-import random
+import random, secrets
 import asyncio
 import utils.bot as bot_utils
 import utils.log as log_utils
@@ -70,7 +70,7 @@ class AdminRollCog(commands.Cog):
 
         await asyncio.sleep(2)
         
-        roll_table = bot_utils.get_non_bot_users(interaction)
+        roll_table = [x for x in bot_utils.get_non_bot_users(interaction) if x != new_admin]
 
         await bot_utils.do_role_roll(
             interaction, 
@@ -82,18 +82,34 @@ class AdminRollCog(commands.Cog):
         
         await asyncio.sleep(2)
 
-        await self.do_gamble_payout(interaction, new_admin)
+        await self.do_gamble_payout(interaction, bot_utils.Users.Nathan)
 
     async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int):
         gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
         await asyncio.sleep(2)
 
-        gamble_results = await db_utils.get_gamble_results(new_admin)
+        gamble_results = await db_utils.get_gamble_odds(consume_bets=True)
+        prize = sum([data["total"] for (_, data)  in gamble_results.items()])
+
+        target_ids = list(gamble_results.keys())
+        weights = [gamble_results[uid]["odds"] for uid in target_ids]
+        
         if len(gamble_results) > 0:
+            winner = random.choices(target_ids, weights=weights, k = 1)[0]
+            result = gamble_results[winner]
+
+            lines: list[str] = []
+            for user_id, data in result["bettors"].items():
+                payout = prize * data["odds"]
+                lines.append(f"<@{user_id}> - {timedelta(seconds=round(payout))}")
+                await db_utils.payout_gamble(user_id, payout)
+
+            
+
             gamble_embed = discord.Embed(
                 title="Gambling Winnings 💰",
-                description="\n".join([f"<@{user_id}> - {timedelta(seconds=round(amount))}" for (user_id, amount) in gamble_results.items()]),
+                description="\n".join(lines),
                 color=discord.Color.green(),
             )
             await gamble_msg.edit(content=None, embed=gamble_embed)

@@ -37,7 +37,6 @@ class GamblingCog(commands.Cog):
         await interaction.response.defer(thinking=True)
 
         users = bot_utils.get_non_bot_users(interaction)
-        users += await db_utils.get_extra_admin_rolls(consume=False)
 
         counts = Counter(users)
 
@@ -54,16 +53,51 @@ class GamblingCog(commands.Cog):
             name = await get_member(uid)
             max_name_w = max(max_name_w, disp_width(name.display_name))
 
-        for (user_id, count) in counts.items():
-            user = await get_member(user_id)
-            bets = await db_utils.get_bets(user_id)
+        odds = await db_utils.get_gamble_odds(consume_bets=False)
+        prize = sum([data["total"] for (_, data)  in odds.items()])
 
-            strings = [f"{(await get_member(bet_user)).display_name} has bet {datetime.timedelta(seconds=round(amount))}" for (bet_user, amount) in bets.items()]
+        def fmt_duration(seconds: float) -> str:
+            return str(datetime.timedelta(seconds=round(seconds)))
 
-            pad = max_name_w - disp_width(user.display_name)
+        embed.add_field(
+            name=f"Total to Win:\t\t\t\t\t\t\t{datetime.timedelta(seconds=prize)}",
+            value="\n",
+            inline=False,
+        )
+
+        # white space
+        embed.add_field(
+            name="\n",
+            value="\n",
+            inline=False,
+        )
+
+        for target_id, target_info in odds.items():
+            user = await get_member(target_id)
+            total = target_info["total"]
+            target_odds = target_info["odds"]
+
+            line = (
+                f"{user.display_name:<{max_name_w}}"
+                f"  {fmt_duration(total):>8}"
+                f"  {target_odds * 100:6.2f}%"
+            )
+
+            bettor_lines = []
+            for bettor_id, bet_info in target_info["bettors"].items():
+                bettor = await get_member(bettor_id)
+                bettor_lines.append(
+                    f"{bettor.display_name:<{max_name_w}}"
+                    f"  {fmt_duration(bet_info['amount']):>8}"
+                    f"  {bet_info['odds'] * 100:6.2f}%"
+                )
+
+            block = f"\n```{line}```\n"
+            subblock = f"```\n" + "\n".join(bettor_lines) + "\n```"
+
             embed.add_field(
-                name=f"`{user.display_name}{' ' * pad} - {count}/{len(users)}`",
-                value="\n".join(strings) or "\u200b",
+                name=block,
+                value=subblock,
                 inline=False,
             )
 
