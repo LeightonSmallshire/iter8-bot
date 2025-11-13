@@ -158,7 +158,7 @@ class TimeoutRandomItem(ShopItem):
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
 
-        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice.")
+        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully someone at random.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
