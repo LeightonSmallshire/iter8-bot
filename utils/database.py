@@ -3,7 +3,7 @@ import sqlite3
 import datetime
 from packaging.version import Version
 from .model import *
-from .shop import BlackFridaySaleItem
+from .shop import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
