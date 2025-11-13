@@ -84,28 +84,6 @@ class AdminRollCog(commands.Cog):
 
         await self.do_gamble_payout(interaction, new_admin)
 
-
-    @app_commands.command(name='reroll', description='Use a purchased reroll token to re-roll the admin.')
-    @commands.check(bot_utils.is_guild_paradise)
-    async def command_reroll_admin(self, interaction: discord.Interaction):
-        allowed, reason = await db_utils.use_admin_reroll_token(interaction.user.id)
-        if not allowed:
-            await interaction.response.send_message(reason)
-            return
-
-        await interaction.response.defer()
-
-        roll_table = bot_utils.get_non_bot_users(interaction)
-
-        await bot_utils.do_role_roll(
-            interaction, 
-            bot_utils.Roles.Admin, 
-            roll_table,
-            f"🚨 {interaction.user.display_name} called for a reroll! 🚨", 
-            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
-        )
-
-
     async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int):
         gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
