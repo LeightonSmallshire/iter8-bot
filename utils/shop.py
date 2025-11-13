@@ -141,7 +141,7 @@ class BullyTimeoutItem(ShopItem):
         return [DurationSelect()]
 
 class TimeoutRandomItem(ShopItem):
-    ITEM_ID = 13
+    ITEM_ID = 14
     COST = 30
     DESCRIPTION = "⏱️ Timeout a random target (price per minute)"
     AUTO_USE = True
