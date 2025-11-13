@@ -87,26 +87,36 @@ class DiscordPrinter:
 
 
 def send_split_messages(buffer: io.StringIO, last_message_id: int | None = None) -> int | None:
-    message = buffer.getvalue()
+    buffer.seek(0)
+    message = buffer.read()
 
-    # Split & consume buffer when exceeding discord's size limit
+    need_new_block = False
     while len(message) > 1900:
-        split_idx = message.rindex('\n', None, 1950)
-        split_idx = max(split_idx, 1800)
-        sub_message = buffer.read(split_idx)
-        message = message[split_idx:]
+        split_idx = message.rfind('\n', 0, 1950)
+        if split_idx == -1 or split_idx < 1800:
+            split_idx = 1900
+
+        sub_message = message[:split_idx]
         last_message_id = do_hook(sub_message, last_message_id)
-    else:
+        message = message[split_idx:]
+        need_new_block = True
+
+    if need_new_block:
         last_message_id = None
 
-    return do_hook(buffer.getvalue(), last_message_id)
+    buffer.seek(0)
+    buffer.truncate(0)
+    buffer.write(message)
+
+    return do_hook(message, last_message_id)
 
 
 def do_hook(message: str, edit_message_id: int | None = None) -> int | None:
     # print('HOOK', message)
     try:
+        suppress_embeds = 1 << 2
         suppress_notifications = 1 << 12
-        payload = json.dumps({'content': message, 'flags': suppress_notifications})
+        payload = json.dumps({'content': message, 'flags': suppress_embeds | suppress_notifications})
         conn = http.client.HTTPSConnection('discord.com')
         url = f'/api/webhooks/{DISCORD_WEBOOK_ID}/{DISCORD_WEBOOK_TOKEN}'
         if edit_message_id is None:
@@ -207,7 +217,8 @@ async def handle_webhook(request: fastapi.Request, background_tasks: BackgroundT
 @app.get("/restart")
 async def manual_restart():
     buf = AsyncTee()
-    asyncio.create_task(restart("Manual", stdout=buf))
+    task = asyncio.create_task(restart("Manual", stdout=buf))
+    task.add_done_callback(lambda *_, **__: buf.close())
     return fastapi.responses.StreamingResponse(buf.stream(), media_type="text/plain")
 
 
