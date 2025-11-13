@@ -55,6 +55,8 @@ class ShopOptionsView(discord.ui.View):
                 summary.append(f"Duration: {duration}m")
             desc = ", ".join(summary) or ""
 
+            _log.info(f"{interaction.user.name} purchased {item.DESCRIPTION}: ({desc})")
+
             if await db_utils.can_afford_purchase(interaction.user.id, item.COST):
                 count = duration if duration else 1
                 db = await db_utils.Database(db_utils.DATABASE_NAME, defer_commit=True).connect()

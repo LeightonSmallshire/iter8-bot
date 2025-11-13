@@ -65,11 +65,8 @@ def is_trusted_developer(ctx: discord.Interaction):
     return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
-async def filter_bots(ctx: discord.Interaction, users: list[int]) -> list[int]:
-    async def filter_bot(user: int):
-        member = ctx.guild.get_member(user) or await ctx.guild.fetch_member(user)
-        return not member.bot and not ctx.guild.owner_id == member.id
-    return [u for u in users if await filter_bot(u)]
+def get_non_bot_users(ctx: discord.Interaction) -> list[int]:
+    return [x.id for x in ctx.guild.members if not x.bot and x.id != ctx.guild.owner_id]
 
 # async def send_dm_to_user(bot, user_id, message):
 #     try:
@@ -112,6 +109,57 @@ async def send_message(bot, user_id, message):
 def defer_message(bot, user_id, message):
     asyncio.create_task(send_message(bot, user_id, message))
 
+
+def make_emoji_number(num: int):
+    return "".join([f":number_{d}:" for d in str(num)])
+
+async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]):
+    ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
+
+    role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)
+    prev_user = role.members[0] if role.members else None
+
+    list_embed = discord.Embed(title=embed_title, color=discord.Color.yellow())
+    for idx, user_id in enumerate(roll_table, 1):
+        list_embed.add_field(
+            name=make_emoji_number(idx),
+            value=f"<@{user_id}>",
+            inline=False,
+        )
+
+    await interaction.followup.send(content=f"@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
+
+    if not roll_table:
+        await interaction.followup.send(content="There are no users for this roll.")
+        return 0
+    
+    await asyncio.sleep(3)
+
+    roll_embed = discord.Embed(title="Rolling...")
+    roll_embed.set_image(url=ROLL_GIF_URL)
+
+    msg = await interaction.followup.send(embed=roll_embed, wait=True)
+
+    # Sleep for dramatic effect
+    await asyncio.sleep(4)
+
+    index = random.randrange(0, len(roll_table))
+    await msg.edit(content=f"A {make_emoji_number(index + 1)} was rolled!", embed=None)
+
+    await asyncio.sleep(3)
+
+    choice = roll_table[index]
+    new_user = await interaction.guild.fetch_member(choice)
+
+    if prev_user is not None:
+        await prev_user.remove_roles(role)
+
+    await new_user.add_roles(role)
+
+    message_contents = response[0].format(prev_user.id, choice) if prev_user else response[1].format(choice)
+    await msg.edit(content=message_contents)
+
+    return new_user.id
 
 class DiscordHandler(logging.Handler):
     def __init__(self, bot: discord.Client, user_id, *args, **kwargs):

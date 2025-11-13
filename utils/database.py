@@ -3,8 +3,6 @@ import sqlite3
 import datetime
 from packaging.version import Version
 from .model import *
-from .bot import Users, filter_bots
-from .shop import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
@@ -483,12 +481,6 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
         tokens = await db.select(Purchase, where=[WhereParam("item_id", AdminRerollItem.ITEM_ID), WhereParam("used", False)])
         if not tokens:
             return False, "Naughty naughty, you haven't purchased a reroll token."
-
-        roll_info = await db.select(AdminRollInfo, order=[OrderParam("last_roll", True)])
-        roll_info = roll_info[0] if roll_info else AdminRollInfo(datetime.datetime.min)
-
-        if datetime.datetime.now() - roll_info.last_roll > datetime.timedelta(minutes=15):
-            return False, "You can only use a reroll within 15 minutes of the admin roll."
         
         token = tokens[0]
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])

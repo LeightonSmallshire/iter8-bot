@@ -4,7 +4,7 @@ import discord.ui
 import datetime
 import logging
 from typing import Callable, Awaitable, Protocol, ClassVar
-from .bot import Users, Roles
+from .bot import Roles, do_role_roll, get_non_bot_users
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
 
 
@@ -34,7 +34,7 @@ class ShopItem:
 
 class AdminTimeoutItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 300
+    COST = 120
     DESCRIPTION = "⏱️ Timeout admin (price per minute)"
     AUTO_USE = True
 
@@ -66,7 +66,7 @@ class UserTimeoutItem(ShopItem):
         target = await ctx.guild.fetch_member(params['user'])
         
         if target.id == ctx.user.id:
-            return await ctx.edit_original_response('No timeout farming')    
+            return await ctx.edit_original_response(content='No timeout farming')    
         
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
@@ -86,14 +86,15 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        role = await ctx.guild.fetch_role(Roles.BullyTarget)
-        current_target = role.members[0]
-        new_target = Users.random(filter=[current_target.id])
+        roll_table = get_non_bot_users(ctx)
 
-        new_user = ctx.guild.get_member(new_target) or await ctx.guild.fetch_member(new_target)
-        
-        await current_target.remove_roles(role)
-        await new_user.add_roles(role)
+        await do_role_roll(
+            ctx,
+            Roles.BullyTarget,
+            roll_table,
+            f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
+            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
+        )
 
 class BullyChooseItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
@@ -166,12 +167,20 @@ class AdminTicketItem(ShopItem):
 class AdminRerollItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
     COST = 3600
-    DESCRIPTION = "🎲 Reroll the admin dice roll"
-    AUTO_USE = False
+    DESCRIPTION = "🎲 Reroll the admin"
+    AUTO_USE = True
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        pass
+        roll_table = get_non_bot_users(ctx)
+
+        await do_role_roll(
+            ctx,
+            Roles.Admin,
+            roll_table,
+            f"🚨 {ctx.user.display_name} called for a reroll! 🚨", 
+            ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")            
+        )
 
 class ChooseNicknameOwnItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1

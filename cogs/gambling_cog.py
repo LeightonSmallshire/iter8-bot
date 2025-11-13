@@ -36,9 +36,8 @@ class GamblingCog(commands.Cog):
         
         await interaction.response.defer(thinking=True)
 
-        users = [x.id for x in interaction.guild.members]
+        users = bot_utils.get_non_bot_users(interaction)
         users += await db_utils.get_extra_admin_rolls(consume=False)
-        users = await bot_utils.filter_bots(interaction, users)
 
         counts = Counter(users)
 
@@ -47,7 +46,7 @@ class GamblingCog(commands.Cog):
         member_by_id = {m.id: m for m in interaction.guild.members}
 
         async def get_member(user_id: int) -> discord.Member:
-            return member_by_id.get(user_id) or interaction.guild.fetch_member(user_id)
+            return member_by_id.get(user_id) or await interaction.guild.fetch_member(user_id)
 
         # Compute max display width for alignment
         max_name_w = 0
