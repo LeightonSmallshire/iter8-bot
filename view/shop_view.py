@@ -3,7 +3,7 @@ from discord import app_commands
 import discord.ui
 from typing import Callable
 import logging
-import re
+import datetime
 import utils.database as db_utils
 import utils.log as log_utils
 from utils.model import Purchase
@@ -57,11 +57,18 @@ class ShopOptionsView(discord.ui.View):
 
             _log.info(f"{interaction.user.name} purchased {item.DESCRIPTION}: ({desc})")
 
-            if await db_utils.can_afford_purchase(interaction.user.id, item.COST):
-                count = duration if duration else 1
+            sale, _ = await db_utils.is_ongoing_sale()
+            discount = 0.5 if sale else 1
+            
+            count = duration if duration else 1
+            item_cost = item.COST * discount if item.ITEM_ID == shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
+            
+            cost = item_cost * count
+
+            if await db_utils.can_afford_purchase(interaction.user.id, cost):
                 db = await db_utils.Database(db_utils.DATABASE_NAME, defer_commit=True).connect()
                 try:
-                    await db.insert(Purchase(None, item.ITEM_ID, item.COST * count, interaction.user.id, item.AUTO_USE))
+                    await db.insert(Purchase(None, datetime.datetime.now(), item.ITEM_ID, cost, interaction.user.id, item.AUTO_USE))
                     await view.item.handle_purchase(interaction, view.context)
                     await db.commit()
 

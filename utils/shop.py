@@ -80,7 +80,7 @@ class UserTimeoutItem(ShopItem):
 
 class BullyRerollItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 900
+    COST = 600
     DESCRIPTION = "🎲 Reroll bully target"
     AUTO_USE = True
 
@@ -98,7 +98,7 @@ class BullyRerollItem(ShopItem):
 
 class BullyChooseItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 1800
+    COST = 1200
     DESCRIPTION = "🤕 Choose bully target"
     AUTO_USE = True
 
@@ -141,7 +141,7 @@ class BullyTimeoutItem(ShopItem):
 
 class MakeAdminItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 18000
+    COST = 7200
     DESCRIPTION = "👑 Make yourself admin"
     AUTO_USE = True
 
@@ -156,7 +156,7 @@ class MakeAdminItem(ShopItem):
 
 class AdminTicketItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 3600
+    COST = 1800
     DESCRIPTION = "🎟️ Add an extra ticket in the next admin dice roll"
     AUTO_USE = False
 
@@ -166,7 +166,7 @@ class AdminTicketItem(ShopItem):
 
 class AdminRerollItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 3600
+    COST = 2700
     DESCRIPTION = "🎲 Reroll the admin"
     AUTO_USE = True
 
@@ -267,3 +267,13 @@ class ChooseColourOtherItem(ShopItem):
             UserSelect(),
             ColourSelect(),
         ]
+    
+class BlackFridaySaleItem(ShopItem):
+    ITEM_ID = len(SHOP_ITEMS) + 1
+    COST = 1800
+    DESCRIPTION = "🏷️ Black Friday Sale! Everything half off for the next 30 minutes!"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        pass

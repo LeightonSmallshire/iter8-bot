@@ -78,6 +78,7 @@ class Log:
 @dataclass
 class Purchase:
     id: int
+    timestamp: datetime.datetime
     item_id: int
     cost: int
     user_id: int = foreign_key(User)
