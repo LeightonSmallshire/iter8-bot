@@ -34,7 +34,7 @@ class ShopItem:
 
 class AdminTimeoutItem(ShopItem):
     ITEM_ID = len(SHOP_ITEMS) + 1
-    COST = 300
+    COST = 120
     DESCRIPTION = "⏱️ Timeout admin (price per minute)"
     AUTO_USE = True
 
