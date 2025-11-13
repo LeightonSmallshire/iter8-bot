@@ -3,6 +3,7 @@ import discord.utils
 import discord.ui
 import datetime
 import logging
+import secrets
 from typing import Callable, Awaitable, Protocol, ClassVar
 from .bot import Roles, do_role_roll, get_non_bot_users
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
@@ -33,7 +34,7 @@ class ShopItem:
         return []
 
 class AdminTimeoutItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 1
     COST = 120
     DESCRIPTION = "⏱️ Timeout admin (price per minute)"
     AUTO_USE = True
@@ -56,7 +57,7 @@ class AdminTimeoutItem(ShopItem):
         return [DurationSelect()]
 
 class UserTimeoutItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 2
     COST = 60
     DESCRIPTION = "⏱️ Timeout user (price per minute)"
     AUTO_USE = True
@@ -79,7 +80,7 @@ class UserTimeoutItem(ShopItem):
         return [UserSelect(), DurationSelect()]
 
 class BullyRerollItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 3
     COST = 600
     DESCRIPTION = "🎲 Reroll bully target"
     AUTO_USE = True
@@ -97,7 +98,7 @@ class BullyRerollItem(ShopItem):
         )
 
 class BullyChooseItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 4
     COST = 1200
     DESCRIPTION = "🤕 Choose bully target"
     AUTO_USE = True
@@ -116,7 +117,7 @@ class BullyChooseItem(ShopItem):
         return [UserSelect()]
 
 class BullyTimeoutItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 5
     COST = 30
     DESCRIPTION = "⏱️ Timeout bully target (price per minute)"
     AUTO_USE = True
@@ -139,8 +140,32 @@ class BullyTimeoutItem(ShopItem):
     def get_input_handlers(cls) -> list[discord.ui.Item]:
         return [DurationSelect()]
 
+class TimeoutRandomItem(ShopItem):
+    ITEM_ID = 13
+    COST = 30
+    DESCRIPTION = "⏱️ Timeout a random target (price per minute)"
+    AUTO_USE = True
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        users = get_non_bot_users(ctx)
+
+        index = secrets.randbelow(len(users))
+
+        member = await ctx.guild.fetch_member(users[index])
+
+        now = discord.utils.utcnow()
+        start = max(now, member.timed_out_until) if member.timed_out_until else now
+        until = start + datetime.timedelta(minutes=params['duration'])
+
+        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice.")
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [DurationSelect()]
+
 class MakeAdminItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 6
     COST = 7200
     DESCRIPTION = "👑 Make yourself admin"
     AUTO_USE = True
@@ -155,7 +180,7 @@ class MakeAdminItem(ShopItem):
         await new_target.add_roles(role)
 
 class AdminTicketItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 7
     COST = 1800
     DESCRIPTION = "🎟️ Add an extra ticket in the next admin dice roll"
     AUTO_USE = False
@@ -165,7 +190,7 @@ class AdminTicketItem(ShopItem):
         pass
 
 class AdminRerollItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 8
     COST = 2700
     DESCRIPTION = "🎲 Reroll the admin"
     AUTO_USE = True
@@ -183,7 +208,7 @@ class AdminRerollItem(ShopItem):
         )
 
 class ChooseNicknameOwnItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 9
     COST = 60
     DESCRIPTION = "✏️ Change your own nickname"
     AUTO_USE = True
@@ -199,7 +224,7 @@ class ChooseNicknameOwnItem(ShopItem):
         return [TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")]
     
 class ChooseNicknameOtherItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 10
     COST = 300
     DESCRIPTION = "✏️ Change another user's nickname"
     AUTO_USE = True
@@ -237,7 +262,7 @@ async def set_colour(ctx: discord.Interaction, target: discord.Member, params: d
     await target.add_roles(role)
 
 class ChooseColourOwnItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 11
     COST = 60
     DESCRIPTION = "🖌️ Change your own colour"
     AUTO_USE = True
@@ -251,7 +276,7 @@ class ChooseColourOwnItem(ShopItem):
         return [ColourSelect()]
 
 class ChooseColourOtherItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 12
     COST = 300
     DESCRIPTION = "🖌️ Change another user's colour"
     AUTO_USE = True
@@ -269,7 +294,7 @@ class ChooseColourOtherItem(ShopItem):
         ]
     
 class BlackFridaySaleItem(ShopItem):
-    ITEM_ID = len(SHOP_ITEMS) + 1
+    ITEM_ID = 13
     COST = 1800
     DESCRIPTION = "🏷️ Black Friday Sale! Everything half off for the next 30 minutes!"
     AUTO_USE = True
