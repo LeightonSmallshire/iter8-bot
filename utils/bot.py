@@ -3,6 +3,7 @@ import discord
 import random
 import asyncio
 import datetime
+import secrets
 from typing import Optional
 from .model import User
 
@@ -143,8 +144,10 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
     # Sleep for dramatic effect
     await asyncio.sleep(4)
 
-    index = random.randrange(0, len(roll_table))
+    index = secrets.randbelow(len(roll_table))
+    # index = random.randrange(0, len(roll_table))
     await msg.edit(content=f"A {make_emoji_number(index + 1)} was rolled!", embed=None)
+    print('Roll Table:', *roll_table, index, sep='\n\t')
 
     await asyncio.sleep(3)
 
