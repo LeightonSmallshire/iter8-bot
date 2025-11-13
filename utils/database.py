@@ -451,11 +451,11 @@ async def can_afford_purchase(user: int, cost: int) -> bool:
 
     return cost <= credit
 
-async def is_ongoing_sale() -> tuple[bool, datetime.datetime]:
+async def is_ongoing_sale() -> tuple[bool, Optional[datetime.datetime]]:
     async with Database(DATABASE_NAME) as db:
         sale = await db.select(Purchase, where=[WhereParam("item_id", BlackFridaySaleItem.ITEM_ID)], order=[OrderParam("timestamp", True)])
         if not sale:
-            return False
+            return False, None
         
         end_time = sale[0].timestamp + datetime.timedelta(minutes=30)
         return datetime.datetime.now() < end_time, end_time
