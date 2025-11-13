@@ -33,13 +33,20 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(thinking=True)
 
+        sale, end_date = await db_utils.is_ongoing_sale()
+        discount = 0.5 if sale else 1
         embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
         for item in shop_utils.SHOP_ITEMS:
+            cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
+
             embed.add_field(
                 name=item.DESCRIPTION,
-                value=f"Price: {datetime.timedelta(seconds=item.COST)}",
+                value=f"Price: {datetime.timedelta(seconds=cost)}",
                 inline=False,
             )
+
+        if sale:
+            embed.set_footer(text=f"Sale ends at {end_date}")
 
         view = ShopView()
         await interaction.followup.send(embed=embed, view=view)
