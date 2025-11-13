@@ -6,6 +6,7 @@ import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
 import discord
+import datetime
 from discord.ext import commands
 
 # --- Configuration ---
@@ -24,6 +25,9 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.FileHandler('data/logs.log'))
 logger.addHandler(log_utils.DatabaseHandler())
 
+now = datetime.datetime.now().time()
+is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
+
 
 class HotReloadBot(commands.Bot):
     def __init__(self):
@@ -31,8 +35,10 @@ class HotReloadBot(commands.Bot):
 
     async def on_ready(self):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
-        bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
+
+        if is_work_hours:
+            bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
+            bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
 
         server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
         leaderboard = await bot_utils.get_timeout_data(server)
@@ -89,7 +95,8 @@ class HotReloadBot(commands.Bot):
             'failed': failed_cogs,
             'synced': [str(c) for c in synced]
         }
-        bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
+        if is_work_hours:
+            bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
         return status
 
 
