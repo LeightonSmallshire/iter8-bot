@@ -149,7 +149,7 @@ class BullyRerollItem(ShopItem):
             ctx,
             Roles.BullyTarget,
             roll_table,
-            f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
+            f"🎲 {ctx.user.display_name} is re-rolling the bully target!",
             ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
         )
 
