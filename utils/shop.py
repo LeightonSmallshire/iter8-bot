@@ -16,12 +16,14 @@ class ShopItem:
     COST: int
     DESCRIPTION: str
     AUTO_USE: bool
+    CATEGORY: str
 
     def __init_subclass__(cls) -> None:
         assert hasattr(cls, 'ITEM_ID') and isinstance(cls.ITEM_ID, int)
         assert hasattr(cls, 'COST') and isinstance(cls.COST, int)
         assert hasattr(cls, 'DESCRIPTION') and isinstance(cls.DESCRIPTION, str)
         assert hasattr(cls, 'AUTO_USE') and isinstance(cls.AUTO_USE, bool)
+        assert hasattr(cls, 'CATEGORY') and isinstance(cls.CATEGORY, str)
         
         SHOP_ITEMS.append(cls)
 
@@ -38,6 +40,7 @@ class AdminTimeoutItem(ShopItem):
     COST = 120
     DESCRIPTION = "⏱️ Timeout admin (price per minute)"
     AUTO_USE = True
+    CATEGORY = "Timeouts"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -61,6 +64,7 @@ class UserTimeoutItem(ShopItem):
     COST = 60
     DESCRIPTION = "⏱️ Timeout user (price per minute)"
     AUTO_USE = True
+    CATEGORY = "Timeouts"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -79,48 +83,12 @@ class UserTimeoutItem(ShopItem):
     def get_input_handlers(cls) -> list[discord.ui.Item]:
         return [UserSelect(), DurationSelect()]
 
-class BullyRerollItem(ShopItem):
-    ITEM_ID = 3
-    COST = 600
-    DESCRIPTION = "🎲 Reroll bully target"
-    AUTO_USE = True
-
-    @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        roll_table = get_non_bot_users(ctx)
-
-        await do_role_roll(
-            ctx,
-            Roles.BullyTarget,
-            roll_table,
-            f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
-            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
-        )
-
-class BullyChooseItem(ShopItem):
-    ITEM_ID = 4
-    COST = 1200
-    DESCRIPTION = "🤕 Choose bully target"
-    AUTO_USE = True
-
-    @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        role = await ctx.guild.fetch_role(Roles.BullyTarget)
-        new_target = await ctx.guild.fetch_member(params['user'])
-        current_target = role.members[0]
-
-        await current_target.remove_roles(role)
-        await new_target.add_roles(role)
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
-        return [UserSelect()]
-
 class BullyTimeoutItem(ShopItem):
     ITEM_ID = 5
     COST = 30
     DESCRIPTION = "⏱️ Timeout bully target (price per minute)"
     AUTO_USE = True
+    CATEGORY = "Timeouts"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -145,6 +113,7 @@ class TimeoutRandomItem(ShopItem):
     COST = 30
     DESCRIPTION = "⏱️ Timeout a random target (price per minute)"
     AUTO_USE = True
+    CATEGORY = "Timeouts"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -164,26 +133,51 @@ class TimeoutRandomItem(ShopItem):
     def get_input_handlers(cls) -> list[discord.ui.Item]:
         return [DurationSelect()]
 
-class MakeAdminItem(ShopItem):
-    ITEM_ID = 6
-    COST = 7200
-    DESCRIPTION = "👑 Make yourself admin"
+class BullyRerollItem(ShopItem):
+    ITEM_ID = 3
+    COST = 600
+    DESCRIPTION = "🎲 Reroll bully target"
     AUTO_USE = True
+    CATEGORY = "Timeouts"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        role = await ctx.guild.fetch_role(Roles.Admin)
-        new_target = await ctx.guild.fetch_member(ctx.user.id)
+        roll_table = get_non_bot_users(ctx)
+
+        await do_role_roll(
+            ctx,
+            Roles.BullyTarget,
+            roll_table,
+            f"🎲 <@{ctx.user.id}> is re-rolling the bully target!",
+            ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
+        )
+
+class BullyChooseItem(ShopItem):
+    ITEM_ID = 4
+    COST = 1200
+    DESCRIPTION = "🤕 Choose bully target"
+    AUTO_USE = True
+    CATEGORY = "Timeouts"
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        role = await ctx.guild.fetch_role(Roles.BullyTarget)
+        new_target = await ctx.guild.fetch_member(params['user'])
         current_target = role.members[0]
 
         await current_target.remove_roles(role)
         await new_target.add_roles(role)
+
+    @classmethod
+    def get_input_handlers(cls) -> list[discord.ui.Item]:
+        return [UserSelect()]
 
 class AdminTicketItem(ShopItem):
     ITEM_ID = 7
     COST = 1800
     DESCRIPTION = "🎟️ Add an extra ticket in the next admin dice roll"
     AUTO_USE = False
+    CATEGORY = "Admin"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -194,6 +188,7 @@ class AdminRerollItem(ShopItem):
     COST = 2700
     DESCRIPTION = "🎲 Reroll the admin"
     AUTO_USE = True
+    CATEGORY = "Admin"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -207,11 +202,28 @@ class AdminRerollItem(ShopItem):
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")            
         )
 
+class MakeAdminItem(ShopItem):
+    ITEM_ID = 6
+    COST = 7200
+    DESCRIPTION = "👑 Make yourself admin"
+    AUTO_USE = True
+    CATEGORY = "Admin"
+
+    @classmethod
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+        role = await ctx.guild.fetch_role(Roles.Admin)
+        new_target = await ctx.guild.fetch_member(ctx.user.id)
+        current_target = role.members[0]
+
+        await current_target.remove_roles(role)
+        await new_target.add_roles(role)
+
 class ChooseNicknameOwnItem(ShopItem):
     ITEM_ID = 9
     COST = 60
     DESCRIPTION = "✏️ Change your own nickname"
     AUTO_USE = True
+    CATEGORY = "Customise"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -228,6 +240,7 @@ class ChooseNicknameOtherItem(ShopItem):
     COST = 300
     DESCRIPTION = "✏️ Change another user's nickname"
     AUTO_USE = True
+    CATEGORY = "Customise"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -266,6 +279,7 @@ class ChooseColourOwnItem(ShopItem):
     COST = 60
     DESCRIPTION = "🖌️ Change your own colour"
     AUTO_USE = True
+    CATEGORY = "Customise"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -280,6 +294,7 @@ class ChooseColourOtherItem(ShopItem):
     COST = 300
     DESCRIPTION = "🖌️ Change another user's colour"
     AUTO_USE = True
+    CATEGORY = "Customise"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
@@ -298,6 +313,7 @@ class BlackFridaySaleItem(ShopItem):
     COST = 1800
     DESCRIPTION = "🏷️ Black Friday Sale! Everything half off for the next 30 minutes!"
     AUTO_USE = True
+    CATEGORY = "Sale"
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
