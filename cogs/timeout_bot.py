@@ -57,11 +57,8 @@ class TimeoutsCog(commands.Cog):
 
         # Do not count timeouts by server owner (but do count removals)
         has_changed = timeout_applied or timeout_extended or timeout_removed
-        add_to_db = has_changed and moderator is not None and (moderator != after.guild.owner or timeout_removed) 
-        if add_to_db:
-            await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
-        if timeout_applied or timeout_extended:
+        if has_changed:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
 
             moderator = None
@@ -76,7 +73,14 @@ class TimeoutsCog(commands.Cog):
             else:
                 _log.debug("Moderator/Reason not found in recent audit logs.")
 
-            await self.on_member_timeout(after, after.timed_out_until, moderator, reason)
+            add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed) 
+            if add_to_db:
+                await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
+
+            if timeout_applied or timeout_extended:
+                await self.on_member_timeout(after, after.timed_out_until, moderator, reason)
+            else:
+                await self.on_member_untimeout(after, moderator, reason)
 
     @staticmethod
     async def on_member_timeout(member: discord.Member,
@@ -102,6 +106,31 @@ class TimeoutsCog(commands.Cog):
             # Full message with moderator and reason
             await channel.send(
                 f'{member.mention} was timed out by {moderator.mention} for **{reason}** <t:{int(until.timestamp())}:R>',
+                silent=True)
+
+    @staticmethod
+    async def on_member_untimeout(member: discord.Member,
+                                moderator: discord.Member | None,
+                                reason: str | None):
+        """Handles the event after a member is released from a time out."""
+        guild = member.guild
+        # Using client.get_channel for potential better performance/caching if ID is known,
+        # but discord.utils.get by name is fine too.
+        channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
+
+        if channel is None:
+            _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
+            return
+
+        if (moderator is None) or (reason is None):
+            # Fallback message
+            await channel.send(f'{member.mention} was freed from their time out.',
+                               silent=True)
+
+        else:
+            # Full message with moderator and reason
+            await channel.send(
+                f'{member.mention} was freed from their time out by {moderator.mention}.',
                 silent=True)
 
     @commands.Cog.listener()
