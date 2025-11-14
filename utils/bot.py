@@ -211,10 +211,6 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
         if member.bot or member.id == guild.owner_id:
             continue
 
-        moderator = entry.user
-        if moderator == guild.owner:
-            continue
-
         was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
         now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
         was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
@@ -226,6 +222,10 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
         timeout_added = not b_was_timeout and b_now_timeout
         timeout_changed = b_was_timeout and b_now_timeout
         timeout_removed = b_was_timeout and not b_now_timeout
+        
+        moderator = entry.user
+        if (timeout_added or timeout_changed) and moderator == guild.owner:
+            continue
 
         if timeout_added:
             duration = (now_timeout - entry.created_at).total_seconds()
