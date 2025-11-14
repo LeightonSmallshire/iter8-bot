@@ -56,7 +56,8 @@ class TimeoutsCog(commands.Cog):
             duration_to_add = after.timed_out_until - before.timed_out_until
 
         # Do not count timeouts by server owner (but do count removals)
-        add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed) 
+        has_changed = timeout_applied or timeout_extended or timeout_removed
+        add_to_db = has_changed and moderator is not None and (moderator != after.guild.owner or timeout_removed) 
         if add_to_db:
             await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
