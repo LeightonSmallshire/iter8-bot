@@ -142,7 +142,8 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        roll_table = get_non_bot_users(ctx)
+        admin_role = await ctx.guild.fetch_role(Roles.Admin)
+        roll_table = [x for x in get_non_bot_users(ctx) if x not in [u.id for u in admin_role.members]]
 
         await do_role_roll(
             ctx,
