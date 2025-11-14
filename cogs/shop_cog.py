@@ -38,9 +38,9 @@ class ShopCog(commands.Cog):
         discount = 0.5 if sale else 1
         embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
 
-        groups = [(cat, list(g)) for cat, g in groupby(shop_utils.SHOP_ITEMS, key=lambda x: x.CATEGORY)]
+        groups = [(cat, list(g)) for cat, g in groupby(shop_utils.SHOP_ITEMS, key=lambda x: x.CATEGORY)
         for (idx, (category, group)) in enumerate(groups, 1):
-            embed.add_field(name=f"{category}\u200b", value="────────────────────────────────────────────────────────", inline=False)
+            embed.add_field(name=f"{category}", value="────────────────────────────────────────────────────────", inline=False)
 
             for item in group:
                 cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
