@@ -3,6 +3,7 @@ import operator
 import discord
 from discord.ext import commands
 from discord import app_commands
+from itertools import groupby
 import traceback
 import logging
 import sys
@@ -36,14 +37,22 @@ class ShopCog(commands.Cog):
         sale, end_date = await db_utils.is_ongoing_sale()
         discount = 0.5 if sale else 1
         embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
-        for item in shop_utils.SHOP_ITEMS:
-            cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
 
-            embed.add_field(
-                name=item.DESCRIPTION,
-                value=f"Price: {datetime.timedelta(seconds=cost)}",
-                inline=False,
-            )
+        groups = [(cat, list(g)) for cat, g in groupby(shop_utils.SHOP_ITEMS, key=lambda x: x.CATEGORY)]
+        for (idx, (category, group)) in enumerate(groups, 1):
+            embed.add_field(name=f"{category}\u200b", value="────────────────────────────────────────────────────────", inline=False)
+
+            for item in group:
+                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
+
+                embed.add_field(
+                    name=item.DESCRIPTION,
+                    value=f"Price: {datetime.timedelta(seconds=cost)}",
+                    inline=False,
+                )
+
+            if (idx != len(groups)):
+                embed.add_field(name="", value="\u200b", inline=False)
 
         if sale:
             embed.set_footer(text=f"Sale ends at {end_date}")
