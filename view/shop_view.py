@@ -61,7 +61,7 @@ class ShopOptionsView(discord.ui.View):
             discount = 0.5 if sale else 1
             
             count = duration if duration else 1
-            item_cost = item.COST * discount if item.ITEM_ID == shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
+            item_cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
             
             cost = item_cost * count
 
