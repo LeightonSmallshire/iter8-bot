@@ -320,4 +320,4 @@ class BlackFridaySaleItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        pass
+        await ctx.followup.send(f"<@{ctx.user.id}> started a sale! Get 50% off for the next 30 minutes!")
