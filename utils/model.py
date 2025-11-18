@@ -114,3 +114,22 @@ class AdminRollInfo:
 @dataclass
 class DatabaseVersion:
     version: Version
+
+@dataclass
+class Stock:
+    id: int
+    name: str
+    code: str
+    value: float
+    drift: float
+    volatility: float
+
+@dataclass
+class StockOrder:
+    id: int
+    count: int
+    bought_at: float
+    sold_at: Optional[float]
+    user_id: int = foreign_key(User)
+    stock: int = foreign_key(Stock)
+    short: bool = False
