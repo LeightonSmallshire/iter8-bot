@@ -485,11 +485,15 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
         winnings = await db.select(GambleWin, where=[WhereParam("user_id", user_id)])
         bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+        gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
+        gifts_received  = await db.select(Gift, where=[WhereParam("receiver", user.id)])
 
         credit = user.duration
         credit -= sum([p.cost for p in purchases])
         credit -= sum([b.amount for b in bets])
         credit += sum([w.amount for w in winnings])
+        credit -= sum([g.amount for g in gifts_sent])
+        credit += sum([g.amount for g in gifts_received])
 
         credit = max(credit, 0)
 
