@@ -98,6 +98,13 @@ class GambleWin:
     amount: float
     user_id: int = foreign_key(User)
 
+@dataclass
+class Gift:
+    id: int
+    amount: float
+    giver: int = foreign_key(User)
+    receiver: int = foreign_key(User)
+
 @single_value_table
 @dataclass
 class AdminRollInfo:
