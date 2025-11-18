@@ -32,7 +32,7 @@ class ShopCog(commands.Cog):
     async def command_display_shop(self, interaction: discord.Interaction):
         """Generates and displays the timeout shop."""
 
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         sale, end_date = await db_utils.is_ongoing_sale()
         discount = 0.5 if sale else 1
@@ -65,7 +65,7 @@ class ShopCog(commands.Cog):
     async def command_display_credit(self, interaction: discord.Interaction):
         """Calculates and displays available shop credit."""
 
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         users = { user: await db_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
         users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
