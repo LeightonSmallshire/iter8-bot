@@ -1,12 +1,13 @@
 import aiosqlite
 import sqlite3
 import datetime
+import random
 from packaging.version import Version
 from .model import *
 from .shop import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
-from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar
+from typing import Optional, Any, Type, get_type_hints, Type, get_origin, get_args
 
 @dataclass
 class WhereParam:
@@ -47,6 +48,18 @@ def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
             return ("right", f.name, fk.get("column", "id"))
 
     raise ValueError(f"No foreign-key relationship between {left.__name__} and {right.__name__}")
+
+def _is_nullable(tp) -> bool:
+    # Directly NoneType
+    if tp is type(None):
+        return True
+
+    origin = get_origin(tp)
+    if origin is None:
+        return False
+
+    # Union[...] or X | Y
+    return type(None) in get_args(tp)
 
 # --- core ORM ---
 class Database:
@@ -105,14 +118,22 @@ class Database:
     async def drop_table(self, model: Type[T]) -> None:
         await self.drop_table_with_name(python_to_table_name(model))
 
+    async def table_exists(self, table_name: str) -> bool:
+        cur = await self.con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        )
+        return (await cur.fetchone()) is not None
+
     async def create_single_value_table(self, model: Type[T]):
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
             if f.name == "__single_value_table__":
                 continue
-            sql_type = python_to_sql_type(hints[f.name])
-            cols.append(f"{f.name} {sql_type}")
+            typename = hints[f.name]
+            sql_type = python_to_sql_type(typename)
+            cols.append(f"{f.name} {sql_type}{'' if _is_nullable(typename) else ' NOT NULL'}")
         cols.append("guard INTEGER NOT NULL DEFAULT 0 CHECK (guard = 0)")
         sql = (
             f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} "
@@ -142,12 +163,18 @@ class Database:
         sql = f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} ({', '.join(cols)})"
         await self.con.execute(sql)
 
-    async def create_table(self, model: Type[T]) -> None:
+    async def create_table(self, model: Type[T]) -> bool:
+        exists = await self.table_exists(python_to_table_name(model))
+        if exists:
+            return False
+
         is_single = getattr(model, "__single_value_table__", False)
         if is_single:
             await self.create_single_value_table(model)
         else:
             await self.create_id_table(model)
+
+        return True
 
     async def insert(self, obj: T) -> int:
         is_single = getattr(type(obj), "__single_value_table__", False)
@@ -189,7 +216,10 @@ class Database:
         return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
-    async def select(self, model: Type[T], where: list[WhereParam] = [], order: list[OrderParam] = [], limit: Optional[int] = None) -> list[T]:
+    async def select(self, model: Type[T], where: Optional[list[WhereParam]] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> list[T]:
+        if where is None:
+            where = []
+
         # validate column name
         valid_fields = {f.name for f in fields(model)}
 
@@ -210,12 +240,21 @@ class Database:
         results = await cur.fetchmany(limit) if limit else await cur.fetchall()
         return [model(**dict(row)) for row in results]
 
-    async def update(self, obj: T, where: list[WhereParam] = []) -> None:
+    async def update(self, obj: T, where: Optional[list[WhereParam]] = None) -> None:
+        if where is None:
+            where = []
+
         data = asdict(obj)
         data = {k: v for k, v in data.items() if v is not None}
 
         assigns = ", ".join(f"{k}=?" for k in data.keys())
         sql = f"UPDATE {python_to_table_name(type(obj))} SET {assigns}"
+        
+        actual_where: list[WhereParam] = where
+
+        id_set = ("id" in data) or (data.get("id") is not None) or (data.get("id") != 0)
+        if id_set:
+            actual_where += [WhereParam("id", data.get("id"))]
         
         for idx, param in enumerate(where):            
             sql += " AND " if idx > 0 else " WHERE "
@@ -223,7 +262,10 @@ class Database:
             
         await self.con.execute(sql, list(data.values()) + [p.value for p in where])
 
-    async def delete(self, model: Type[T], where: list[WhereParam] = []) -> None:
+    async def delete(self, model: Type[T], where: Optional[list[WhereParam]] = None) -> None:
+        if where is None:
+            where = []
+
         sql = f"DELETE FROM {python_to_table_name(model)}"
         
         for idx, param in enumerate(where):            
@@ -232,11 +274,14 @@ class Database:
 
         await self.con.execute(sql, [p.value for p in where])
 
-    async def insert_or_update(self, obj: T, where: list[WhereParam] = []) -> int:
+    async def insert_or_update(self, obj: T, where: Optional[list[WhereParam]] = None) -> int:
         """
         Insert a row. If a row with the same primary key exists, update it instead.
         Returns the object's id.
         """
+        if where is None:
+            where = []
+
         is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
         table = python_to_table_name(type(obj))
@@ -280,10 +325,13 @@ class Database:
         self,
         left: Type[T],
         right: Type[U],
-        where: list[WhereParam] = [],
+        where: Optional[list[WhereParam]] = None,
         order: list[OrderParam] = [],
         limit: int | None = None,
     ) -> list[tuple[T, U]]:
+        if where is None:
+            where = []
+
         la, ra = "l", "r"
         lt, rt = python_to_table_name(left), python_to_table_name(right)
 
@@ -368,6 +416,8 @@ async def init_database(timeout_data: list[User]):
 
         await db.create_table(AdminBet)
         await db.create_table(GambleWin)
+
+        await db.create_table(Gift)
 
         await db.create_table(AdminRollInfo)
 
@@ -554,6 +604,21 @@ async def get_gamble_odds(consume_bets: bool):
 async def payout_gamble(user: int, value: float):
     async with Database(DATABASE_NAME) as db:
         await db.insert(GambleWin(None, amount=value, user_id=user))
+
+
+
+#-----------------------------------------------------------------
+#   Gifts
+
+async def add_gift(gifter: int, receiver: int, value: int):
+    async with Database(DATABASE_NAME) as db:
+        await db.insert(Gift(None, value, gifter, receiver))
+
+
+async def did_gift(gifter: int, receiver: int, value: int) -> bool:
+    async with Database(DATABASE_NAME) as db:
+        gifts = await db.select(Gift, where=[WhereParam("giver", gifter), WhereParam("receiver", receiver), WhereParam("amount", value)])
+        return bool(gifts)
 
 #-----------------------------------------------------------------
 #   Utility
