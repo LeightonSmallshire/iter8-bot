@@ -11,6 +11,7 @@ from utils.model import *
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
+import utils.stock as stock_utils
 from typing import Optional
 
 _log = logging.getLogger(__name__)
@@ -23,20 +24,22 @@ class StockMarketCog(commands.Cog):
         self.bot_ = client
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
-        self.stock_market_update.start()
 
     @app_commands.command(name='market', description='Who wants to get rich?')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_display_market(self, interaction: discord.Interaction):
         """Calculates and displays available stocks."""
-
         await interaction.response.defer(ephemeral=True, thinking=True)
+
+        await db_utils.update_market_since_last_action()
+
         embed = discord.Embed(title="📊 The Clockwork Exchange 📊", color=discord.Color.green())
 
         for stock in await db_utils.get_all_stocks():
+            low, high = stock_utils.calculate_buy_sell_price(stock)
             embed.add_field(
                 name=f"{stock.code} - {stock.name}",
-                value=f"Price - {datetime.timedelta(seconds=round(stock.value))}",
+                value=f"Buy - {datetime.timedelta(seconds=round(high))}\nSell - {datetime.timedelta(seconds=round(low))}",
                 inline=False,
             )
 
@@ -47,6 +50,8 @@ class StockMarketCog(commands.Cog):
     async def command_buy_stock(self, interaction: discord.Interaction, code: str, count: int):
         await interaction.response.defer(ephemeral=True)
 
+        await db_utils.update_market_since_last_action()
+        
         valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
             await interaction.followup.send(content=reason)
@@ -60,6 +65,8 @@ class StockMarketCog(commands.Cog):
     async def command_short_stock(self, interaction: discord.Interaction, code: str, count: int):
         await interaction.response.defer(ephemeral=True)
 
+        await db_utils.update_market_since_last_action()
+
         valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
             await interaction.followup.send(content=reason)
@@ -68,18 +75,33 @@ class StockMarketCog(commands.Cog):
         _, msg = await db_utils.stock_market_short(interaction.user.id, code, count)
         await interaction.followup.send(content=msg)
 
-    @app_commands.command(name='close', description='Sell a stock')
+
+    class IntListTransformer(app_commands.Transformer):
+        async def transform(self, interaction: discord.Interaction, value: str) -> list[int]:
+            parts = [p for p in value.replace(",", " ").split() if p]
+            return [int(p) for p in parts]
+    
+
+    @app_commands.command(
+        name='close', 
+        description='Close one or more of your trades. Price may change for later trades from closing earlier trades.'
+    )
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_sell_stock(self, interaction: discord.Interaction, trade_id: int):
+    async def command_sell_stock(self, interaction: discord.Interaction, trade_ids: app_commands.Transform[list[int], IntListTransformer]):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        _, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
-        await interaction.followup.send(content=msg)
+        await db_utils.update_market_since_last_action()
+
+        for trade_id in trade_ids:
+            _, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
+            await interaction.followup.send(content=msg, ephemeral=True)
 
     @app_commands.command(name='portfolio', description='See your portfolio')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_display_portfolio(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
+
+        await db_utils.update_market_since_last_action()
 
         user_id = interaction.user.id
 
@@ -95,7 +117,9 @@ class StockMarketCog(commands.Cog):
         lines = []
 
         for stock, order in orders:
-            current_value = stock.value
+            sell_price, _ = stock_utils.calculate_buy_sell_price(stock)
+
+            current_value = sell_price
             pnl_per_unit = (current_value - order.bought_at)
 
             if order.short:
@@ -126,14 +150,6 @@ class StockMarketCog(commands.Cog):
         )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
-
-    @tasks.loop(seconds=5)
-    async def stock_market_update(self):
-        await db_utils.do_stock_market_update(dt=1, sim_count=5)
-
-    @stock_market_update.before_loop
-    async def before_update(self):
-        await self.bot_.wait_until_ready()
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 

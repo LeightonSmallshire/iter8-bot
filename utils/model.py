@@ -135,8 +135,9 @@ class Gift:
 
 @single_value_table
 @dataclass
-class AdminRollInfo:
+class Timestamps:
     last_roll: datetime.datetime
+    last_market_update: datetime.datetime
 
 @single_value_table
 @dataclass
@@ -151,6 +152,7 @@ class Stock:
     value: float
     drift: float
     volatility: float
+    volume: float
 
 @dataclass
 class Trade:

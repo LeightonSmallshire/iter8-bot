@@ -9,7 +9,7 @@ from .shop import *
 from .stock import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
-from typing import Optional, Any, Type, get_type_hints, Type
+from typing import Optional, Any, Type, get_type_hints, Type, Union
 
 @dataclass
 class WhereParam:
@@ -207,9 +207,11 @@ class Database:
         return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
-    async def select(self, model: Type[T], where: Optional[list[WhereParam]] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> list[T]:
+    async def select(self, model: Type[T], where: Optional[list[WhereParam]] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> Union[T, list[T]]:
         if where is None:
             where = []
+
+        is_single = getattr(model, "__single_value_table__", False)
 
         # validate column name
         valid_fields = {f.name for f in fields(model)}
@@ -231,7 +233,14 @@ class Database:
 
         cur = await self.con.execute(sql, params)
         results = await cur.fetchmany(limit) if limit else await cur.fetchall()
-        return [model(**dict(row)) for row in results]
+        results = [dict(row) for row in results]
+
+        if is_single:
+            for row in results:
+                row.pop("guard")
+
+        results = [model(**row) for row in results]
+        return results[0] if is_single else results
 
     async def update(self, obj: T, where: Optional[list[WhereParam]] = None) -> None:
         if where is None:
@@ -245,7 +254,7 @@ class Database:
         
         params: list[Any] = []
 
-        id_set = ("id" in data) or (data.get("id") is not None) or (data.get("id") != 0)
+        id_set = ("id" in data) and (data.get("id") is not None) and (data.get("id") != 0)
         if id_set:
             where += [WhereParam("id", data.get("id"))]
         
@@ -414,7 +423,8 @@ async def init_database(timeout_data: list[User]):
 
         await db.create_table(Gift)
 
-        await db.create_table(AdminRollInfo)
+        if await db.create_table(Timestamps):
+            await db.insert(Timestamps(datetime.datetime.now(),datetime.datetime.now()))
 
         await db.create_table(DatabaseVersion)
 
@@ -539,14 +549,13 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
         return [t.user_id for t in bonus_tickets]
     
 
-async def get_last_admin_roll() -> Optional[AdminRollInfo]:
+async def get_last_admin_roll() -> Optional[Timestamps]:
     async with Database(DATABASE_NAME) as db:
-        roll_info = await db.select(AdminRollInfo, limit=1)
-        return roll_info[0] if roll_info else None
+        return await db.select(Timestamps)
     
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
-        roll_info = AdminRollInfo(datetime.datetime.now())
+        roll_info = Timestamps(datetime.datetime.now())
         await db.insert_or_update(roll_info)
     
     
@@ -658,43 +667,64 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
             return False, "Trying to buy a stock that doesn't exist!"
         
         stock = stocks[0]
+
+        _, buy_price = calculate_buy_sell_price(stock)
         
-        if (stock.value * count) < credit.total_seconds():
+        if (buy_price * count) < credit.total_seconds():
             return True, None
         else:
             return False, "Can't afford this purchase!"
 
-async def do_stock_market_update(dt: float, sim_count: int):
-    async with Database(DATABASE_NAME) as db:
-        stocks = await db.select(Stock)
-        for _ in range(sim_count):
-            trade_count = random.randint(-8, 8)
-            await do_stock_update(db, random.choice(stocks), trade_count)
-
-        for stock in stocks:
-            mu = stock.drift
-            sigma = stock.volatility
-            z = random.gauss(0, 1)
-
-            stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
-                                    sigma * math.sqrt(dt) * z)
-            
-            stock.drift = STOCK_BASE_DRIFT + (stock.drift - STOCK_BASE_DRIFT) * STOCK_DECAY_FACTOR
-            
-            stock.volatility = STOCK_BASE_VOLATILITY + (stock.volatility - STOCK_BASE_VOLATILITY) * STOCK_DECAY_FACTOR
-
-            # clamp vol to avoid collapse or explosion
-            stock.volatility = max(0.001, min(stock.volatility, 1.0))
-
-            await db.update(stock)
-
-
 async def do_stock_update(db, stock: Stock, count: int):
-    stock.value *= (1 + STOCK_PRICE_IMPACT * count)
-    stock.drift += STOCK_DRIFT_IMPACT * count
-    stock.volatility += abs(count) * STOCK_VOLATILITY_IMPACT
+    # EMA smoothing
+    stock.volume = (1 - STOCK_VOLUME_ALPHA) * stock.volume + STOCK_VOLUME_ALPHA * abs(count)
+
+    liquidity = math.sqrt(max(stock.volume, 1))
+    effective_impact = (STOCK_PRICE_IMPACT * count) / liquidity
+
+    stock.value *= (1 + effective_impact)
+    stock.drift += STOCK_DRIFT_IMPACT * count / liquidity
+    stock.volatility += abs(count) * STOCK_VOLATILITY_IMPACT / liquidity
     stock.volatility = max(0.0001, min(stock.volatility, 1.0))
     await db.update(stock)
+
+async def do_stock_market_update(db, dt: float, sim_count: int):
+    stocks = await db.select(Stock)
+    for _ in range(sim_count):
+        trade_count = random.randint(-8, 8)
+        await do_stock_update(db, random.choice(stocks), trade_count)
+
+    for stock in stocks:
+        mu = stock.drift
+        sigma = stock.volatility
+        z = random.gauss(0, 1)
+
+        stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
+                                sigma * math.sqrt(dt) * z)
+        
+        quiet_factor = max(STOCK_DECAY_FACTOR, 1 - stock.volume / STOCK_HIGH_VOLUME)
+
+        stock.drift *= quiet_factor
+        stock.volatility = STOCK_BASE_VOLATILITY + (stock.volatility - STOCK_BASE_VOLATILITY) * quiet_factor
+
+        # clamp vol to avoid collapse or explosion
+        stock.volatility = max(0.001, min(stock.volatility, 1.0))
+
+        await db.update(stock)
+
+        
+async def update_market_since_last_action():
+    async with Database(DATABASE_NAME) as db:
+        timestamps = await db.select(Timestamps)
+
+        dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
+        while dt > 0:
+            step = min(dt, 5)
+            await do_stock_market_update(db, step / 5, STOCK_ACTOR_SIM_COUNT)
+            dt -= 5
+
+        timestamps.last_market_update = datetime.datetime.now()
+        await db.update(timestamps)
 
 async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
     async with Database(DATABASE_NAME) as db:
@@ -704,8 +734,10 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[boo
         
         stock = stocks[0]
 
-        buy = Trade(None, count, stock.value, None, user_id, stock.id, short=False)
-        msg =  f"You bought {count} shares of {stock.code} at {datetime.timedelta(seconds=round(stock.value))}"
+        _, buy_price = calculate_buy_sell_price(stock)
+
+        buy = Trade(None, count, buy_price, None, user_id, stock.id, short=False)
+        msg =  f"You bought {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
 
         await do_stock_update(db, stock, count)
         await db.insert(buy)
@@ -720,8 +752,10 @@ async def stock_market_short(user_id: int, stock_id: str, count: int) -> tuple[b
         
         stock = stocks[0]
 
-        short = Trade(None, count, stock.value, None, user_id, stock.id, short=True)
-        msg =  f"You shorted {count} shares of {stock.code} at {datetime.timedelta(seconds=round(stock.value))}"
+        _, buy_price = calculate_buy_sell_price(stock)
+
+        short = Trade(None, count, buy_price, None, user_id, stock.id, short=True)
+        msg =  f"You shorted {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
 
         await do_stock_update(db, stock, -count)
         await db.insert(short)
@@ -743,8 +777,11 @@ async def stock_market_sell(user_id: int, trade_id: int) -> tuple[bool, str]:
         stock = stocks[0]
         pl = 0.0
 
-        order.sold_at = stock.value
+        sell_price, _ = calculate_buy_sell_price(stock)
+
+        order.sold_at = sell_price
         pl += order.sold_at - order.bought_at
+        pl *= order.count
 
         await db.update(order)
         await do_stock_update(db, stock, order.count if order.short else -order.count)
