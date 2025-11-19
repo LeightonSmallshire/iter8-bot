@@ -718,12 +718,11 @@ async def update_market_since_last_action():
         timestamps = await db.select(Timestamps)
 
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
-        while dt > 0:
-            step = min(dt, 5)
-            await do_stock_market_update(db, step / 5, STOCK_ACTOR_SIM_COUNT)
+        while dt >= 5:
+            await do_stock_market_update(db, 1, STOCK_ACTOR_SIM_COUNT)
             dt -= 5
 
-        timestamps.last_market_update = datetime.datetime.now()
+        timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
         await db.update(timestamps)
 
 async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
