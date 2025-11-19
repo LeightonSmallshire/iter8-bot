@@ -43,6 +43,10 @@ class Channels:
     TestServerBotSpam = 1432698704191815680
     ParadiseBotBrokenSpam = 1427971106920202240
     ParadiseClockwork = 1416059475873239181
+    TestServerStockSpam = 1440731650307915816
+    TestServerStockSummary = 1440731630070403284
+    StockMarketSpam = 1440735818644852829
+    StockMarketSummary = 1440735818644852829
 
 
 class Roles:
@@ -114,7 +118,7 @@ def defer_message(bot, user_id, message):
 def make_emoji_number(num: int):
     return "".join([f":number_{d}:" for d in str(num)])
 
-async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]):
+async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
     ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
     role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)

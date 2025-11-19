@@ -163,3 +163,5 @@ class Trade:
     user_id: int = foreign_key(User)
     stock: int = foreign_key(Stock)
     short: bool = False
+    auto_sell_low: Optional[float] = None
+    auto_sell_high: Optional[float] = None
