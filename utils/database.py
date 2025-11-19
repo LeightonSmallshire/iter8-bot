@@ -2,17 +2,20 @@ import aiosqlite
 import sqlite3
 import datetime
 import random
+import math
 from packaging.version import Version
 from .model import *
 from .shop import *
+from .stock import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
-from typing import Optional, Any, Type, get_type_hints, Type
+from typing import Optional, Any, Type, get_type_hints, Type, Union
 
 @dataclass
 class WhereParam:
     field: str
     value: Any
+    cmp: str = '=' # '=', 'IS', 'IS NOT'
     
 @dataclass
 class OrderParam:
@@ -204,29 +207,40 @@ class Database:
         return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
-    async def select(self, model: Type[T], where: Optional[list[WhereParam]] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> list[T]:
+    async def select(self, model: Type[T], where: Optional[list[WhereParam]] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> Union[T, list[T]]:
         if where is None:
             where = []
+
+        is_single = getattr(model, "__single_value_table__", False)
 
         # validate column name
         valid_fields = {f.name for f in fields(model)}
 
         sql = f"SELECT * FROM {python_to_table_name(model)}"
+        params: list[Any] = []
 
         for idx, param in enumerate(where):
             if param.field not in valid_fields:
                 raise ValueError(f"{param.field!r} is not a field of {model.__name__}")
             
             sql += " AND " if idx > 0 else " WHERE "
-            sql += f"{param.field} = ?"          
+            sql += f"{param.field} {param.cmp} ?"
+            params.append(param.value)
 
         for idx, param in enumerate(order):
             sql += " ORDER BY " if idx == 0 else ", "
             sql += f"{param.field} {'DESC' if param.descending else ''}"
 
-        cur = await self.con.execute(sql, [p.value for p in where])
+        cur = await self.con.execute(sql, params)
         results = await cur.fetchmany(limit) if limit else await cur.fetchall()
-        return [model(**dict(row)) for row in results]
+        results = [dict(row) for row in results]
+
+        if is_single:
+            for row in results:
+                row.pop("guard")
+
+        results = [model(**row) for row in results]
+        return results[0] if is_single else results
 
     async def update(self, obj: T, where: Optional[list[WhereParam]] = None) -> None:
         if where is None:
@@ -238,15 +252,16 @@ class Database:
         assigns = ", ".join(f"{k}=?" for k in data.keys())
         sql = f"UPDATE {python_to_table_name(type(obj))} SET {assigns}"
         
-        actual_where: list[WhereParam] = where
+        params: list[Any] = []
 
-        id_set = ("id" in data) or (data.get("id") is not None) or (data.get("id") != 0)
+        id_set = ("id" in data) and (data.get("id") is not None) and (data.get("id") != 0)
         if id_set:
-            actual_where += [WhereParam("id", data.get("id"))]
+            where += [WhereParam("id", data.get("id"))]
         
         for idx, param in enumerate(where):            
             sql += " AND " if idx > 0 else " WHERE "
-            sql += f"{param.field} = ?"        
+            sql += f"{param.field} {param.cmp} ?"
+            params.append(param.value) 
             
         await self.con.execute(sql, list(data.values()) + [p.value for p in where])
 
@@ -258,7 +273,7 @@ class Database:
         
         for idx, param in enumerate(where):            
             sql += " AND " if idx > 0 else " WHERE "
-            sql += f"{param.field} = ?"       
+            sql += f"{param.field} {param.cmp} ?"       
 
         await self.con.execute(sql, [p.value for p in where])
 
@@ -294,9 +309,10 @@ class Database:
 
         where_sql = ""
         where_params: list[object] = []
-        if where:
-            where_sql = " WHERE " + " AND ".join(f"{p.field}=?" for p in where)
-            where_params = [p.value for p in where]
+        for idx, param in enumerate(where):            
+            where_sql += " AND " if idx > 0 else " WHERE "
+            where_sql += f"{param.field} {param.cmp} ?"
+            where_params.append(param.value) 
 
         sql = (
             f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
@@ -359,7 +375,7 @@ class Database:
             for i, p in enumerate(where):
                 if i:
                     sql.append("AND")
-                sql.append(f"{qualify(p.field)} = ?")
+                sql.append(f"{p.field} {p.cmp} ?")
                 params.append(p.value)
 
         if order:
@@ -407,9 +423,16 @@ async def init_database(timeout_data: list[User]):
 
         await db.create_table(Gift)
 
-        await db.create_table(AdminRollInfo)
+        if await db.create_table(Timestamps):
+            await db.insert(Timestamps(datetime.datetime.now(),datetime.datetime.now()))
 
         await db.create_table(DatabaseVersion)
+
+        if await db.create_table(Stock):
+            for stock in AVAILABLE_STOCKS:
+                await db.insert(stock)
+
+        await db.create_table(Trade)
         
         for timeout in timeout_data:
             await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
@@ -471,19 +494,30 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         user = user[0]
 
         purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
+
         winnings = await db.select(GambleWin, where=[WhereParam("user_id", user_id)])
         bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+
         gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
         gifts_received  = await db.select(Gift, where=[WhereParam("receiver", user.id)])
 
+        stock_unfulfilled = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
+        stock_fulfilled_long = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
+        stock_fulfilled_short = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
+
         credit = user.duration
+
         credit -= sum([p.cost for p in purchases])
+
         credit -= sum([b.amount for b in bets])
         credit += sum([w.amount for w in winnings])
+
         credit -= sum([g.amount for g in gifts_sent])
         credit += sum([g.amount for g in gifts_received])
 
-        credit = max(credit, 0)
+        credit -= sum([s.bought_at for s in stock_unfulfilled])
+        credit += sum([s.sold_at - s.bought_at for s in stock_fulfilled_long])
+        credit -= sum([s.sold_at - s.bought_at for s in stock_fulfilled_short])
 
         return datetime.timedelta(seconds=credit)
 
@@ -515,14 +549,13 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
         return [t.user_id for t in bonus_tickets]
     
 
-async def get_last_admin_roll() -> Optional[AdminRollInfo]:
+async def get_last_admin_roll() -> Optional[Timestamps]:
     async with Database(DATABASE_NAME) as db:
-        roll_info = await db.select(AdminRollInfo, limit=1)
-        return roll_info[0] if roll_info else None
+        return await db.select(Timestamps)
     
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
-        roll_info = AdminRollInfo(datetime.datetime.now())
+        roll_info = Timestamps(datetime.datetime.now())
         await db.insert_or_update(roll_info)
     
     
@@ -611,6 +644,151 @@ async def did_gift(gifter: int, receiver: int, value: int) -> bool:
     async with Database(DATABASE_NAME) as db:
         gifts = await db.select(Gift, where=[WhereParam("giver", gifter), WhereParam("receiver", receiver), WhereParam("amount", value)])
         return bool(gifts)
+
+
+
+#-----------------------------------------------------------------
+#   Stock Market
+
+async def get_all_stocks() -> list[Stock]:
+    async with Database(DATABASE_NAME) as db:
+        return await db.select(Stock)
+    
+async def get_unsold_orders(user_id: int) -> list[tuple[Stock, Trade]]:
+    async with Database(DATABASE_NAME) as db:
+        return await db.join_select(Stock, Trade, where=[WhereParam("r.user_id", user_id), WhereParam("r.sold_at", None, "IS")])
+    
+async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[bool, Optional[str]]:
+    credit = await get_shop_credit(user_id)
+
+    async with Database(DATABASE_NAME) as db:
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        if not stocks:
+            return False, "Trying to buy a stock that doesn't exist!"
+        
+        stock = stocks[0]
+
+        _, buy_price = calculate_buy_sell_price(stock)
+        
+        if (buy_price * count) < credit.total_seconds():
+            return True, None
+        else:
+            return False, "Can't afford this purchase!"
+
+async def do_stock_update(db, stock: Stock, count: int):
+    # EMA smoothing
+    stock.volume = (1 - STOCK_VOLUME_ALPHA) * stock.volume + STOCK_VOLUME_ALPHA * abs(count)
+
+    liquidity = math.sqrt(max(stock.volume, 1))
+    effective_impact = (STOCK_PRICE_IMPACT * count) / liquidity
+
+    stock.value *= (1 + effective_impact)
+    stock.drift += STOCK_DRIFT_IMPACT * count / liquidity
+    stock.volatility += abs(count) * STOCK_VOLATILITY_IMPACT / liquidity
+    stock.volatility = max(0.0001, min(stock.volatility, 1.0))
+    await db.update(stock)
+
+async def do_stock_market_update(db, dt: float, sim_count: int):
+    stocks = await db.select(Stock)
+    for _ in range(sim_count):
+        trade_count = random.randint(-8, 8)
+        await do_stock_update(db, random.choice(stocks), trade_count)
+
+    for stock in stocks:
+        mu = stock.drift
+        sigma = stock.volatility
+        z = random.gauss(0, 1)
+
+        stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
+                                sigma * math.sqrt(dt) * z)
+        
+        quiet_factor = max(STOCK_DECAY_FACTOR, 1 - stock.volume / STOCK_HIGH_VOLUME)
+
+        stock.drift *= quiet_factor
+        stock.volatility = STOCK_BASE_VOLATILITY + (stock.volatility - STOCK_BASE_VOLATILITY) * quiet_factor
+
+        # clamp vol to avoid collapse or explosion
+        stock.volatility = max(0.001, min(stock.volatility, 1.0))
+
+        await db.update(stock)
+
+        
+async def update_market_since_last_action():
+    async with Database(DATABASE_NAME) as db:
+        timestamps = await db.select(Timestamps)
+
+        dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
+        while dt >= 5:
+            await do_stock_market_update(db, 1, STOCK_ACTOR_SIM_COUNT)
+            dt -= 5
+
+        timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
+        await db.update(timestamps)
+
+async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
+    async with Database(DATABASE_NAME) as db:
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        if not stocks:
+            return False, "Trying to buy a stock that doesn't exist!"
+        
+        stock = stocks[0]
+
+        _, buy_price = calculate_buy_sell_price(stock)
+
+        buy = Trade(None, count, buy_price, None, user_id, stock.id, short=False)
+        msg =  f"You bought {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
+
+        await do_stock_update(db, stock, count)
+        await db.insert(buy)
+
+        return True, msg
+
+async def stock_market_short(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
+    async with Database(DATABASE_NAME) as db:
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        if not stocks:
+            return False, "Trying to short a stock that doesn't exist!"
+        
+        stock = stocks[0]
+
+        _, buy_price = calculate_buy_sell_price(stock)
+
+        short = Trade(None, count, buy_price, None, user_id, stock.id, short=True)
+        msg =  f"You shorted {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
+
+        await do_stock_update(db, stock, -count)
+        await db.insert(short)
+            
+        return True, msg
+
+async def stock_market_sell(user_id: int, trade_id: int) -> tuple[bool, str]:
+    async with Database(DATABASE_NAME) as db:
+        orders = await db.select(Trade, where=[WhereParam("id", trade_id), WhereParam("user_id", user_id), WhereParam("sold_at", None, "IS")])
+        if not orders:
+            raise LookupError("Trying to close a trade that doesn't exist.")
+        
+        order = orders[0]
+
+        stocks = await db.select(Stock, where=[WhereParam("id", order.stock)])
+        if not stocks:
+            raise LookupError("Trying to close a trade for a stock that doesn't exist.")
+        
+        stock = stocks[0]
+        pl = 0.0
+
+        sell_price, _ = calculate_buy_sell_price(stock)
+
+        order.sold_at = sell_price
+        pl += order.sold_at - order.bought_at
+        pl *= order.count
+
+        await db.update(order)
+        await do_stock_update(db, stock, order.count if order.short else -order.count)
+
+        if order.short:
+            pl *= -1
+
+        return True, f"You sold {order.count} shares of {stock.code} for a profit/loss of {'+' if pl > 0 else '-'}{datetime.timedelta(seconds=abs(round(pl)))}"
 
 #-----------------------------------------------------------------
 #   Utility

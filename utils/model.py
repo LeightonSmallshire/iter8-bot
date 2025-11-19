@@ -135,10 +135,31 @@ class Gift:
 
 @single_value_table
 @dataclass
-class AdminRollInfo:
+class Timestamps:
     last_roll: datetime.datetime
+    last_market_update: datetime.datetime
 
 @single_value_table
 @dataclass
 class DatabaseVersion:
     version: Version
+
+@dataclass
+class Stock:
+    id: int
+    name: str
+    code: str
+    value: float
+    drift: float
+    volatility: float
+    volume: float
+
+@dataclass
+class Trade:
+    id: int
+    count: int
+    bought_at: float
+    sold_at: Optional[float]
+    user_id: int = foreign_key(User)
+    stock: int = foreign_key(Stock)
+    short: bool = False
