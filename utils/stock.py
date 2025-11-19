@@ -40,8 +40,8 @@ AVAILABLE_STOCKS: list[Stock] = [
 
 def calculate_buy_sell_price(stock: Stock) -> tuple[float, float]:
     # low liquidity widens spreads (inverse of volume)
-    vol_term = 1.5 * stock.volatility  
-    liq_term = 0.25 / (stock.volume ** 2)
+    vol_term = 1.0 * stock.volatility  
+    liq_term = 0.8 / (stock.volume ** 2)
 
     spread = min(0.10, STOCK_BASE_PRICE_SPREAD + vol_term + liq_term)
 
