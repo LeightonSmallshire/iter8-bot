@@ -2,7 +2,7 @@ import datetime
 import re
 from packaging.version import Version
 from dataclasses import dataclass, field, fields, asdict, Field
-from typing import Optional, Any, Type, TypeVar, get_type_hints, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar, Literal
+from typing import Optional, Any, Type, TypeVar, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar, Literal, get_origin, get_args
 
 
 # --- type mapping ---
@@ -37,8 +37,36 @@ IsDatabaseTable = HasIdTable | SingleValueTable
 T = TypeVar("T", bound=IsDatabaseTable)
 U = TypeVar("U", bound=IsDatabaseTable)
 
+def is_nullable(tp) -> bool:
+    # Directly NoneType
+    if tp is type(None):
+        return True
+
+    origin = get_origin(tp)
+    if origin is None:
+        return False
+
+    # Union[...] or X | Y
+    return type(None) in get_args(tp)
+
+def unwrap_optional(tp: Any) -> Any:
+    """
+    If tp is Optional[T] or Union[T, None] or T | None,
+    return T. Otherwise return tp unchanged.
+    """
+    origin = get_origin(tp)
+    if origin is None:
+        return tp
+
+    args = [a for a in get_args(tp) if a is not type(None)]
+    if len(args) == 1:
+        return args[0]
+
+    # e.g. Union[int, str, None] – you can decide what to do here
+    return tp
+
 def python_to_sql_type(py_type: Any) -> str:
-    return TYPE_MAP.get(py_type, "TEXT")
+    return TYPE_MAP.get(unwrap_optional(py_type), "TEXT")
 
 def python_to_table_name(model: Type[T]) -> str:
     def pascal_to_snake(name: str) -> str:

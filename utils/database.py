@@ -9,7 +9,7 @@ from .shop import *
 from .stock import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
-from typing import Optional, Any, Type, get_type_hints, Type, get_origin, get_args
+from typing import Optional, Any, Type, get_type_hints, Type
 
 @dataclass
 class WhereParam:
@@ -51,18 +51,6 @@ def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
             return ("right", f.name, fk.get("column", "id"))
 
     raise ValueError(f"No foreign-key relationship between {left.__name__} and {right.__name__}")
-
-def _is_nullable(tp) -> bool:
-    # Directly NoneType
-    if tp is type(None):
-        return True
-
-    origin = get_origin(tp)
-    if origin is None:
-        return False
-
-    # Union[...] or X | Y
-    return type(None) in get_args(tp)
 
 # --- core ORM ---
 class Database:
@@ -136,7 +124,7 @@ class Database:
                 continue
             typename = hints[f.name]
             sql_type = python_to_sql_type(typename)
-            cols.append(f"{f.name} {sql_type}{'' if _is_nullable(typename) else ' NOT NULL'}")
+            cols.append(f"{f.name} {sql_type}{'' if is_nullable(typename) else ' NOT NULL'}")
         cols.append("guard INTEGER NOT NULL DEFAULT 0 CHECK (guard = 0)")
         sql = (
             f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} "

@@ -52,12 +52,13 @@ class AdminTimeoutItem(ShopItem):
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=duration)
+        reason = params.get("text", None)
 
-        await member.timeout(until, reason=f"<@{ctx.user.id}> used power of the bot. It cannot be contained!.")
+        await member.timeout(until, reason=f"<@{ctx.user.id}> used power of the bot{f' for {reason}' if reason else ''}. It cannot be contained!.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
-        return [DurationSelect()]
+        return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 class UserTimeoutItem(ShopItem):
     ITEM_ID = 2
@@ -76,12 +77,13 @@ class UserTimeoutItem(ShopItem):
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
-
-        await target.timeout(until, reason=f"<@{ctx.user.id}> used the power of the shop.")
+        reason = params.get("text", None)
+        
+        await target.timeout(until, reason=f"<@{ctx.user.id}> used the power of the shop{f' for {reason}' if reason else ''}.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
-        return [UserSelect(), DurationSelect()]
+        return [UserSelect(), DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 class BullyTimeoutItem(ShopItem):
     ITEM_ID = 5
@@ -101,12 +103,13 @@ class BullyTimeoutItem(ShopItem):
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
+        reason = params.get("text", None)
 
-        await role.members[0].timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice.")
+        await role.members[0].timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice{f' for {reason}' if reason else ''}.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
-        return [DurationSelect()]
+        return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 class TimeoutRandomItem(ShopItem):
     ITEM_ID = 14
@@ -126,12 +129,19 @@ class TimeoutRandomItem(ShopItem):
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
+        reason = params.get("text", None)
 
-        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully someone at random.")
+        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully someone at random{f' for {reason}' if reason else ''}.")
 
     @classmethod
     def get_input_handlers(cls) -> list[discord.ui.Item]:
-        return [DurationSelect()]
+        return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
+
+async def make_bully_reroll_table(ctx: discord.Interaction) -> list[int]:
+    admin_role = await ctx.guild.fetch_role(Roles.Admin)
+    bully_role = await ctx.guild.fetch_role(Roles.BullyTarget)
+    filter_users = [u.id for u in admin_role.members] + [u.id for u in bully_role.members if not u.id == ctx.user.id]
+    return [x for x in get_non_bot_users(ctx) if x not in filter_users]
 
 class BullyRerollItem(ShopItem):
     ITEM_ID = 3
@@ -142,15 +152,10 @@ class BullyRerollItem(ShopItem):
 
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
-        admin_role = await ctx.guild.fetch_role(Roles.Admin)
-        bully_role = await ctx.guild.fetch_role(Roles.BullyTarget)
-        filter_users = [u.id for u in admin_role.members] + [u.id for u in bully_role.members if not u.id == ctx.user.id]
-        roll_table = [x for x in get_non_bot_users(ctx) if x not in filter_users]
-
         await do_role_roll(
             ctx,
             Roles.BullyTarget,
-            roll_table,
+            await make_bully_reroll_table(ctx),
             f"🎲 {ctx.user.display_name} is re-rolling the bully target!",
             ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
         )
@@ -167,6 +172,10 @@ class BullyChooseItem(ShopItem):
         role = await ctx.guild.fetch_role(Roles.BullyTarget)
         new_target = await ctx.guild.fetch_member(params['user'])
         current_target = role.members[0]
+        
+        admin_role = await ctx.guild.fetch_role(Roles.Admin)
+        if new_target in admin_role.members:
+            raise Exception("Can't make the admin the bully target.")
 
         await current_target.remove_roles(role)
         await new_target.add_roles(role)
@@ -197,13 +206,25 @@ class AdminRerollItem(ShopItem):
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
         roll_table = get_non_bot_users(ctx)
 
-        await do_role_roll(
+        bully_role = await ctx.guild.fetch_role(Roles.BullyTarget)
+        bully_targets = [u.id for u in bully_role.members]
+
+        new_admin = await do_role_roll(
             ctx,
             Roles.Admin,
             roll_table,
             f"🚨 {ctx.user.display_name} called for a reroll! 🚨", 
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")            
         )
+
+        if new_admin in bully_targets:
+            await do_role_roll(
+                ctx,
+                Roles.BullyTarget,
+                await make_bully_reroll_table(ctx),
+                f"🎲 Admin landed on the bully target. Finding a new targe...",
+                ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
+            )
 
 class MakeAdminItem(ShopItem):
     ITEM_ID = 6
@@ -218,8 +239,20 @@ class MakeAdminItem(ShopItem):
         new_target = await ctx.guild.fetch_member(ctx.user.id)
         current_target = role.members[0]
 
+        bully_role = await ctx.guild.fetch_role(Roles.BullyTarget)
+        bully_targets = [u.id for u in bully_role.members]
+
         await current_target.remove_roles(role)
         await new_target.add_roles(role)
+
+        if ctx.user.id in bully_targets:
+            await do_role_roll(
+                ctx,
+                Roles.BullyTarget,
+                await make_bully_reroll_table(ctx),
+                f"🎲 Admin landed on the bully target. Finding a new targe...",
+                ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
+            )
 
 class ChooseNicknameOwnItem(ShopItem):
     ITEM_ID = 9
