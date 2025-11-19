@@ -515,9 +515,9 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         credit -= sum([g.amount for g in gifts_sent])
         credit += sum([g.amount for g in gifts_received])
 
-        credit -= sum([s.bought_at for s in stock_unfulfilled])
-        credit += sum([s.sold_at - s.bought_at for s in stock_fulfilled_long])
-        credit -= sum([s.sold_at - s.bought_at for s in stock_fulfilled_short])
+        credit -= sum([(s.bought_at) * s.count for s in stock_unfulfilled])
+        credit += sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_long])
+        credit -= sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_short])
 
         return datetime.timedelta(seconds=credit)
 
