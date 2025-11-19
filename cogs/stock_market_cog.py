@@ -129,7 +129,7 @@ class StockMarketCog(commands.Cog):
 
     @tasks.loop(seconds=5)
     async def stock_market_update(self):
-        await db_utils.do_stock_market_update(dt=1, sim_count=10)
+        await db_utils.do_stock_market_update(dt=1, sim_count=5)
 
     @stock_market_update.before_loop
     async def before_update(self):

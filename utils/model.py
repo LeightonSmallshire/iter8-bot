@@ -125,7 +125,7 @@ class Stock:
     volatility: float
 
 @dataclass
-class StockOrder:
+class Trade:
     id: int
     count: int
     bought_at: float

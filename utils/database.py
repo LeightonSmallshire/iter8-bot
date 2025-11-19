@@ -434,7 +434,7 @@ async def init_database(timeout_data: list[User]):
             for stock in AVAILABLE_STOCKS:
                 await db.insert(stock)
 
-        await db.create_table(StockOrder)
+        await db.create_table(Trade)
         
         for timeout in timeout_data:
             await db.insert_or_update(timeout, where=[WhereParam("id", timeout.id)])
@@ -503,9 +503,9 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
         gifts_received  = await db.select(Gift, where=[WhereParam("receiver", user.id)])
 
-        stock_unfulfilled = await db.select(StockOrder, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
-        stock_fulfilled_long = await db.select(StockOrder, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
-        stock_fulfilled_short = await db.select(StockOrder, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
+        stock_unfulfilled = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
+        stock_fulfilled_long = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
+        stock_fulfilled_short = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
 
         credit = user.duration
 
@@ -657,9 +657,9 @@ async def get_all_stocks() -> list[Stock]:
     async with Database(DATABASE_NAME) as db:
         return await db.select(Stock)
     
-async def get_unsold_orders(user_id: int) -> list[tuple[Stock, StockOrder]]:
+async def get_unsold_orders(user_id: int) -> list[tuple[Stock, Trade]]:
     async with Database(DATABASE_NAME) as db:
-        return await db.join_select(Stock, StockOrder, where=[WhereParam("r.user_id", user_id), WhereParam("r.sold_at", None, "IS")])
+        return await db.join_select(Stock, Trade, where=[WhereParam("r.user_id", user_id), WhereParam("r.sold_at", None, "IS")])
     
 async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[bool, Optional[str]]:
     credit = await get_shop_credit(user_id)
@@ -680,7 +680,7 @@ async def do_stock_market_update(dt: float, sim_count: int):
     async with Database(DATABASE_NAME) as db:
         stocks = await db.select(Stock)
         for _ in range(sim_count):
-            trade_count = random.randint(-2, 2)
+            trade_count = random.randint(-8, 8)
             await do_stock_update(db, random.choice(stocks), trade_count)
 
         for stock in stocks:
@@ -690,6 +690,13 @@ async def do_stock_market_update(dt: float, sim_count: int):
 
             stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
                                     sigma * math.sqrt(dt) * z)
+            
+            stock.drift = STOCK_BASE_DRIFT + (stock.drift - STOCK_BASE_DRIFT) * STOCK_DECAY_FACTOR
+            
+            stock.volatility = STOCK_BASE_VOLATILITY + (stock.volatility - STOCK_BASE_VOLATILITY) * STOCK_DECAY_FACTOR
+
+            # clamp vol to avoid collapse or explosion
+            stock.volatility = max(0.001, min(stock.volatility, 1.0))
 
             await db.update(stock)
 
@@ -709,7 +716,7 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[boo
         
         stock = stocks[0]
 
-        buy = StockOrder(None, count, stock.value, None, user_id, stock.id, short=False)
+        buy = Trade(None, count, stock.value, None, user_id, stock.id, short=False)
         msg =  f"You bought {count} shares of {stock.code} at {datetime.timedelta(seconds=round(stock.value))}"
 
         await do_stock_update(db, stock, count)
@@ -725,7 +732,7 @@ async def stock_market_short(user_id: int, stock_id: str, count: int) -> tuple[b
         
         stock = stocks[0]
 
-        short = StockOrder(None, count, stock.value, None, user_id, stock.id, short=True)
+        short = Trade(None, count, stock.value, None, user_id, stock.id, short=True)
         msg =  f"You shorted {count} shares of {stock.code} at {datetime.timedelta(seconds=round(stock.value))}"
 
         await do_stock_update(db, stock, -count)
@@ -735,21 +742,21 @@ async def stock_market_short(user_id: int, stock_id: str, count: int) -> tuple[b
 
 async def stock_market_sell(user_id: int, trade_id: int) -> tuple[bool, str]:
     async with Database(DATABASE_NAME) as db:
-        orders = await db.select(StockOrder, where=[WhereParam("id", trade_id), WhereParam("user_id", user_id), WhereParam("sold_at", None)])
+        orders = await db.select(Trade, where=[WhereParam("id", trade_id), WhereParam("user_id", user_id), WhereParam("sold_at", None, "IS")])
         if not orders:
             raise LookupError("Trying to close a trade that doesn't exist.")
         
         order = orders[0]
-        order_count = sum([x.count for x in orders])
 
         stocks = await db.select(Stock, where=[WhereParam("id", order.stock)])
-        if not orders:
+        if not stocks:
             raise LookupError("Trying to close a trade for a stock that doesn't exist.")
         
         stock = stocks[0]
         pl = 0.0
 
         order.sold_at = stock.value
+        pl += order.sold_at - order.bought_at
 
         await db.update(order)
         await do_stock_update(db, stock, order.count if order.short else -order.count)
@@ -757,7 +764,7 @@ async def stock_market_sell(user_id: int, trade_id: int) -> tuple[bool, str]:
         if order.short:
             pl *= -1
 
-        return True, f"You sold {order.count} shares of {stock.id} for a profit/loss of {'+' if pl > 0 else '-'}{datetime.timedelta(seconds=abs(round(pl)))}"
+        return True, f"You sold {order.count} shares of {stock.code} for a profit/loss of {'+' if pl > 0 else '-'}{datetime.timedelta(seconds=abs(round(pl)))}"
 
 #-----------------------------------------------------------------
 #   Utility
