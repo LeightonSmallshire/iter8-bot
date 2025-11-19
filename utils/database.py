@@ -662,7 +662,7 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
     credit = await get_shop_credit(user_id)
 
     async with Database(DATABASE_NAME) as db:
-        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id.upper())])
         if not stocks:
             return False, "Trying to buy a stock that doesn't exist!"
         
@@ -727,7 +727,7 @@ async def update_market_since_last_action():
 
 async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
     async with Database(DATABASE_NAME) as db:
-        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id.upper())])
         if not stocks:
             return False, "Trying to buy a stock that doesn't exist!"
         
@@ -745,7 +745,7 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int) -> tuple[boo
 
 async def stock_market_short(user_id: int, stock_id: str, count: int) -> tuple[bool, str]:
     async with Database(DATABASE_NAME) as db:
-        stocks = await db.select(Stock, where=[WhereParam("code", stock_id)])
+        stocks = await db.select(Stock, where=[WhereParam("code", stock_id.upper())])
         if not stocks:
             return False, "Trying to short a stock that doesn't exist!"
         
