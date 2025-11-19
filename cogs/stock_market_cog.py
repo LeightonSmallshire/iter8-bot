@@ -58,7 +58,7 @@ class StockMarketCog(commands.Cog):
             return
 
         _, msg = await db_utils.stock_market_buy(interaction.user.id, code, count)
-        await interaction.followup.send(content=msg)
+        await interaction.followup.send(content=msg, ephemeral=False)
 
     @app_commands.command(name='short', description='Short a stock')
     @commands.check(bot_utils.is_guild_paradise)
@@ -73,7 +73,7 @@ class StockMarketCog(commands.Cog):
             return
 
         _, msg = await db_utils.stock_market_short(interaction.user.id, code, count)
-        await interaction.followup.send(content=msg)
+        await interaction.followup.send(content=msg, ephemeral=False)
 
 
     class IntListTransformer(app_commands.Transformer):
@@ -94,7 +94,7 @@ class StockMarketCog(commands.Cog):
 
         for trade_id in trade_ids:
             _, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
-            await interaction.followup.send(content=msg, ephemeral=True)
+            await interaction.followup.send(content=msg, ephemeral=False)
 
     @app_commands.command(name='portfolio', description='See your portfolio')
     @commands.check(bot_utils.is_guild_paradise)
