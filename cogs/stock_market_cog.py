@@ -197,19 +197,21 @@ class StockMarketCog(commands.Cog):
     async def command_display_portfolio(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await self.update_market()
+        msg = None
 
-        user_id = interaction.user.id
-
-        orders = await db_utils.get_unsold_orders(user_id)
-
-        if not orders:
-            return await interaction.followup.send(
-                "You have no open positions.", ephemeral=True
-            )
-
-        # ---- Calculate current P&L ----
         while True:
+            await self.update_market()
+
+            user_id = interaction.user.id
+
+            orders = await db_utils.get_unsold_orders(user_id)
+
+            if not orders:
+                return await interaction.followup.send(
+                    "You have no open positions.", ephemeral=True
+                )
+
+            # ---- Calculate current P&L ----
             total_pl = 0
             lines = []
 
@@ -226,7 +228,7 @@ class StockMarketCog(commands.Cog):
                 total_pl += pnl
 
                 lines.append(
-                    f"**{stock.name} ({stock.code}){' (Short)' if order.short else ''}**\n"
+                    f"**{stock.name} ({stock.code}){' (Short)' if order.short else''}**\n"
                     f"- Trade ID: `{order.id}`\n"
                     f"- Qty: `{order.count}`\n"
                     f"- Bought @ `{get_format_price(order.bought_at)}`\n"
@@ -246,11 +248,15 @@ class StockMarketCog(commands.Cog):
                 inline=False
             )
             try:
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                if msg is None:
+                    msg = await interaction.followup.send(embed=embed, ephemeral=True, wait=True)
+                else:
+                    await msg.edit(embed=embed)
                 await asyncio.sleep(10)
-            except (discord.NotFound, discord.HTTPException):
+            except( discord.NotFound, discord.HTTPException):
                 break
             # note: rate limits cause HTTPException but breaking is acceptable
+
 
     @tasks.loop(minutes=15)
     async def market_display_loop(self):
