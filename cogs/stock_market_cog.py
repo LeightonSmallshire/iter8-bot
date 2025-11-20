@@ -28,7 +28,6 @@ class StockMarketCog(commands.Cog):
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
         self.market_display_loop.start()
-        
     
     class DurationTransformer(app_commands.Transformer):
         _DURATION_RE = re.compile(r"(?:(\d+)\s*d)?\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$", re.I)
@@ -51,16 +50,36 @@ class StockMarketCog(commands.Cog):
                 await interaction.response.send_message(content=str(e), ephemeral=True)
                 raise app_commands.AppCommandError(str(e))
 
-    async def build_market_summary_embed(self):
+    async def build_market_summary_embed(self) -> discord.Embed:
         embed = discord.Embed(title="📊 The Clockwork Exchange 📊", color=discord.Color.green())
 
         for stock in await db_utils.get_all_stocks():
             low, high = stock_utils.calculate_buy_sell_price(stock)
             embed.add_field(
                 name=f"{stock.code} - {stock.name}",
-                value=f"Buy - {datetime.timedelta(seconds=round(high))}\nSell - {datetime.timedelta(seconds=round(low))}",
+                value=f"Buy - {datetime.timedelta(seconds=high)}\nSell - {datetime.timedelta(seconds=low)}",
                 inline=False,
             )
+        return embed
+
+    async def update_market(self) -> discord.Embed:
+        guild = self.bot_.get_guild(bot_utils.Guilds.Paradise) or await self.bot_.fetch_guild(bot_utils.Guilds.Paradise)
+        channel = guild.get_channel(bot_utils.Channels.StockMarketSummary) or await guild.fetch_channel(bot_utils.Channels.StockMarketSummary)
+        
+        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(guild, x))
+        
+        embed = await self.build_market_summary_embed()
+
+        embed.set_footer(text=f"Last updated: {datetime.datetime.now().replace(microsecond=0)}")
+
+        edited = False
+        async for msg in channel.history(limit=1):
+            await msg.edit(embed=embed)
+            edited = True
+
+        if not edited:
+            await channel.send(embed=embed)
+
         return embed
 
     @app_commands.command(name='market', description='Who wants to get rich?')
@@ -69,9 +88,9 @@ class StockMarketCog(commands.Cog):
         """Calculates and displays available stocks."""
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
+        embed = await self.update_market()
 
-        await interaction.followup.send(embed=await self.build_market_summary_embed())
+        await interaction.followup.send(embed=embed)
 
     @app_commands.command(name='buy', description='Buy a stock')
     @commands.check(bot_utils.is_guild_paradise)
@@ -84,7 +103,7 @@ class StockMarketCog(commands.Cog):
     ):
         await interaction.response.defer(ephemeral=True)
 
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
+        await self.update_market()
         
         valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
@@ -110,7 +129,7 @@ class StockMarketCog(commands.Cog):
     ):
         await interaction.response.defer(ephemeral=True)
 
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
+        await self.update_market()
 
         valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
@@ -145,7 +164,7 @@ class StockMarketCog(commands.Cog):
     async def command_sell_stock(self, interaction: discord.Interaction, trade_ids: app_commands.Transform[list[int], IntListTransformer]):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
+        await self.update_market()
 
         for trade_id in trade_ids:
             success, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
@@ -161,7 +180,7 @@ class StockMarketCog(commands.Cog):
     async def command_display_portfolio(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
+        await self.update_market()
 
         user_id = interaction.user.id
 
@@ -211,26 +230,10 @@ class StockMarketCog(commands.Cog):
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-        
-    @tasks.loop(minutes=5)
+
+    @tasks.loop(minutes=15)
     async def market_display_loop(self):
-        guild = self.bot_.get_guild(bot_utils.Guilds.Paradise) or await self.bot_.fetch_guild(bot_utils.Guilds.Paradise)
-        channel = guild.get_channel(bot_utils.Channels.StockMarketSummary) or await guild.fetch_channel(bot_utils.Channels.StockMarketSummary)
-        
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(guild, x))
-        
-        embed = await self.build_market_summary_embed()
-
-        embed.set_footer(text=f"Last updated: {datetime.datetime.now().replace(microsecond=0)}")
-
-        edited = False
-        async for msg in channel.history(limit=1):
-            await msg.edit(embed=embed)
-            edited = True
-
-        if not edited:
-            await channel.send(embed=embed)
-
+        await self.update_market()
 
     @market_display_loop.before_loop
     async def before_my_task(self):
