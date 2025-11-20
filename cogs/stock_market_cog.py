@@ -196,7 +196,7 @@ class StockMarketCog(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
 
         
-    @tasks.loop(minutes=30)
+    @tasks.loop(minutes=5)
     async def market_display_loop(self):
         guild = self.bot_.get_guild(bot_utils.Guilds.Paradise) or await self.bot_.fetch_guild(bot_utils.Guilds.Paradise)
         channel = guild.get_channel(bot_utils.Channels.StockMarketSummary) or await guild.fetch_channel(bot_utils.Channels.StockMarketSummary)
