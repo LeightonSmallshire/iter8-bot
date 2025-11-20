@@ -45,7 +45,7 @@ class Channels:
     ParadiseClockwork = 1416059475873239181
     TestServerStockSpam = 1440731650307915816
     TestServerStockSummary = 1440731630070403284
-    StockMarketSpam = 1440735818644852829
+    StockMarketSpam = 1440735848801894640
     StockMarketSummary = 1440735818644852829
 
 
