@@ -724,6 +724,7 @@ async def do_stock_market_update(db, dt: float, sim_count: int, autosell_callbac
 
         stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
                                 sigma * math.sqrt(dt) * z)
+        stock.value = max(stock.value, 0)
         
         quiet_factor = max(STOCK_DECAY_FACTOR, 1 - stock.volume / STOCK_HIGH_VOLUME)
 
