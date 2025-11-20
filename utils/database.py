@@ -714,7 +714,7 @@ async def do_stock_update(db, stock: Stock, count: int):
 async def do_stock_market_update(db, dt: float, sim_count: int, autosell_callback: Callable[[str], Awaitable]):
     stocks = await db.select(Stock)
     for _ in range(sim_count):
-        trade_count = random.randint(-STOCK_BASE_VOLUME, STOCK_BASE_VOLUME)
+        trade_count = random.randint(-STOCK_ACTOR_SIM_BUY_RANGE, STOCK_ACTOR_SIM_BUY_RANGE)
         await do_stock_update(db, random.choice(stocks), trade_count)
 
     for stock in stocks:

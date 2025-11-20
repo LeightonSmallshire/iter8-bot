@@ -18,6 +18,12 @@ _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log'))
 _log.addHandler(log_utils.DatabaseHandler())
 
+def get_format_price(total: float) -> str:
+    sign = "-" if total < 0 else ""
+    total = abs(total)
+    # seconds with 2 digits before decimal, 4 after: SS.FFFF
+    return f"{sign}{total:06.4f}s"
+
 async def print_stock_market_trade(guild: discord.Guild, msg: str):
     channel = guild.get_channel(bot_utils.Channels.StockMarketSpam) or await guild.fetch_channel(bot_utils.Channels.StockMarketSpam)
     await channel.send(content=msg, silent=True)
@@ -30,14 +36,25 @@ class StockMarketCog(commands.Cog):
         self.market_display_loop.start()
     
     class DurationTransformer(app_commands.Transformer):
-        _DURATION_RE = re.compile(r"(?:(\d+)\s*d)?\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$", re.I)
+        _DURATION_RE = re.compile(
+            r"""
+            ^\s*
+            (?:(?P<days>\d+)\s*d)?\s*              # 1d
+            (?:(?P<hours>\d+)\s*h)?\s*             # 2h
+            (?:(?P<minutes>\d+)\s*m(?!s))?\s*      # 3m  (but NOT ms)
+            (?:(?P<seconds>\d+)\s*s)?\s*           # 4s
+            (?:(?P<milliseconds>\d+)\s*ms)?\s*     # 500ms
+            $
+            """,
+            re.I | re.X,
+        )
 
         def parse_duration(self, s: str) -> datetime.timedelta:
             m = self._DURATION_RE.fullmatch(s.strip())
             if not m:
                 raise ValueError("Use formats like 1h30m, 45m, 90s, 2h, 1d2h.")
-            d, h, m_, s_ = (int(x) if x else 0 for x in m.groups())
-            td = datetime.timedelta(days=d, hours=h, minutes=m_, seconds=s_)
+            d, h, m_, s_, ms_ = (int(x) if x else 0 for x in m.groups())
+            td = datetime.timedelta(days=d, hours=h, minutes=m_, seconds=s_, milliseconds=ms_)
             if td.total_seconds() <= 0:
                 raise ValueError("Duration must be > 0.")
             return td
@@ -57,7 +74,7 @@ class StockMarketCog(commands.Cog):
             low, high = stock_utils.calculate_buy_sell_price(stock)
             embed.add_field(
                 name=f"{stock.code} - {stock.name}",
-                value=f"Buy - {datetime.timedelta(seconds=high)}\nSell - {datetime.timedelta(seconds=low)}",
+                value=f"Buy - {get_format_price(high)}\nSell - {get_format_price(low)}",
                 inline=False,
             )
         return embed
@@ -211,8 +228,8 @@ class StockMarketCog(commands.Cog):
                 f"**{stock.name} ({stock.code}){' (Short)' if order.short else''}**\n"
                 f"- Trade ID: `{order.id}`\n"
                 f"- Qty: `{order.count}`\n"
-                f"- Bought @ `{datetime.timedelta(seconds=order.bought_at)}`\n"
-                f"- Current @ `{datetime.timedelta(seconds=current_value)}`\n"
+                f"- Bought @ `{get_format_price(order.bought_at)}`\n"
+                f"- Current @ `{get_format_price(current_value)}`\n"
                 f"- P/L: `{'+' if pnl > 0 else '-'}{datetime.timedelta(seconds=abs(pnl))}`\n"
             )
 
@@ -224,7 +241,7 @@ class StockMarketCog(commands.Cog):
 
         embed.add_field(
             name="Total P/L",
-            value=f"`{'+' if total_pl > 0 else '-'}{datetime.timedelta(seconds=abs(round(total_pl)))}`",
+            value=f"`{'+' if total_pl > 0 else '-'}{datetime.timedelta(seconds=abs(total_pl))}`",
             inline=False
         )
 
