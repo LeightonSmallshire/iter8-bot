@@ -91,9 +91,13 @@ class StockMarketCog(commands.Cog):
             await interaction.followup.send(content=reason)
             return
 
-        _, msg = await db_utils.stock_market_buy(interaction.user.id, code, count, autosell_low, autosell_high)
-        await print_stock_market_trade(interaction.guild, msg)
-        await interaction.followup.send(content="✅ Transaction complete")
+        success, msg = await db_utils.stock_market_buy(interaction.user.id, code, count, autosell_low, autosell_high)
+        
+        if success:
+            await print_stock_market_trade(interaction.guild, msg)
+            await interaction.followup.send(content="✅ Transaction complete")
+        else:
+            await interaction.followup.send(content=f"❌ Transaction failed [{msg}]")
 
     @app_commands.command(name='short', description='Short a stock')
     @commands.check(bot_utils.is_guild_paradise)
@@ -113,10 +117,13 @@ class StockMarketCog(commands.Cog):
             await interaction.followup.send(content=reason)
             return
 
-        _, msg = await db_utils.stock_market_short(interaction.user.id, code, count, autosell_low, autosell_high)
-
-        await print_stock_market_trade(interaction.guild, msg)
-        await interaction.followup.send(content="✅ Transaction complete")
+        success, msg = await db_utils.stock_market_short(interaction.user.id, code, count, autosell_low, autosell_high)
+        
+        if success:
+            await print_stock_market_trade(interaction.guild, msg)
+            await interaction.followup.send(content="✅ Transaction complete")
+        else:
+            await interaction.followup.send(content=f"❌ Transaction failed [{msg}]")
 
 
     class IntListTransformer(app_commands.Transformer):
@@ -141,9 +148,13 @@ class StockMarketCog(commands.Cog):
         await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(interaction.guild, x))
 
         for trade_id in trade_ids:
-            _, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
-            await print_stock_market_trade(interaction.guild, msg)
-            await interaction.followup.send(content="✅ Transaction complete")
+            success, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
+        
+            if success:
+                await print_stock_market_trade(interaction.guild, msg)
+                await interaction.followup.send(content="✅ Transaction complete")
+            else:
+                await interaction.followup.send(content=f"❌ Transaction failed [{msg}]")
 
     @app_commands.command(name='portfolio', description='See your portfolio')
     @commands.check(bot_utils.is_guild_paradise)
