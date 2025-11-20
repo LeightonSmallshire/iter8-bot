@@ -510,11 +510,11 @@ async def read_logs(limit: int=100, level: Optional[str]=None):
 #-----------------------------------------------------------------
 #   Purchases
 
-async def get_shop_credit(user_id: int) -> datetime.timedelta:
+async def get_shop_credit(user_id: int) -> float:
     async with Database(DATABASE_NAME) as db:
         user = await db.select(User, [WhereParam("id", user_id)])
         if not user:
-            return datetime.timedelta(seconds=0)
+            return 0
         
         user = user[0]
 
@@ -544,12 +544,10 @@ async def get_shop_credit(user_id: int) -> datetime.timedelta:
         credit += sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_long])
         credit -= sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_short])
 
-        return datetime.timedelta(seconds=credit)
+        return credit
 
 async def can_afford_purchase(user: int, cost: int) -> bool:
     credit = await get_shop_credit(user)
-    credit = credit.total_seconds()
-
     return cost <= credit
 
 async def is_ongoing_sale() -> tuple[bool, Optional[datetime.datetime]]:
@@ -695,7 +693,7 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
 
         _, buy_price = calculate_buy_sell_price(stock)
         
-        if (buy_price * count) < credit.total_seconds():
+        if (buy_price * count) < credit:
             return True, None
         else:
             return False, "Can't afford this purchase!"
@@ -804,13 +802,13 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
 async def close_market_trade(db, user_id: int, trade_id: int) -> tuple[bool, str]:
     orders = await db.select(Trade, where=[WhereParam("id", trade_id), WhereParam("user_id", user_id), WhereParam("sold_at", None, "IS")])
     if not orders:
-        raise LookupError("Trying to close a trade that doesn't exist.")
+        return False, "Trying to close a trade that doesn't exist."
     
     order = orders[0]
 
     stocks = await db.select(Stock, where=[WhereParam("id", order.stock)])
     if not stocks:
-        raise LookupError("Trying to close a trade for a stock that doesn't exist.")
+        return False, "Trying to close a trade for a stock that doesn't exist."
     
     stock = stocks[0]
     pl = 0.0

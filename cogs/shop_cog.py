@@ -74,7 +74,7 @@ class ShopCog(commands.Cog):
         for (user, credit) in users:
             embed.add_field(
                 name=user.display_name,
-                value=f"{datetime.timedelta(seconds=round(credit.total_seconds()))}",
+                value=f"{'' if credit > 0 else '-'}{datetime.timedelta(seconds=round(abs(credit)))}",
                 inline=False,
             )
 
