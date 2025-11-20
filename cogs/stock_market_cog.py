@@ -188,9 +188,9 @@ class StockMarketCog(commands.Cog):
         
             if success:
                 await print_stock_market_trade(interaction.guild, msg)
-                await interaction.followup.send(content="✅ Transaction complete")
+                await interaction.followup.send(content="✅ Transaction complete", ephemeral=True)
             else:
-                await interaction.followup.send(content=f"❌ Transaction failed [{msg}]")
+                await interaction.followup.send(content=f"❌ Transaction failed [{msg}]", ephemeral=True)
 
     @app_commands.command(name='portfolio', description='See your portfolio')
     @commands.check(bot_utils.is_guild_paradise)
