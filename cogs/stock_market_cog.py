@@ -196,9 +196,9 @@ class StockMarketCog(commands.Cog):
         lines = []
 
         for stock, order in orders:
-            sell_price, _ = stock_utils.calculate_buy_sell_price(stock)
+            sell_price, sell_price_short = stock_utils.calculate_buy_sell_price(stock)
 
-            current_value = sell_price
+            current_value = sell_price_short if order.short else sell_price
             pnl_per_unit = (current_value - order.bought_at)
 
             if order.short:
