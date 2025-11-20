@@ -771,7 +771,7 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
         buy = Trade(None, count, buy_price, None, user_id, stock.id, short=False, auto_sell_low=sell_low, auto_sell_high=sell_high)
-        msg =  f"<@{user_id}> bought {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
+        msg =  f"<@{user_id}> bought {count} shares of {stock.code} @ {buy_price}s"
 
         await do_stock_update(db, stock, count)
         await db.insert(buy)
@@ -792,7 +792,7 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
         short = Trade(None, count, buy_price, None, user_id, stock.id, short=True, auto_sell_low=sell_low, auto_sell_high=sell_high)
-        msg =  f"<@{user_id}> shorted {count} shares of {stock.code} at {datetime.timedelta(seconds=round(buy_price))}"
+        msg =  f"<@{user_id}> shorted {count} shares of {stock.code} @ {buy_price}s"
 
         await do_stock_update(db, stock, -count)
         await db.insert(short)
