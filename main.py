@@ -99,6 +99,13 @@ class HotReloadBot(commands.Bot):
             bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
         return status
 
+    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        logger.error(error)
+        if interaction.response.is_done():
+            await interaction.followup.send(str(error), ephemeral=True)
+        else:
+            await interaction.response.send_message(str(error), ephemeral=True)
+
 
 # --- Main Execution ---
 logger.setLevel(logging.DEBUG)
