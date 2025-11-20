@@ -188,7 +188,9 @@ class DevCog(commands.Cog):
             # This generally won't happen if the command is correctly registered
             pass
         else:
-            _log.error(f'An unhandled command error occurred in cog {self.qualified_name}: {error}')
+            msg = f'An unhandled command error occurred in cog {self.qualified_name}: {error}'
+            _log.error(msg)
+            await interaction.response.send_message(msg, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
