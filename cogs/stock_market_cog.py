@@ -209,44 +209,48 @@ class StockMarketCog(commands.Cog):
             )
 
         # ---- Calculate current P&L ----
-        total_pl = 0
-        lines = []
+        while True:
+            total_pl = 0
+            lines = []
 
-        for stock, order in orders:
-            sell_price, sell_price_short = stock_utils.calculate_buy_sell_price(stock)
+            for stock, order in orders:
+                sell_price, sell_price_short = stock_utils.calculate_buy_sell_price(stock)
 
-            current_value = sell_price_short if order.short else sell_price
-            pnl_per_unit = (current_value - order.bought_at)
+                current_value = sell_price_short if order.short else sell_price
+                pnl_per_unit = (current_value - order.bought_at)
 
-            if order.short:
-                pnl_per_unit = -pnl_per_unit
+                if order.short:
+                    pnl_per_unit = -pnl_per_unit
 
-            pnl = pnl_per_unit * order.count
-            total_pl += pnl
+                pnl = pnl_per_unit * order.count
+                total_pl += pnl
 
-            lines.append(
-                f"**{stock.name} ({stock.code}){' (Short)' if order.short else''}**\n"
-                f"- Trade ID: `{order.id}`\n"
-                f"- Qty: `{order.count}`\n"
-                f"- Bought @ `{get_format_price(order.bought_at)}`\n"
-                f"- Current @ `{get_format_price(current_value)}`\n"
-                f"- P/L: `{'+' if pnl > 0 else '-'}{datetime.timedelta(seconds=abs(pnl))}`\n"
+                lines.append(
+                    f"**{stock.name} ({stock.code}){' (Short)' if order.short else ''}**\n"
+                    f"- Trade ID: `{order.id}`\n"
+                    f"- Qty: `{order.count}`\n"
+                    f"- Bought @ `{get_format_price(order.bought_at)}`\n"
+                    f"- Current @ `{get_format_price(current_value)}`\n"
+                    f"- P/L: `{'+' if pnl > 0 else '-'}{datetime.timedelta(seconds=abs(pnl))}`\n"
+                )
+
+            embed = discord.Embed(
+                title=f"{interaction.user.display_name}'s Portfolio",
+                description="\n".join(lines),
+                color=discord.Color.green() if total_pl >= 0 else discord.Color.red()
             )
 
-        embed = discord.Embed(
-            title=f"{interaction.user.display_name}'s Portfolio",
-            description="\n".join(lines),
-            color=discord.Color.green() if total_pl >= 0 else discord.Color.red()
-        )
-
-        embed.add_field(
-            name="Total P/L",
-            value=f"`{'+' if total_pl > 0 else '-'}{datetime.timedelta(seconds=abs(total_pl))}`",
-            inline=False
-        )
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
-
+            embed.add_field(
+                name="Total P/L",
+                value=f"`{'+' if total_pl > 0 else '-'}{datetime.timedelta(seconds=abs(total_pl))}`",
+                inline=False
+            )
+            try:
+                await interaction.followup.send(embed=embed, ephemeral=True)
+                await asyncio.sleep(10)
+            except (discord.NotFound, discord.HTTPException):
+                break
+            # note: rate limits cause HTTPException but breaking is acceptable
 
     @tasks.loop(minutes=15)
     async def market_display_loop(self):
