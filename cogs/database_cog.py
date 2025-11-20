@@ -42,6 +42,8 @@ class DatabaseCog(commands.Cog):
             return await interaction.response.send_message("No squeal 4 U")
         
         await interaction.response.defer(ephemeral=True)
+        _log.info(f"{interaction.user.name} executed a SQL query: [{query}]")
+
         try:
             headers, rows = await db_utils.execute_raw_query(query)
         except Exception as e:

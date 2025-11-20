@@ -121,8 +121,13 @@ class StockMarketCog(commands.Cog):
 
     class IntListTransformer(app_commands.Transformer):
         async def transform(self, interaction: discord.Interaction, value: str) -> list[int]:
-            parts = [p for p in value.replace(",", " ").split() if p]
-            return [int(p) for p in parts]
+            try:
+                parts = [p for p in value.replace(",", " ").split() if p]
+                return [int(p) for p in parts]
+            except ValueError as e:
+                # Surface a friendly error in the UI
+                await interaction.response.send_message(content=str(e), ephemeral=True)
+                raise app_commands.AppCommandError(str(e))
     
 
     @app_commands.command(
