@@ -726,7 +726,7 @@ async def do_stock_market_update(db, dt: float, sim_count: int, autosell_callbac
                                 sigma * math.sqrt(dt) * z)
         
         # Clamp value to 1ms minimum - blame gary the market crasher
-        stock.value = max(0.001, stock.value)
+        stock.value = max(0.001, min(stock.value, 1000))
         
         quiet_factor = max(STOCK_DECAY_FACTOR, 1 - stock.volume / STOCK_HIGH_VOLUME)
 
@@ -769,7 +769,12 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         stock = stocks[0]
 
         _, buy_price = calculate_buy_sell_price(stock)
-
+        
+        if buy_price < 0.001:
+            return False, "Trying to buy a stock thats broken"
+        if buy_price > 1000:
+            return False, "Trying to buy a stock thats broken"
+            
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
@@ -790,6 +795,11 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         stock = stocks[0]
 
         buy_price, _ = calculate_buy_sell_price(stock)
+        
+        if buy_price < 0.001:
+            return False, "Trying to short a stock thats broken"
+        if buy_price > 1000:
+            return False, "Trying to short a stock thats broken"
 
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
