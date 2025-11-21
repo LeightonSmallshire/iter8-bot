@@ -153,6 +153,7 @@ class Stock:
     drift: float
     volatility: float
     volume: float
+    volume_this_frame: float
 
 @dataclass
 class Trade:
