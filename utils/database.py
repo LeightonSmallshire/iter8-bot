@@ -737,7 +737,12 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         stock = stocks[0]
 
         _, buy_price = calculate_buy_sell_price(stock)
-
+        
+        if buy_price < 0.001:
+            return False, "Trying to buy a stock thats broken"
+        if buy_price > 1000:
+            return False, "Trying to buy a stock thats broken"
+            
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
@@ -758,6 +763,11 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         stock = stocks[0]
 
         buy_price, _ = calculate_buy_sell_price(stock)
+        
+        if buy_price < 0.001:
+            return False, "Trying to short a stock thats broken"
+        if buy_price > 1000:
+            return False, "Trying to short a stock thats broken"
 
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
