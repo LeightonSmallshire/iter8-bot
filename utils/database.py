@@ -700,12 +700,10 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
 
 async def do_stock_market_update(db, dt: float, autosell_callback: Callable[[str], Awaitable]):
     stocks = await db.select(Stock)
-    updated_stocks = await update_stocks_rand( stocks) 
-    for stock in updated_stocks:
-        db.update(stock)
+    await update_stocks_rand( stocks) 
 
-    for stock in updated_stocks:
-        order_stock(stock,dt)
+    for stock in stocks:
+        await update_stock(stock,dt)
         await db.update(stock)
 
         low, high = calculate_buy_sell_price(stock)
@@ -723,6 +721,7 @@ async def update_market_since_last_action(autosell_callback: Callable[[str], Awa
         timestamps = await db.select(Timestamps)
 
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
+        dt *= 60
         while dt >= 5:
             await do_stock_market_update(db, 1, autosell_callback)
             dt -= 5
