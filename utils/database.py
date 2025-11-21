@@ -721,7 +721,6 @@ async def update_market_since_last_action(autosell_callback: Callable[[str], Awa
         timestamps = await db.select(Timestamps)
 
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
-        dt *= 60
         while dt >= 5:
             await do_stock_market_update(db, 1, autosell_callback)
             dt -= 5
