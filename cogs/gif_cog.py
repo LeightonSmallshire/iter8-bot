@@ -93,7 +93,10 @@ class GifCog(commands.Cog):
         else:
             msg = f'An unhandled command error occurred in cog {self.qualified_name}: {error}'
             _log.error(msg)
-            await interaction.response.send_message(msg)
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
 
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
