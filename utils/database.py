@@ -6,7 +6,7 @@ import math
 from packaging.version import Version
 from .model import *
 from .shop import *
-from .stock import *
+from .stocks.stock_controls import *
 from collections import defaultdict
 from dataclasses import dataclass, fields, asdict, Field
 from typing import Optional, Any, Type, get_type_hints, Type, Union
@@ -697,45 +697,13 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
             return True, None
         else:
             return False, "Can't afford this purchase!"
-        
-async def do_stock_update(db, stock: Stock, count: int):
-    # EMA smoothing
-    stock.volume = (1 - STOCK_VOLUME_ALPHA) * stock.volume + STOCK_VOLUME_ALPHA * abs(count)
 
-    liquidity = math.sqrt(max(stock.volume, 1))
-    effective_impact = (STOCK_PRICE_IMPACT * count) / liquidity
-
-    stock.value *= (1 + effective_impact)
-    stock.drift += STOCK_DRIFT_IMPACT * count / liquidity
-    stock.volatility += abs(count) * STOCK_VOLATILITY_IMPACT / liquidity
-    stock.volatility = max(0.0001, min(stock.volatility, 1.0))
-    await db.update(stock)
-
-async def do_stock_market_update(db, dt: float, sim_count: int, autosell_callback: Callable[[str], Awaitable]):
+async def do_stock_market_update(db, dt: float, autosell_callback: Callable[[str], Awaitable]):
     stocks = await db.select(Stock)
-    for _ in range(sim_count):
-        trade_count = random.randint(-STOCK_ACTOR_SIM_BUY_RANGE, STOCK_ACTOR_SIM_BUY_RANGE)
-        await do_stock_update(db, random.choice(stocks), trade_count)
+    await update_stocks_rand( stocks) 
 
     for stock in stocks:
-        mu = stock.drift
-        sigma = stock.volatility
-        z = random.gauss(0, 1)
-
-        stock.value *= math.exp((mu - 0.5 * sigma * sigma) * dt +
-                                sigma * math.sqrt(dt) * z)
-        
-        # Clamp value to 1ms minimum - blame gary the market crasher
-        stock.value = max(0.001, min(stock.value, 1000))
-        
-        quiet_factor = max(STOCK_DECAY_FACTOR, 1 - stock.volume / STOCK_HIGH_VOLUME)
-
-        stock.drift *= quiet_factor
-        stock.volatility = STOCK_BASE_VOLATILITY + (stock.volatility - STOCK_BASE_VOLATILITY) * quiet_factor
-
-        # clamp vol to avoid collapse or explosion
-        stock.volatility = max(0.001, min(stock.volatility, 1.0))
-
+        await update_stock(stock,dt)
         await db.update(stock)
 
         low, high = calculate_buy_sell_price(stock)
@@ -754,7 +722,7 @@ async def update_market_since_last_action(autosell_callback: Callable[[str], Awa
 
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
         while dt >= 5:
-            await do_stock_market_update(db, 1, STOCK_ACTOR_SIM_COUNT, autosell_callback)
+            await do_stock_market_update(db, 1, autosell_callback)
             dt -= 5
 
         timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
@@ -781,7 +749,7 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         buy = Trade(None, count, buy_price, None, user_id, stock.id, short=False, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg =  f"<@{user_id}> bought {count} shares of {stock.code} @ {buy_price}s"
 
-        await do_stock_update(db, stock, count)
+        await order_stock( stock, count)
         await db.insert(buy)
 
         return True, msg
@@ -807,7 +775,7 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         short = Trade(None, count, buy_price, None, user_id, stock.id, short=True, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg =  f"<@{user_id}> shorted {count} shares of {stock.code} @ {buy_price}s"
 
-        await do_stock_update(db, stock, -count)
+        await order_stock(stock, -count)
         await db.insert(short)
             
         return True, msg
@@ -833,7 +801,7 @@ async def close_market_trade(db, user_id: int, trade_id: int) -> tuple[bool, str
     pl *= order.count
 
     await db.update(order)
-    await do_stock_update(db, stock, order.count if order.short else -order.count)
+    await order_stock(stock, order.count if order.short else -order.count)
 
     if order.short:
         pl *= -1
