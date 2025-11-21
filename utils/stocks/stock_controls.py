@@ -16,8 +16,8 @@ def calculate_buy_sell_price(stock: Stock) -> tuple[float, float]:
     return low, high
 
 async def update_stocks_rand(stocks):
-    for _ in range(STOCK_ACTOR_SIM_COUNT):
-        await update_stock_rand(random.choice(stocks))
+    for s in stocks:
+        await update_stock_rand(s)
 
 async def update_stock_rand(stock: Stock):
     try:
@@ -50,6 +50,8 @@ async def update_stock(stock: Stock, dt: float):
     stock.drift = STOCK_DECAY_FACTOR * stock.drift + (1-STOCK_DECAY_FACTOR) * STOCK_DRIFT_IMPACT * direction
     stock.volatility = STOCK_DECAY_FACTOR*stock.volatility + (1-STOCK_DECAY_FACTOR) * STOCK_VOLATILITY_IMPACT * abs(direction)
 
+    stock.drift = min(1,max(stock.drift,-1))
+    stock.volatility = min(1,max(stock.volatility,0))
     # Geometric brownian motion
     mu = stock.drift
     sigma = stock.volatility
@@ -57,8 +59,8 @@ async def update_stock(stock: Stock, dt: float):
 
     step_dir = math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * math.sqrt(dt) * z);
     if(step_dir<=0.5 or step_dir>2):
-        print(f'Step_dir is weird again. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
-        stock.value *= step_dir
-    step_dir = min(2,max(step_dir,0.5))
+        print(f'Step_dir is too big. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
+        step_dir = min(1.4,max(step_dir,0.6))
+    stock.value *= step_dir
 
     stock.volume_this_frame=0
