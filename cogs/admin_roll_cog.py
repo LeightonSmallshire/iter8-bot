@@ -28,9 +28,10 @@ def is_correct_time(interaction: discord.Interaction) -> bool:
 async def is_first_roll(interaction: discord.Interaction) -> bool:
     UK = ZoneInfo("Europe/London")
     dt_utc = interaction.created_at
+    dt_uk = dt_utc.astimezone(UK)
 
-    roll_info = await db_utils.get_last_admin_roll()
-    time_passed = (dt_utc - roll_info.last_roll) > timedelta(days=6) if roll_info else True
+    timestamps = await db_utils.get_last_admin_roll()
+    time_passed = (dt_uk - timestamps.last_roll.astimezone(UK)) > timedelta(days=6) if timestamps else True
 
     return time_passed
 
@@ -133,7 +134,10 @@ class AdminRollCog(commands.Cog):
         else:
             msg = f'An unhandled command error occurred in cog {self.qualified_name}: {error}'
             _log.error(msg)
-            await interaction.response.send_message(msg, ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
