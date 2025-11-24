@@ -190,6 +190,24 @@ class StockMarketCog(commands.Cog):
                 await interaction.followup.send(content="✅ Transaction complete", ephemeral=True)
             else:
                 await interaction.followup.send(content=f"❌ Transaction failed [{msg}]", ephemeral=True)
+    
+
+
+    @commands.check(bot_utils.is_guild_paradise)
+    async def command_adjust_trade(self, 
+                                   interaction: discord.Interaction, 
+                                   trade_id: int, 
+                                   autosell_low: Optional[app_commands.Transform[datetime.timedelta, DurationTransformer]],
+                                   autosell_high: Optional[app_commands.Transform[datetime.timedelta, DurationTransformer]]
+    ):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+    
+        if not autosell_low and not autosell_high:
+            await interaction.followup.send("You need to specify an autosell threshold", ephemeral=True)
+            return
+        
+        success, msg = await stock_utils.stock_market_update_trade(interaction.user.id, trade_id, autosell_low, autosell_high)
+        await interaction.followup.send(msg, ephemeral=True)
 
     @app_commands.command(name='portfolio', description='See your portfolio')
     @commands.check(bot_utils.is_guild_paradise)
@@ -229,6 +247,8 @@ class StockMarketCog(commands.Cog):
                 f"- Qty: `{order.count}`\n"
                 f"- Bought @ `{get_format_price(order.bought_at)}`\n"
                 f"- Current @ `{get_format_price(current_value)}`\n"
+                f"- Auto Sell Below @ `{get_format_price(order.auto_sell_low)}`\n" if order.auto_sell_low else ""
+                f"- Auto Sell Above @ `{get_format_price(order.auto_sell_high)}`\n" if order.auto_sell_high else ""
                 f"- P/L: `{'+' if pnl > 0 else '-'}{datetime.timedelta(seconds=abs(pnl))}`\n"
             )
 
