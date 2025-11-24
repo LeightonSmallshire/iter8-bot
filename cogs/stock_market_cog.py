@@ -193,6 +193,7 @@ class StockMarketCog(commands.Cog):
     
 
 
+    @app_commands.command(name='adjust_trade', description='Adjust the autosell thresholds for a trade')
     @commands.check(bot_utils.is_guild_paradise)
     async def command_adjust_trade(self, 
                                    interaction: discord.Interaction, 
