@@ -28,7 +28,7 @@ async def update_stocks_rand(stocks, dt):
         this_dt = min(100,dt)
         for s in stocks:
             await update_stock_rand(s, this_dt)
-            await update_stock(s,math.sqrt(this_dt))
+            await update_stock(s,this_dt)
         dt -= this_dt
     return dt
 
@@ -36,7 +36,7 @@ async def update_stock_rand(stock: Stock, dt):
     try:
         force_drift_power = math.log2(stock.actor_target_price)-math.log2(stock.value)
         force_drift_power *= STOCK_ACTOR_SHIFT_CORR_POWER
-        force_drift = random.gauss(STOCK_ACTOR_SIM_SOFT_RANGE*force_drift_power,STOCK_ACTOR_SIM_SOFT_RANGE/4)
+        force_drift = dt*random.gauss(STOCK_ACTOR_SIM_SOFT_RANGE*force_drift_power,STOCK_ACTOR_SIM_SOFT_RANGE/4)
         trade_credit = random.gauss(force_drift, math.sqrt(dt)*STOCK_ACTOR_SIM_SOFT_RANGE/2)
         trade_credit = min(3600,max(trade_credit,-3600))
         trade_count = trade_credit/stock.value
@@ -57,12 +57,15 @@ async def order_stock(stock: Stock, count: int):
 async def update_stock(stock: Stock, dt: float):
     d_vol = stock.volume_this_frame
 
-    stock.volume = STOCK_VOLUME_ALPHA * stock.volume + (1-STOCK_VOLUME_ALPHA) * abs(d_vol**2)
+    vol_decay = math.pow(STOCK_VOLUME_ALPHA,dt)
+    trend_decay = math.pow(STOCK_DECAY_FACTOR,dt)
+
+    stock.volume = vol_decay * stock.volume + (1-vol_decay) * abs(d_vol**2)
     liquidity = get_liquidity(stock.volume)
     direction = 2 * d_vol / liquidity
 
-    stock.drift = STOCK_DECAY_FACTOR * stock.drift + (1-STOCK_DECAY_FACTOR) * STOCK_DRIFT_IMPACT * direction
-    stock.volatility = STOCK_DECAY_FACTOR*stock.volatility + (1-STOCK_DECAY_FACTOR) * STOCK_VOLATILITY_IMPACT * abs(direction)
+    stock.drift = trend_decay * stock.drift + (1-trend_decay) * STOCK_DRIFT_IMPACT * direction
+    stock.volatility = trend_decay*stock.volatility + (1-trend_decay) * STOCK_VOLATILITY_IMPACT * abs(direction)
 
     stock.drift = min(1,max(stock.drift,-1))
     stock.volatility = min(1,max(stock.volatility,0))
