@@ -89,8 +89,9 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         buy = Trade(None, count, buy_price, None, user_id, stock.id, short=False, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg =  f"<@{user_id}> bought {count} shares of {stock.code} @ {buy_price}s"
 
-        await order_stock(db, stock, count)
+        order_stock(stock, count)
         await db.insert(buy)
+        await db.update(stock)
 
         return True, msg
 
@@ -110,8 +111,9 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         short = Trade(None, count, buy_price, None, user_id, stock.id, short=True, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg =  f"<@{user_id}> shorted {count} shares of {stock.code} @ {buy_price}s"
 
-        await order_stock(db, stock, -count)
+        order_stock(stock, -count)
         await db.insert(short)
+        await db.update(stock)
             
         return True, msg
     
@@ -136,7 +138,8 @@ async def close_market_trade(db, user_id: int, trade_id: int) -> tuple[bool, str
     pl *= order.count
 
     await db.update(order)
-    await order_stock(db, stock, order.count if order.short else -order.count)
+    order_stock(stock, order.count if order.short else -order.count)
+    await db.update(stock)
 
     if order.short:
         pl *= -1

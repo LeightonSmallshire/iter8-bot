@@ -47,7 +47,7 @@ async def update_stock_rand(stock: Stock, dt):
 def get_liquidity(vol :float):
     return math.pow(max(vol, 1),STOCK_LIQUIDITY_COFF)
 
-async def order_stock(stock: Stock, count: int):
+def order_stock(stock: Stock, count: int):
     liquidity = get_liquidity(stock.volume)
     effective_impact = (STOCK_PRICE_IMPACT * count) / liquidity
 
