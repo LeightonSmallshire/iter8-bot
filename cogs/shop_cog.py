@@ -10,13 +10,13 @@ import sys
 import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
-import utils.database as db_utils
+import utils.database as shop_utils
 import utils.shop as shop_utils
 from view.shop_view import ShopView
 from typing import Optional
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 class ShopCog(commands.Cog):
@@ -34,7 +34,7 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        sale, end_date = await db_utils.is_ongoing_sale()
+        sale, end_date = await shop_utils.is_ongoing_sale()
         discount = 0.5 if sale else 1
         embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
 
@@ -67,7 +67,7 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        users = { user: await db_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
+        users = { user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
         users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
 
         embed = discord.Embed(title="💵 How much is everyone worth? 💵", color=discord.Color.blue())

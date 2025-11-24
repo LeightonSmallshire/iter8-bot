@@ -41,7 +41,7 @@ class Users:
             ids.discard(f)
         if not ids:
             raise ValueError("No users available after exclusion.")
-        return random.choice(list(ids))
+        return random.choice(list(ids)) 
 
 
 class Channels:

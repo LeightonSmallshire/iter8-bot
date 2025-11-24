@@ -5,6 +5,7 @@ import logging
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
+import utils.stock as stock_utils
 import discord
 import datetime
 from discord.ext import commands
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # file_handler.setLevel(logging.DEBUG)
 # file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(logging.FileHandler('data/logs.log'))
+logger.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 logger.addHandler(log_utils.DatabaseHandler())
 
 now = datetime.datetime.now().time()
@@ -46,7 +47,7 @@ class HotReloadBot(commands.Bot):
 
         server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
         leaderboard = await bot_utils.get_timeout_data(server)
-        await db_utils.init_database(leaderboard)
+        await db_utils.init_database(leaderboard, stock_utils.AVAILABLE_STOCKS)
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
