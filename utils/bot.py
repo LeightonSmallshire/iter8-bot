@@ -1,11 +1,15 @@
+import os
 import logging
 import discord
 import random
 import asyncio
 import datetime
 import secrets
-from typing import Optional
 from .model import User
+
+
+IS_LIVE = os.path.exists('/.dockerenv')
+IS_TESTING = not IS_LIVE
 
 
 class Guilds:
@@ -13,6 +17,7 @@ class Guilds:
     Paradise = TestServer
     Innov8 = 1325821294427766784
     Innov8_DevOps = 1425873966035238975
+    Default = Paradise if IS_LIVE else TestServer
 
 
 class Users:
