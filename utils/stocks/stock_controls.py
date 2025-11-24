@@ -29,7 +29,7 @@ async def update_stocks_rand(stocks, dt):
         for s in stocks:
             await update_stock_rand(s, this_dt)
             await update_stock(s,math.sqrt(this_dt))
-        dt -= 100
+        dt -= this_dt
     return dt
 
 async def update_stock_rand(stock: Stock, dt):
