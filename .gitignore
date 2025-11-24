@@ -4,5 +4,5 @@
 
 __pycache__/
 data/
-.vscode
-iter8-bot.code-workspace
+.vscode/
+*.code-workspace
