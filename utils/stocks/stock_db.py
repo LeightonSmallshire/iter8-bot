@@ -165,6 +165,6 @@ async def stock_market_update_trade(user_id: int, trade_id: int, auto_sell_low: 
         if auto_sell_high:
             order.auto_sell_high = auto_sell_high.total_seconds()
 
-        db.update(order)
+        await db.update(order)
         return True, "Successfully updated your trade with new auto-sell thresholds."
         
