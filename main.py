@@ -9,10 +9,14 @@ import discord
 import datetime
 from discord.ext import commands
 
+
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
 COGS_DIR = "cogs"
+
+IS_LIVE = os.path.exists('/.dockerenv')
+IS_TESTING = not IS_LIVE
 
 os.makedirs('data', exist_ok=True)
 
@@ -36,7 +40,7 @@ class HotReloadBot(commands.Bot):
     async def on_ready(self):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
-        if is_work_hours:
+        if is_work_hours and IS_LIVE:
             bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
             bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
 
@@ -96,7 +100,7 @@ class HotReloadBot(commands.Bot):
             'failed': failed_cogs,
             'synced': [str(c) for c in synced]
         }
-        if is_work_hours:
+        if is_work_hours and IS_LIVE:
             bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
         return status
 
