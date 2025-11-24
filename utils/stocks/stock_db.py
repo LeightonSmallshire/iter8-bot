@@ -146,3 +146,22 @@ async def close_market_trade(db, user_id: int, trade_id: int) -> tuple[bool, str
 async def stock_market_sell(user_id: int, trade_id: int) -> tuple[bool, str]:
     async with Database(DATABASE_NAME) as db:
         return await close_market_trade(db, user_id, trade_id)
+    
+
+async def stock_market_update_trade(user_id: int, trade_id: int, auto_sell_low: Optional[datetime.timedelta], auto_sell_high: Optional[datetime.timedelta]) -> tuple[bool, str]:
+    async with Database(DATABASE_NAME) as db:
+        orders = await db.select(Trade, where=[WhereParam("id", trade_id), WhereParam("user_id", user_id), WhereParam("sold_at", None, "IS")])
+        if not orders:
+            return False, "Trying to update a trade that doesn't exist."
+        
+        order = orders[0]
+
+        if auto_sell_low:
+            order.auto_sell_low = auto_sell_low.total_seconds()
+
+        if auto_sell_high:
+            order.auto_sell_high = auto_sell_high.total_seconds()
+
+        db.update(order)
+        return True, "Successfully updated your trade with new auto-sell thresholds."
+        
