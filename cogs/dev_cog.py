@@ -4,7 +4,6 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import utils.bot as bot_utils
-import utils.database as db_utils
 import utils.log as log_utils
 import utils.files
 from typing import Optional
@@ -17,7 +16,7 @@ import subprocess
 import traceback
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
@@ -35,7 +34,7 @@ class DevCog(commands.Cog):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No logs 4 U")
 
-        rows = await db_utils.read_logs(level=level)
+        rows = await log_utils.read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
             return

@@ -10,12 +10,12 @@ import re
 import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
-import utils.database as db_utils
-from typing import Optional
-from collections import Counter, defaultdict
+import utils.gamble as gamble_utils
+import utils.shop as shop_utils
+from collections import Counter
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
@@ -53,7 +53,7 @@ class GamblingCog(commands.Cog):
             name = await get_member(uid)
             max_name_w = max(max_name_w, disp_width(name.display_name))
 
-        odds = await db_utils.get_gamble_odds(consume_bets=False)
+        odds = await gamble_utils.get_gamble_odds(consume_bets=False)
         prize = sum([data["total"] for (_, data)  in odds.items()])
 
         def fmt_duration(seconds: float) -> str:
@@ -137,11 +137,11 @@ class GamblingCog(commands.Cog):
             await interaction.followup.send(f"❌ You can't bet on bots.")
             return
 
-        if not await db_utils.can_afford_purchase(interaction.user.id, round(duration.total_seconds())):
+        if not await shop_utils.can_afford_purchase(interaction.user.id, round(duration.total_seconds())):
             await interaction.followup.send(f"❌ You can't afford to bet for that duration.")
             return
         
-        await db_utils.record_gamble(interaction.user.id, user.id, round(duration.total_seconds()))
+        await gamble_utils.record_gamble(interaction.user.id, user.id, round(duration.total_seconds()))
         await interaction.followup.send(f"✅ <@{interaction.user.id}> have placed a bet of {duration} on <@{user.id}> to be the next admin!")
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---

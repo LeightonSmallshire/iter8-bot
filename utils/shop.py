@@ -6,7 +6,12 @@ import logging
 import secrets
 from typing import Callable, Awaitable, Protocol, ClassVar
 from .bot import Roles, do_role_roll, get_non_bot_users
+from .database import *
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
+
+
+#-----------------------------------------------------------------
+#   Shop Items
 
 
 SHOP_ITEMS = list[type['ShopItem']]()
@@ -386,3 +391,64 @@ class BlackFridaySaleItem(ShopItem):
             await ctx.followup.send(
             f"<@{ctx.user.id}> started a sale! Get 50% off for the next 30 minutes!"
             )
+
+
+
+
+
+
+
+
+
+
+#-----------------------------------------------------------------
+#   Database Access
+            
+async def get_shop_credit(user_id: int) -> float:
+    async with Database(DATABASE_NAME) as db:
+        user = await db.select(User, [WhereParam("id", user_id)])
+        if not user:
+            return 0
+        
+        user = user[0]
+
+        purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
+
+        winnings = await db.select(GambleWin, where=[WhereParam("user_id", user_id)])
+        bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
+
+        gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
+        gifts_received  = await db.select(Gift, where=[WhereParam("receiver", user.id)])
+
+        stock_unfulfilled = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
+        stock_fulfilled_long = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
+        stock_fulfilled_short = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
+
+        credit = user.duration
+
+        credit -= sum([p.cost for p in purchases])
+
+        credit -= sum([b.amount for b in bets])
+        credit += sum([w.amount for w in winnings])
+
+        credit -= sum([g.amount for g in gifts_sent])
+        credit += sum([g.amount for g in gifts_received])
+
+        credit -= sum([s.bought_at * s.count for s in stock_unfulfilled])
+        credit += sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_long])
+        credit -= sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_short])
+
+        return credit
+
+async def can_afford_purchase(user: int, cost: int) -> bool:
+    credit = await get_shop_credit(user)
+    return cost <= credit
+
+async def is_ongoing_sale() -> tuple[bool, Optional[datetime.datetime]]:
+    async with Database(DATABASE_NAME) as db:
+        sale = await db.select(Purchase, where=[WhereParam("item_id", BlackFridaySaleItem.ITEM_ID)], order=[OrderParam("timestamp", True)])
+        if not sale:
+            return False, None
+        
+        end_time = sale[0].timestamp + datetime.timedelta(minutes=30)
+        return datetime.datetime.now() < end_time, end_time

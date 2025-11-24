@@ -1,6 +1,20 @@
-from .database import write_log
+from .database import *
 import logging
 import asyncio
+    
+
+async def write_log(level: str, message: str) -> None:
+    async with Database(DATABASE_NAME) as db:
+        log = Log(None, datetime.datetime.now(datetime.timezone.utc), level, message)
+        await db.insert(log)
+
+async def read_logs(limit: int=100, level: Optional[str]=None):
+    async with Database(DATABASE_NAME) as db:
+        where = [WhereParam("level", level)] if level is not None else []
+        logs = await db.select(Log, where=where, order=[OrderParam("id", True)], limit=limit)
+        logs.reverse()
+        return logs
+    
     
 class DatabaseHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:

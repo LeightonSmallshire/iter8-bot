@@ -11,7 +11,7 @@ import utils.shop as shop_utils
 import traceback
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
@@ -57,7 +57,7 @@ class ShopOptionsView(discord.ui.View):
 
             _log.info(f"{interaction.user.name} purchased {item.DESCRIPTION}: ({desc})")
 
-            sale, _ = await db_utils.is_ongoing_sale()
+            sale, _ = await shop_utils.is_ongoing_sale()
             discount = 0.5 if sale else 1
             
             count = duration if duration else 1
@@ -65,7 +65,7 @@ class ShopOptionsView(discord.ui.View):
             
             cost = item_cost * count
 
-            if await db_utils.can_afford_purchase(interaction.user.id, cost):
+            if await shop_utils.can_afford_purchase(interaction.user.id, cost):
                 db = await db_utils.Database(db_utils.DATABASE_NAME, defer_commit=True).connect()
                 try:
                     await db.insert(Purchase(None, datetime.datetime.now(), item.ITEM_ID, cost, interaction.user.id, item.AUTO_USE))

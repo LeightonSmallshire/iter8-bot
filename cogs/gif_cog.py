@@ -12,7 +12,7 @@ import utils.log as log_utils
 from typing import Optional
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 TENOR_KEY = os.environ["TENOR_TOKEN"]

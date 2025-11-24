@@ -10,10 +10,10 @@ import random, secrets
 import asyncio
 import utils.bot as bot_utils
 import utils.log as log_utils
-import utils.database as db_utils
+import utils.admin_roll as roll_utils
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
@@ -30,7 +30,7 @@ async def is_first_roll(interaction: discord.Interaction) -> bool:
     dt_utc = interaction.created_at
     dt_uk = dt_utc.astimezone(UK)
 
-    timestamps = await db_utils.get_last_admin_roll()
+    timestamps = await roll_utils.get_last_admin_roll()
     time_passed = (dt_uk - timestamps.last_roll.astimezone(UK)) > timedelta(days=6) if timestamps else True
 
     return time_passed
@@ -57,7 +57,7 @@ class AdminRollCog(commands.Cog):
         await interaction.response.defer()
 
         roll_table = bot_utils.get_non_bot_users(interaction)
-        roll_table += await db_utils.get_extra_admin_rolls(consume=True)
+        roll_table += await roll_utils.get_extra_admin_rolls(consume=True)
 
         new_admin = await bot_utils.do_role_roll(
             interaction, 
@@ -67,7 +67,7 @@ class AdminRollCog(commands.Cog):
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
 
-        await db_utils.update_last_admin_roll()
+        await roll_utils.update_last_admin_roll()
 
         await asyncio.sleep(2)
         
@@ -90,7 +90,7 @@ class AdminRollCog(commands.Cog):
 
         await asyncio.sleep(2)
 
-        gamble_results = await db_utils.get_gamble_odds(consume_bets=True)
+        gamble_results = await roll_utils.get_gamble_odds(consume_bets=True)
         prize = sum([data["total"] for (_, data)  in gamble_results.items()])
 
         target_ids = list(gamble_results.keys())
@@ -104,7 +104,7 @@ class AdminRollCog(commands.Cog):
             for user_id, data in result["bettors"].items():
                 payout = prize * data["odds"]
                 lines.append(f"<@{user_id}> - {timedelta(seconds=round(payout))}")
-                await db_utils.payout_gamble(user_id, payout)
+                await roll_utils.payout_gamble(user_id, payout)
 
             
 
