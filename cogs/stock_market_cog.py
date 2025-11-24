@@ -247,8 +247,8 @@ class StockMarketCog(commands.Cog):
                 f"- Qty: `{order.count}`\n"
                 f"- Bought @ `{get_format_price(order.bought_at)}`\n"
                 f"- Current @ `{get_format_price(current_value)}`\n"
-                f"- Auto Sell Below @ `{get_format_price(order.auto_sell_low)}`\n" if order.auto_sell_low else ""
-                f"- Auto Sell Above @ `{get_format_price(order.auto_sell_high)}`\n" if order.auto_sell_high else ""
+                f"- Auto Sell Below @ `{get_format_price(order.auto_sell_low) if order.auto_sell_low else 'N/A'}`\n"
+                f"- Auto Sell Above @ `{get_format_price(order.auto_sell_high) if order.auto_sell_high else 'N/A'}`\n"
                 f"- P/L: `{'+' if pnl > 0 else '-'}{datetime.timedelta(seconds=abs(pnl))}`\n"
             )
 
