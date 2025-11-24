@@ -14,7 +14,7 @@ IS_TESTING = not IS_LIVE
 
 class Guilds:
     TestServer = 1427287847085281382
-    Paradise = TestServer
+    Paradise = 1416007094339113071
     Innov8 = 1325821294427766784
     Innov8_DevOps = 1425873966035238975
     Default = Paradise if IS_LIVE else TestServer
@@ -22,9 +22,9 @@ class Guilds:
 
 class Users:
     Nathan = 1326156803108503566
-    Leighton = Nathan
+    Leighton = 1416017385596653649
     Charlotte = 1401855871633330349
-    Ed = Nathan
+    Ed = 1356197937520181339
     Matt = 1333425159729840188
     Tom = 1339198017324187681
 
@@ -46,19 +46,18 @@ class Users:
 
 class Channels:
     TestServerBotSpam = 1432698704191815680
+    ParadiseBotBrokenSpam = 1427971106920202240
+    ParadiseClockwork = 1416059475873239181
     TestServerStockSpam = 1440731650307915816
     TestServerStockSummary = 1440731630070403284
-    ParadiseBotBrokenSpam = TestServerBotSpam
-    ParadiseClockwork = TestServerBotSpam
-    StockMarketSpam = TestServerStockSpam
-    StockMarketSummary = TestServerStockSummary
+    StockMarketSpam = 1440735848801894640
+    StockMarketSummary = 1440735818644852829
 
 
 class Roles:
-    TestAdmin = 1433782662765477909
-    Admin = TestAdmin
-    DiceRoller = TestAdmin
-    BullyTarget = TestAdmin
+    Admin = 1416037888847511646
+    DiceRoller = 1430187659678187581
+    BullyTarget = 1432752493670170624
 
 
 def is_guild_paradise(ctx):
