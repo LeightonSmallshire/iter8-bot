@@ -13,11 +13,11 @@ import os
 import io
 
 import utils.bot as bot_utils
-import utils.database as db_utils
+import utils.timeout as timeout_utils
 import utils.log as log_utils
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 
@@ -75,7 +75,7 @@ class TimeoutsCog(commands.Cog):
 
             add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed) 
             if add_to_db:
-                await db_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
+                await timeout_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
             if timeout_applied or timeout_extended:
                 await self.on_member_timeout(after, after.timed_out_until, moderator, reason)
@@ -167,7 +167,7 @@ class TimeoutsCog(commands.Cog):
         # Getting leaderboard might take time
         await interaction.response.defer(thinking=True)
 
-        leaderboard = await db_utils.get_timeout_leaderboard()
+        leaderboard = await timeout_utils.get_timeout_leaderboard()
 
         embed = discord.Embed(
             title='👑 Timeout Leaderboard 👑',
@@ -181,7 +181,7 @@ class TimeoutsCog(commands.Cog):
             try:
                 user = await interaction.guild.fetch_member(timeout.id)
             except:
-                await db_utils.erase_timeout_user(timeout.id)
+                await timeout_utils.erase_timeout_user(timeout.id)
 
             if rank == 1:
                 field_name = f"🥇 {user.display_name}"

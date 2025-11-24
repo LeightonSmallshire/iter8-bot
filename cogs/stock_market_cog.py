@@ -9,13 +9,12 @@ import datetime
 import asyncio
 from utils.model import *
 import utils.bot as bot_utils
-import utils.database as db_utils
 import utils.log as log_utils
 import utils.stocks.stock_controls as stock_utils
 from typing import Optional
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 def get_format_price(total: float) -> str:
@@ -70,7 +69,7 @@ class StockMarketCog(commands.Cog):
     async def build_market_summary_embed(self) -> discord.Embed:
         embed = discord.Embed(title="📊 The Clockwork Exchange 📊", color=discord.Color.green())
 
-        for stock in await db_utils.get_all_stocks():
+        for stock in await stock_utils.get_all_stocks():
             low, high = stock_utils.calculate_buy_sell_price(stock)
             embed.add_field(
                 name=f"{stock.code} - {stock.name}",
@@ -83,7 +82,7 @@ class StockMarketCog(commands.Cog):
         guild = self.bot_.get_guild(bot_utils.Guilds.Paradise) or await self.bot_.fetch_guild(bot_utils.Guilds.Paradise)
         channel = guild.get_channel(bot_utils.Channels.StockMarketSummary) or await guild.fetch_channel(bot_utils.Channels.StockMarketSummary)
         
-        await db_utils.update_market_since_last_action(lambda x: print_stock_market_trade(guild, x))
+        await stock_utils.update_market_since_last_action(lambda x: print_stock_market_trade(guild, x))
         
         embed = await self.build_market_summary_embed()
 
@@ -122,12 +121,12 @@ class StockMarketCog(commands.Cog):
 
         await self.update_market()
         
-        valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
+        valid, reason = await stock_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
             await interaction.followup.send(content=reason)
             return
 
-        success, msg = await db_utils.stock_market_buy(interaction.user.id, code, count, autosell_low, autosell_high)
+        success, msg = await stock_utils.stock_market_buy(interaction.user.id, code, count, autosell_low, autosell_high)
         
         if success:
             await print_stock_market_trade(interaction.guild, msg)
@@ -148,12 +147,12 @@ class StockMarketCog(commands.Cog):
 
         await self.update_market()
 
-        valid, reason = await db_utils.can_afford_stock(interaction.user.id, code, count)
+        valid, reason = await stock_utils.can_afford_stock(interaction.user.id, code, count)
         if not valid:
             await interaction.followup.send(content=reason)
             return
 
-        success, msg = await db_utils.stock_market_short(interaction.user.id, code, count, autosell_low, autosell_high)
+        success, msg = await stock_utils.stock_market_short(interaction.user.id, code, count, autosell_low, autosell_high)
         
         if success:
             await print_stock_market_trade(interaction.guild, msg)
@@ -184,7 +183,7 @@ class StockMarketCog(commands.Cog):
         await self.update_market()
 
         for trade_id in trade_ids:
-            success, msg = await db_utils.stock_market_sell(interaction.user.id, trade_id)
+            success, msg = await stock_utils.stock_market_sell(interaction.user.id, trade_id)
         
             if success:
                 await print_stock_market_trade(interaction.guild, msg)
@@ -201,7 +200,7 @@ class StockMarketCog(commands.Cog):
 
         user_id = interaction.user.id
 
-        orders = await db_utils.get_unsold_orders(user_id)
+        orders = await stock_utils.get_unsold_orders(user_id)
 
         if not orders:
             return await interaction.followup.send(

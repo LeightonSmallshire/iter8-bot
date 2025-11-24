@@ -13,11 +13,12 @@ import os
 import io
 
 import utils.bot as bot_utils
-import utils.database as db_utils
+import utils.gifts as gift_utils
+import utils.shop as shop_utils
 import utils.log as log_utils
 
 _log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log'))
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
 
 GIFT_EMOJI_VALUES: dict[str, int] = {
@@ -57,10 +58,10 @@ class GiftingCog(commands.Cog):
         
         gift_value = GIFT_EMOJI_VALUES[emoji_str]
 
-        if not await db_utils.can_afford_purchase(payload.user_id, gift_value):
+        if not await shop_utils.can_afford_purchase(payload.user_id, gift_value):
             return
 
-        await db_utils.add_gift(payload.user_id, message.author.id, gift_value)
+        await gift_utils.add_gift(payload.user_id, message.author.id, gift_value)
 
         await channel.send(f"<@{payload.user_id}> gifted <@{message.author.id}> {datetime.timedelta(seconds=gift_value)} for this message.", reference=message, mention_author=False)
         
@@ -80,10 +81,10 @@ class GiftingCog(commands.Cog):
         
         gift_value = GIFT_EMOJI_VALUES[emoji_str]
 
-        if not await db_utils.did_gift(payload.user_id, message.author.id, gift_value):
+        if not await gift_utils.did_gift(payload.user_id, message.author.id, gift_value):
             return
 
-        await db_utils.add_gift(payload.user_id, message.author.id, -gift_value)
+        await gift_utils.add_gift(payload.user_id, message.author.id, -gift_value)
 
         await channel.send(f"<@{payload.user_id}> took away their gift <@{message.author.id}> for this message.", reference=message)
 
