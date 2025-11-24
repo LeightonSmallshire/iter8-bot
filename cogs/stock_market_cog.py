@@ -10,7 +10,7 @@ import asyncio
 from utils.model import *
 import utils.bot as bot_utils
 import utils.log as log_utils
-import utils.stock as stock_utils
+import utils.stocks.stock_db as stock_utils
 from typing import Optional
 
 _log = logging.getLogger(__name__)
