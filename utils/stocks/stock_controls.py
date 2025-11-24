@@ -15,15 +15,29 @@ def calculate_buy_sell_price(stock: Stock) -> tuple[float, float]:
 
     return low, high
 
-async def update_stocks_rand(stocks):
-    for s in stocks:
-        await update_stock_rand(s)
-
-async def update_stock_rand(stock: Stock):
+async def update_stock_direction(stock: Stock):
     try:
-        force_drift_power = -math.log2(stock.value)*STOCK_ACTOR_SHIFT_CORR_POWER
-        force_drift = random.gauss(STOCK_ACTOR_SIM_SOFT_RANGE*force_drift_power/10,STOCK_ACTOR_SIM_SOFT_RANGE/4)
-        trade_credit = random.gauss(force_drift, STOCK_ACTOR_SIM_SOFT_RANGE/2)
+        rand_step=random.gauss(0, 0.5 )
+        stock.actor_target_price *= math.pow(STOCK_ACTOR_DIR_ALTERNATOR, rand_step)
+        stock.actor_target_price = min(1000,max(stock.actor_target_price, 0.0001))
+    except Exception as e:
+        print(e)
+
+async def update_stocks_rand(stocks, dt):
+    while dt>0:
+        this_dt = min(100,dt)
+        for s in stocks:
+            await update_stock_rand(s, this_dt)
+            await update_stock(s,math.sqrt(this_dt))
+        dt -= 100
+    return dt
+
+async def update_stock_rand(stock: Stock, dt):
+    try:
+        force_drift_power = math.log2(stock.actor_target_price)-math.log2(stock.value)
+        force_drift_power *= STOCK_ACTOR_SHIFT_CORR_POWER
+        force_drift = random.gauss(STOCK_ACTOR_SIM_SOFT_RANGE*force_drift_power,STOCK_ACTOR_SIM_SOFT_RANGE/4)
+        trade_credit = random.gauss(force_drift, math.sqrt(dt)*STOCK_ACTOR_SIM_SOFT_RANGE/2)
         trade_credit = min(3600,max(trade_credit,-3600))
         trade_count = trade_credit/stock.value
         await order_stock(stock,trade_count)
@@ -58,9 +72,9 @@ async def update_stock(stock: Stock, dt: float):
     z = random.gauss(0, 1)
 
     step_dir = math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * math.sqrt(dt) * z);
-    if(step_dir<=0.5 or step_dir>2):
-        print(f'Step_dir is too big. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
-        step_dir = min(1.4,max(step_dir,0.6))
+    if(step_dir<=pow(0.5,dt) or step_dir>pow(2,dt)):
+        print(f'Step_dir is too {"big" if step_dir>1 else "small"}. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
+        step_dir = min(pow(1.4,dt),max(step_dir,pow(0.6,dt)))
     stock.value *= step_dir
 
     stock.volume_this_frame=0

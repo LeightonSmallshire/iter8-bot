@@ -154,6 +154,7 @@ class Stock:
     volatility: float
     volume: float
     volume_this_frame: float
+    actor_target_price: float
 
 @dataclass
 class Trade:

@@ -700,10 +700,10 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
 
 async def do_stock_market_update(db, dt: float, autosell_callback: Callable[[str], Awaitable]):
     stocks = await db.select(Stock)
-    await update_stocks_rand( stocks) 
+    time_frames = dt / 5.0  # 15 minute intervals
+    dt = await update_stocks_rand(stocks,time_frames) * 5.0
 
     for stock in stocks:
-        await update_stock(stock,dt)
         await db.update(stock)
 
         low, high = calculate_buy_sell_price(stock)
@@ -714,16 +714,25 @@ async def do_stock_market_update(db, dt: float, autosell_callback: Callable[[str
                 success, msg = await close_market_trade(db, trade.user_id, trade.id)
                 if (success):
                     await autosell_callback(msg)
+    return dt
 
+async def do_stock_market_directions_update(db, iterations : int):
+    if(iterations>0):
+        stocks = await db.select(Stock)
+        for stock in stocks:
+            for i in range( math.ceil(iterations) ):
+                await update_stock_direction(stock)
+            await db.update(stock)
         
 async def update_market_since_last_action(autosell_callback: Callable[[str], Awaitable]):
     async with Database(DATABASE_NAME) as db:
         timestamps = await db.select(Timestamps)
 
+        five_min_diff = math.floor( datetime.datetime.now().minute / 15 ) - math.floor( timestamps.last_market_update.minute / 15 )
+        await do_stock_market_directions_update(db,five_min_diff)
+
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
-        while dt >= 5:
-            await do_stock_market_update(db, 1, autosell_callback)
-            dt -= 5
+        dt = await do_stock_market_update(db, dt, autosell_callback)
 
         timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
         await db.update(timestamps)
