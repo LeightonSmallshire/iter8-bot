@@ -5,7 +5,7 @@ import logging
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.log as log_utils
-import utils.stock as stock_utils
+import utils.stocks.stock_db as stock_utils
 import discord
 import datetime
 from discord.ext import commands

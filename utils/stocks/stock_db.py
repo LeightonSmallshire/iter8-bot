@@ -1,3 +1,5 @@
+from utils.shop import get_shop_credit
+from utils.stocks.stock_controls import *
 from ..model import Stock
 from ..database import *
 from typing import Callable, Awaitable
