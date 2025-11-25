@@ -47,7 +47,7 @@ class ChatCog(commands.Cog):
     @app_commands.command(name="chat")
     async def chat(self, interaction: discord.Interaction, prompt: str):
         if self.model_ is None:
-            return await interaction.response.send_message('Model still loading...')
+            return await interaction.response.send_message('Model still loading...', ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
 
