@@ -4,7 +4,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import utils.bot as bot_utils
-# import utils.log as log_utils
+import utils.log as log_utils
 # import utils.files
 from typing import Optional
 import io
@@ -16,6 +16,10 @@ import subprocess
 import traceback
 from ctransformers import AutoModelForCausalLM, LLM
 
+_log = logging.getLogger(__name__)
+_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
+_log.addHandler(log_utils.DatabaseHandler())
+
 
 class ChatCog(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -24,12 +28,9 @@ class ChatCog(commands.Cog):
         asyncio.create_task(self._init_model())
 
     async def _init_model(self):
-        print('chat model loading...')
-        self.model_ = await self._load_model()
-        print('chat model loaded')
-
-    async def _load_model(self):
         from huggingface_hub import hf_hub_download
+
+        _log.info('chat model loading...')
 
         model_path = await asyncio.to_thread(
             hf_hub_download,
@@ -37,12 +38,12 @@ class ChatCog(commands.Cog):
             filename="tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
             cache_dir='data/hf_cache')
 
-        model = await asyncio.to_thread(
+        self.model_ = await asyncio.to_thread(
             AutoModelForCausalLM.from_pretrained,
             model_path,
             model_type="llama")
 
-        return model
+        _log.info('chat model loaded')
 
     @app_commands.command(name="chat")
     async def chat(self, interaction: discord.Interaction, prompt: str):
