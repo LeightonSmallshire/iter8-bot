@@ -79,7 +79,7 @@ class StockMarketCog(commands.Cog):
         return embed
 
     async def update_market(self) -> discord.Embed:
-        guild = self.bot_.get_guild(bot_utils.Guilds.Paradise) or await self.bot_.fetch_guild(bot_utils.Guilds.Paradise)
+        guild = self.bot_.get_guild(bot_utils.Guilds.Default) or await self.bot_.fetch_guild(bot_utils.Guilds.Default)
         channel = guild.get_channel(bot_utils.Channels.StockMarketSummary) or await guild.fetch_channel(bot_utils.Channels.StockMarketSummary)
         
         await stock_utils.update_market_since_last_action(lambda x: print_stock_market_trade(guild, x))

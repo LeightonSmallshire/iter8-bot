@@ -45,7 +45,7 @@ class HotReloadBot(commands.Bot):
             bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
             bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
 
-        server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Paradise)
+        server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
         await db_utils.init_database(leaderboard, stock_utils.AVAILABLE_STOCKS)
 
@@ -90,8 +90,8 @@ class HotReloadBot(commands.Bot):
                     logger.error(f"Failed to unload removed cog {ext_name}: {e}")
 
         logger.info('Syncing...')
-        self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Paradise))
-        synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Paradise))
+        self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Default))
+        synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Default))
         synced_msg = '[' + "\n\t".join(str(s) for s in synced) + ']'
         logger.info(f'Synced: {synced_msg}')
 
