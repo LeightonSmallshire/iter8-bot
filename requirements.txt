@@ -1,19 +1,20 @@
-uvicorn
-discord~=2.3.2
-fastapi~=0.120.0
-fastapi[standard]~=0.120.0
-gitpython~=3.1.45
-json5
-scipy
-numpy
-tqdm
+uvicorn~=0.38
+discord~=2.3
+fastapi~=0.122
+fastapi[standard]~=0.122
+json5~=0.12
+scipy~=1.16
+numpy~=2.3
+tqdm~=4.67
 # opencv
-selenium
-pandas
-matplotlib
-pillow
-beautifulsoup4
-numba
-aiosqlite
-aiohttp
-wcwidth
+# selenium
+# pandas
+# matplotlib
+pillow~=12.0
+# beautifulsoup4
+# numba
+aiosqlite~=0.21
+aiohttp~=3.13
+wcwidth~=0.2
+llama-cpp-python~=0.3.16
+huggingface_hub>=1.1.5
