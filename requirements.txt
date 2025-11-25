@@ -1,3 +1,4 @@
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/raspberrypi/
 uvicorn~=0.38
 discord~=2.3
 fastapi~=0.122
