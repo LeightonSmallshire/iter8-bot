@@ -17,4 +17,4 @@ aiosqlite~=0.21
 aiohttp~=3.13
 wcwidth~=0.2
 huggingface_hub~=1.1.5
-ctransformers~=0.2
+ctransformers[cpu,gpu]~=0.2

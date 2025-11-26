@@ -1,8 +1,11 @@
 .idea/
 .venv/
-.env
+.git/
 
-__pycache__/
+**.env**
+**__pycache__**
+**secret**
+
 data/
 .vscode/
 *.code-workspace
