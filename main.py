@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import logging
 
 import utils.bot as bot_utils
@@ -30,6 +31,19 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 logger.addHandler(log_utils.DatabaseHandler())
 
+
+class IoTee:
+    def __init__(self):
+        self.buf_ = ''
+
+    def write(self, s: str):
+        self.buf_ += s
+        self.buf_ = self.buf_[:200000]
+
+    def flush(self):
+        pass
+
+
 now = datetime.datetime.now().time()
 is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
 
@@ -51,6 +65,9 @@ class HotReloadBot(commands.Bot):
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
+
+        sys.stdout = IoTee()
+        sys.stderr = sys.stdout
 
     async def hot_reload_cogs(self):
         """Unloads, reloads, and reports the status of all cogs."""

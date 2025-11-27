@@ -14,6 +14,7 @@ import logging
 import contextlib
 import subprocess
 import traceback
+import sys
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
@@ -26,6 +27,16 @@ class DevCog(commands.Cog):
         self.envs: dict[int, dict[str, object]] = {}  # user_id -> locals()
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
+
+    @app_commands.command(name='stdout')
+    async def get_stdout(self, interaction: discord.Interaction):
+        msg = sys.stdout.buf_
+
+        if len(msg) > 1950:
+            file = discord.file.File(io.StringIO(msg), 'stdout.log')
+            await interaction.response.send_message(file=file, ephemeral=True)
+        else:
+            await interaction.response.send_message(content=msg, ephemeral=True)
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)

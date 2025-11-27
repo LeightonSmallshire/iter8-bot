@@ -37,11 +37,17 @@ class DatabaseCog(commands.Cog):
     # --- Slash Command ---
 
     @app_commands.command(name="sql", description="SQL database operations")
-    async def sql_group(self, interaction: discord.Interaction, query: str):
+    async def sql_group(self, interaction: discord.Interaction, query: str | None = None, file: discord.Attachment | None = None):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No squeal 4 U")
-        
+
+        assert (query is None) + (file is None) == 1, 'Must supply either query or file'
+
         await interaction.response.defer(ephemeral=True)
+
+        if query is None:
+            query = (await file.read()).decode('utf-8', 'ignore')
+        
         _log.info(f"{interaction.user.name} executed a SQL query: [{query}]")
 
         try:
