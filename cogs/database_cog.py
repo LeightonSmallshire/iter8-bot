@@ -64,7 +64,7 @@ class DatabaseCog(commands.Cog):
             await interaction.followup.send(file=file, ephemeral=True)
 
     @app_commands.command(name="sqlfile", description="SQL database operations")
-    async def sql_group(self, interaction: discord.Interaction, file: discord.Attachment):
+    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No squeal 4 U")
 
