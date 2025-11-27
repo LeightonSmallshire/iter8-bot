@@ -90,8 +90,9 @@ class StockMarketCog(commands.Cog):
 
         edited = False
         async for msg in channel.history(limit=1):
-            await msg.edit(embed=embed)
-            edited = True
+            if msg.author.id == self.bot_.user.id:
+                await msg.edit(embed=embed)
+                edited = True
 
         if not edited:
             await channel.send(embed=embed)
