@@ -143,7 +143,7 @@ class Database:
         await self.con.close()
 
     async def execute(self, query: str) -> aiosqlite.Cursor:
-        return await self.con.execute(query)
+        return await self.con.executescript(query)
 
     async def drop_table_with_name(self, table: str) -> None:
         sql = f"DROP TABLE IF EXISTS {table}"
