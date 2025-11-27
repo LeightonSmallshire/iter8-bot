@@ -146,10 +146,10 @@ class DevCog(commands.Cog):
     @app_commands.command(name="exec", description="Execute Python in your persistent REPL.")
     @commands.check(bot_utils.is_guild_paradise)
     @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
-    async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):        
+    async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message(f'No REPL 4 U')
-        
+
         if not code and not file:
             return await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
 

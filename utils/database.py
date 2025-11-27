@@ -143,6 +143,9 @@ class Database:
         await self.con.close()
 
     async def execute(self, query: str) -> aiosqlite.Cursor:
+        return await self.con.execute(query)
+
+    async def executescript(self, query: str) -> aiosqlite.Cursor:
         return await self.con.executescript(query)
 
     async def drop_table_with_name(self, table: str) -> None:
@@ -468,6 +471,16 @@ async def init_database(timeout_data: list[User], stock_list: list[Stock]):
 async def execute_raw_query(query: str):
     async with Database(DATABASE_NAME) as db:
         cur = await db.execute(query)
+        if cur.description is None:
+            return None, None  # no result set
+        headers = [d[0] for d in cur.description]
+        rows = await cur.fetchall()
+        return headers, rows
+
+
+async def execute_raw_script(script: str):
+    async with Database(DATABASE_NAME) as db:
+        cur = await db.executescript(script)
         if cur.description is None:
             return None, None  # no result set
         headers = [d[0] for d in cur.description]

@@ -43,6 +43,9 @@ class IoTee:
     def flush(self):
         pass
 
+sys.stdout = IoTee()
+sys.stderr = sys.stdout
+
 
 now = datetime.datetime.now().time()
 is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
@@ -65,9 +68,6 @@ class HotReloadBot(commands.Bot):
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
-
-        sys.stdout = IoTee()
-        sys.stderr = sys.stdout
 
     async def hot_reload_cogs(self):
         """Unloads, reloads, and reports the status of all cogs."""
