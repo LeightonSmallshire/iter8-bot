@@ -6,6 +6,9 @@
 **__pycache__**
 **secret**
 
+__pycache__/
+out/
 data/
+.vs/
 .vscode/
 *.code-workspace

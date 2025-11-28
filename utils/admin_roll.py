@@ -1,4 +1,5 @@
 from .database import *
+from .shop import AdminTicketItem
 
 async def get_extra_admin_rolls(consume: bool) -> list[int]:
     async with Database(DATABASE_NAME) as db:
