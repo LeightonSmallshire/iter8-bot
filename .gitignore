@@ -3,6 +3,8 @@
 .env
 
 __pycache__/
+out/
 data/
+.vs/
 .vscode/
 *.code-workspace

@@ -11,6 +11,7 @@ import asyncio
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.admin_roll as roll_utils
+import utils.gamble as gamble_utils
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
@@ -90,7 +91,7 @@ class AdminRollCog(commands.Cog):
 
         await asyncio.sleep(2)
 
-        gamble_results = await roll_utils.get_gamble_odds(consume_bets=True)
+        gamble_results = await gamble_utils.get_gamble_odds(consume_bets=True)
         prize = sum([data["total"] for (_, data)  in gamble_results.items()])
 
         target_ids = list(gamble_results.keys())
@@ -104,7 +105,7 @@ class AdminRollCog(commands.Cog):
             for user_id, data in result["bettors"].items():
                 payout = prize * data["odds"]
                 lines.append(f"<@{user_id}> - {timedelta(seconds=round(payout))}")
-                await roll_utils.payout_gamble(user_id, payout)
+                await gamble_utils.payout_gamble(user_id, payout)
 
             
 
