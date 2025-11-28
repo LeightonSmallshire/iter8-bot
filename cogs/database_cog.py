@@ -40,12 +40,42 @@ class DatabaseCog(commands.Cog):
     async def sql_group(self, interaction: discord.Interaction, query: str):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No squeal 4 U")
-        
+
         await interaction.response.defer(ephemeral=True)
+
         _log.info(f"{interaction.user.name} executed a SQL query: [{query}]")
 
         try:
             headers, rows = await db_utils.execute_raw_query(query)
+        except Exception as e:
+            await interaction.followup.send(f"Error: `{type(e).__name__}: {e}`", ephemeral=True)
+            return
+
+        if headers is None:  # non-SELECT
+            await interaction.followup.send("Query executed.", ephemeral=True)
+            return
+
+        text = _format_rows(headers, rows)
+        if len(text) <= 1900:
+            await interaction.followup.send(text, ephemeral=True)
+        else:
+            buf = io.StringIO(text.strip("`"))
+            file = discord.File(fp=io.BytesIO(buf.getvalue().encode("utf-8")), filename="results.txt")
+            await interaction.followup.send(file=file, ephemeral=True)
+
+    @app_commands.command(name="sqlfile", description="SQL database operations")
+    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment):
+        if not bot_utils.is_trusted_developer(interaction):
+            return await interaction.response.send_message("No squeal 4 U")
+
+        await interaction.response.defer(ephemeral=True)
+
+        query = (await file.read()).decode('utf-8', 'ignore')
+
+        _log.info(f"{interaction.user.name} executed a SQL query file: [{query}]")
+
+        try:
+            headers, rows = await db_utils.execute_raw_script(query)
         except Exception as e:
             await interaction.followup.send(f"Error: `{type(e).__name__}: {e}`", ephemeral=True)
             return

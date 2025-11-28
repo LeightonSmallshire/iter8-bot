@@ -52,6 +52,7 @@ def order_stock(stock: Stock, count: int):
     effective_impact = (STOCK_PRICE_IMPACT * count) / liquidity
 
     stock.value *= (1 + effective_impact)
+    stock.value = min(1000, max(stock.value, 0.1))
     stock.volume_this_frame += count
 
 async def update_stock(stock: Stock, dt: float):
@@ -79,5 +80,6 @@ async def update_stock(stock: Stock, dt: float):
         print(f'Step_dir is too {"big" if step_dir>1 else "small"}. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
         step_dir = min(pow(1.4,dt),max(step_dir,pow(0.6,dt)))
     stock.value *= step_dir
+    stock.value = min(1000, max(stock.value, 0.1))
 
     stock.volume_this_frame=0

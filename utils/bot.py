@@ -45,13 +45,10 @@ class Users:
 
 
 class Channels:
-    TestServerBotSpam = 1432698704191815680
-    ParadiseBotBrokenSpam = 1427971106920202240
     ParadiseClockwork = 1416059475873239181
-    TestServerStockSpam = 1440731650307915816
-    TestServerStockSummary = 1440731630070403284
-    StockMarketSpam = 1440735848801894640
-    StockMarketSummary = 1440735818644852829
+    ParadiseBotBrokenSpam = 1427971106920202240 if IS_LIVE else 1432698704191815680
+    StockMarketSpam = 1440735848801894640 if IS_LIVE else 1440731650307915816
+    StockMarketSummary = 1440735818644852829 if IS_LIVE else 1440731630070403284
 
 
 class Roles:
@@ -61,7 +58,7 @@ class Roles:
 
 
 def is_guild_paradise(ctx):
-    return ctx.guild and ctx.guild.id == Guilds.Paradise
+    return ctx.guild and ctx.guild.id == Guilds.Default
 
 
 async def is_user_role(ctx: discord.Interaction, role_id: int):
@@ -100,7 +97,7 @@ async def send_message(bot, user_id, message):
     while not bot.is_ready():
         await asyncio.sleep(1)
 
-    paradise = discord.utils.get(bot.guilds, id=Guilds.Paradise)
+    paradise = discord.utils.get(bot.guilds, id=Guilds.Default)
     if paradise is None:
         return logging.error('could not find paradise')
     user = discord.utils.get(paradise.members, id=user_id)
@@ -189,7 +186,7 @@ class DiscordHandler(logging.Handler):
             await asyncio.sleep(1)
 
         try:
-            paradise = discord.utils.get(self.bot.guilds, id=Guilds.Paradise)
+            paradise = discord.utils.get(self.bot.guilds, id=Guilds.Default)
             user = discord.utils.get(paradise.members, id=Users.Leighton)
             # await leighton.send('setup')
 

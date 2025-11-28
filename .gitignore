@@ -1,6 +1,10 @@
 .idea/
 .venv/
-.env
+.git/
+
+**.env**
+**__pycache__**
+**secret**
 
 __pycache__/
 out/
