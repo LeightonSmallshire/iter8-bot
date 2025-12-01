@@ -14,10 +14,12 @@ import utils.database as shop_utils
 import utils.shop as shop_utils
 from view.shop_view import ShopView
 from typing import Optional
+import utils.misc
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 _log.addHandler(log_utils.DatabaseHandler())
+
 
 class ShopCog(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -74,7 +76,7 @@ class ShopCog(commands.Cog):
         for (user, credit) in users:
             embed.add_field(
                 name=user.display_name,
-                value=f"{'' if credit > 0 else '-'}{datetime.timedelta(seconds=round(abs(credit)))}",
+                value=utils.misc.format_timedelta(credit),
                 inline=False,
             )
 
