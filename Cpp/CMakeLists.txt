@@ -18,27 +18,27 @@ target_include_directories(discord_bot PRIVATE src)
 
 if (WIN32)
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-win64-debug/include/dpp-10.1)
-        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-win64-debug/lib/dpp-10.1)
+        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-debug/include/dpp-10.1)
+        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-debug/lib/dpp-10.1)
         target_link_libraries(discord_bot PRIVATE dpp)
         
         add_custom_command(TARGET discord_bot POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.3-win64-debug/bin"
+            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.4-win64-debug/bin"
             $<TARGET_FILE_DIR:discord_bot>)
     else ()
-        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-win64-release/include/dpp-10.1)
-        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-win64-release/lib/dpp-10.1)
+        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-release/include/dpp-10.1)
+        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-release/lib/dpp-10.1)
         target_link_libraries(discord_bot PRIVATE dpp)
         
         add_custom_command(TARGET discord_bot POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.3-win64-release/bin"
+            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.4-win64-release/bin"
             $<TARGET_FILE_DIR:discord_bot>)
     endif ()
 elseif (UNIX)
-    target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-linux-x64/usr/include)
-    target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.3-linux-x64/usr/lib)
+    target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-linux-x64/usr/include)
+    target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-linux-x64/usr/lib)
     target_link_libraries(discord_bot PRIVATE dpp)
 else ()
     message(FATAL_ERROR "Unsupported OS")
