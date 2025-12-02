@@ -42,6 +42,22 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(magic_enum)
 
+# ---------------------------------------
+# Fetch DPP
+# ---------------------------------------
+
+set(DPP_BUILD_TEST OFF CACHE BOOL "Don't build DPP test programs" FORCE)
+set(DPP_NO_VCPKG ON CACHE BOOL "Don't use DPP's internal vcpkg" FORCE)
+set(BUILD_VOICE_SUPPORT OFF CACHE BOOL "Don't use VOIP" FORCE)
+
+FetchContent_Declare(
+    dpp
+    GIT_REPOSITORY https://github.com/brainboxdotcc/DPP
+    GIT_TAG        bef3e2be44f0cb11f7756da541a9e25df766a06b
+)
+
+FetchContent_MakeAvailable(dpp)
+
 # -------------------------------
 # Add your Discord bot executable
 # -------------------------------
@@ -50,42 +66,32 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(discord_bot ${SOURCES})
 
 target_include_directories(discord_bot PRIVATE src)
-target_include_directories(discord_bot PUBLIC
-    ${CMAKE_SOURCE_DIR}/thirdparty
+target_include_directories(discord_bot PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty )
+
+target_link_libraries(discord_bot PRIVATE
+    sqlite3
+    spdlog::spdlog
+    magic_enum::magic_enum
+    dpp
 )
 
-target_link_libraries(discord_bot PRIVATE sqlite3)
-target_link_libraries(discord_bot PRIVATE spdlog::spdlog $<$<BOOL:${MINGW}>:ws2_32>)
-target_link_libraries(discord_bot PRIVATE magic_enum::magic_enum)
-
-# ----------------------------------------------------------------
-# Magical logic for selecting from prebuilt binaries (64-bit only)
-# ----------------------------------------------------------------
-
 if (WIN32)
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-debug/include/dpp-10.1)
-        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-debug/lib/dpp-10.1)
-        target_link_libraries(discord_bot PRIVATE dpp)
-        
-        add_custom_command(TARGET discord_bot POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.4-win64-debug/bin"
-            $<TARGET_FILE_DIR:discord_bot>)
-    else ()
-        target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-release/include/dpp-10.1)
-        target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-win64-release/lib/dpp-10.1)
-        target_link_libraries(discord_bot PRIVATE dpp)
-        
-        add_custom_command(TARGET discord_bot POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/thirdparty/libdpp-10.1.4-win64-release/bin"
-            $<TARGET_FILE_DIR:discord_bot>)
-    endif ()
-elseif (UNIX)
-    target_include_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-linux-x64/usr/include)
-    target_link_directories(discord_bot PRIVATE thirdparty/libdpp-10.1.4-linux-x64/usr/lib)
-    target_link_libraries(discord_bot PRIVATE dpp)
-else ()
-    message(FATAL_ERROR "Unsupported OS")
-endif ()
+    set(THIRDPARTY_DLLS
+        "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libcrypto-1_1-x64.dll"
+        "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libssl-1_1-x64.dll"
+        "${CMAKE_SOURCE_DIR}/thirdparty/opus/opus.dll"
+        "${CMAKE_SOURCE_DIR}/thirdparty/zlib/zlib1.dll"
+    )
+
+    add_custom_command(TARGET discord_bot POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+                $<TARGET_FILE_DIR:discord_bot>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${THIRDPARTY_DLLS}
+                $<TARGET_FILE_DIR:discord_bot>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:discord_bot>
+                $<TARGET_FILE_DIR:discord_bot>
+        COMMAND_EXPAND_LISTS
+    )
+endif()
