@@ -11,6 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(discord_bot ${SOURCES})
 target_include_directories(discord_bot PRIVATE src)
+target_include_directories(discord_bot PUBLIC
+    ${CMAKE_SOURCE_DIR}/thirdparty
+)
 
 # ----------------------------------------------------------------
 # Magical logic for selecting from prebuilt binaries (64-bit only)
