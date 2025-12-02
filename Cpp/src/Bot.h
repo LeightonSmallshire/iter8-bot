@@ -2,6 +2,7 @@
 
 #include "dpp/dpp.h"
 
+#include "Context.h"
 #include "Cogs/Cog.h"
 
 namespace iter8
@@ -14,12 +15,12 @@ namespace iter8
 		template < IsCog T >
 		void RegisterCog()
 		{
-			auto cog = std::make_unique< T >( bot_ );
+			auto cog = std::make_unique< T >( ctx_ );
 			cogs_.push_back( std::move( cog ) );
 		}
 
 	private:
-		dpp::cluster bot_{};
+		Context ctx_;
 		std::vector< std::unique_ptr< Cog > > cogs_;
 	};
 } // namespace iter8
