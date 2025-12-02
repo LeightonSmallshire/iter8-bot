@@ -7,7 +7,7 @@ namespace iter8
 	class BotBrokenCog : public Cog
 	{
 	public:
-		BotBrokenCog( dpp::cluster& bot );
+		BotBrokenCog( Context& ctx );
 
 		dpp::task< void > OnBrokenCommand( dpp::slashcommand_t const& event );
 		dpp::task< void > OnWorkingCommand( dpp::slashcommand_t const& event );

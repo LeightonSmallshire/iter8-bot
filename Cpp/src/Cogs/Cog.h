@@ -3,6 +3,7 @@
 #include "dpp/dpp.h"
 #include "dpp/coro.h"
 
+#include "Context.h"
 #include "Core/Commands.h"
 
 namespace iter8
@@ -10,14 +11,14 @@ namespace iter8
 	class Cog
 	{
 	public:
-		Cog( dpp::cluster& bot )
-			: bot_{ bot }
+		Cog( Context& ctx )
+			: ctx_{ ctx }
 		{}
 
 		void AddCommand( CommandDefinition const& command, SlashCommandHandler auto&& handler )
 		{
 			dpp::slashcommand cmd{
-				command.name, command.description, bot_.me.id
+				command.name, command.description, ctx_.bot.me.id
 			};
 
 			for ( auto const& param : command.parameters )
@@ -31,9 +32,9 @@ namespace iter8
 				cmd.add_option( arg );
 			}
 
-			bot_.global_command_create( cmd );
+			ctx_.bot.global_command_create( cmd );
 
-			bot_.register_command( command.name, std::move( handler ) );
+			ctx_.bot.register_command( command.name, std::move( handler ) );
 		}
 
 		template < std::derived_from< dpp::event_dispatch_t > event_t >
@@ -43,7 +44,7 @@ namespace iter8
 		}
 
 	protected:
-		dpp::cluster& bot_;
+		Context& ctx_;
 	};
 
 	template < typename T >

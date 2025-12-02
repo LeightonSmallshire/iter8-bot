@@ -1,8 +1,46 @@
 cmake_minimum_required(VERSION 3.20)
-project(DiscordBot LANGUAGES CXX)
+project(DiscordBot LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+
+# ----------------------------------------
+# SQLite
+# ----------------------------------------
+
+add_library(sqlite3 STATIC
+    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite/sqlite3.c
+)
+
+target_include_directories(sqlite3 PUBLIC
+    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
+)
+
+# ---------------------------------------
+# Fetch spdlog
+# ---------------------------------------
+
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.16.0      
+)
+
+FetchContent_MakeAvailable(spdlog)
+
+# ---------------------------------------
+# Fetch magic_enum
+# ---------------------------------------
+
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum
+    GIT_TAG        v0.9.7   
+)
+
+FetchContent_MakeAvailable(magic_enum)
 
 # -------------------------------
 # Add your Discord bot executable
@@ -10,7 +48,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(discord_bot ${SOURCES})
+
 target_include_directories(discord_bot PRIVATE src)
+target_include_directories(discord_bot PUBLIC
+    ${CMAKE_SOURCE_DIR}/thirdparty
+)
+
+target_link_libraries(discord_bot PRIVATE sqlite3)
+target_link_libraries(discord_bot PRIVATE spdlog::spdlog $<$<BOOL:${MINGW}>:ws2_32>)
+target_link_libraries(discord_bot PRIVATE magic_enum::magic_enum)
 
 # ----------------------------------------------------------------
 # Magical logic for selecting from prebuilt binaries (64-bit only)
