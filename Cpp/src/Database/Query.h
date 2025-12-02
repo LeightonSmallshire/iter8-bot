@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Model.h"
+
 namespace iter8::db
 {
 	using SqlValue = std::variant< std::monostate, bool, std::int64_t, double, std::string >;

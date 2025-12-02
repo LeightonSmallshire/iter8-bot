@@ -4,6 +4,8 @@ project(DiscordBot LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(FetchContent)
+
 # ----------------------------------------
 # SQLite
 # ----------------------------------------
@@ -19,7 +21,6 @@ target_include_directories(sqlite3 PUBLIC
 # ---------------------------------------
 # Fetch spdlog
 # ---------------------------------------
-include(FetchContent)
 
 FetchContent_Declare(
     spdlog
@@ -28,6 +29,18 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(spdlog)
+
+# ---------------------------------------
+# Fetch magic_enum
+# ---------------------------------------
+
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum
+    GIT_TAG        v0.9.7   
+)
+
+FetchContent_MakeAvailable(magic_enum)
 
 # -------------------------------
 # Add your Discord bot executable
@@ -43,6 +56,7 @@ target_include_directories(discord_bot PUBLIC
 
 target_link_libraries(discord_bot PRIVATE sqlite3)
 target_link_libraries(discord_bot PRIVATE spdlog::spdlog $<$<BOOL:${MINGW}>:ws2_32>)
+target_link_libraries(discord_bot PRIVATE magic_enum::magic_enum)
 
 # ----------------------------------------------------------------
 # Magical logic for selecting from prebuilt binaries (64-bit only)

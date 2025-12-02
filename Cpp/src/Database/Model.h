@@ -14,6 +14,7 @@ namespace iter8::db
 {
 	enum class ID : std::uint64_t
 	{
+		Zero = 0
 	};
 
 	namespace detail
@@ -122,6 +123,23 @@ namespace iter8::db
 		{
 			return ToSnakeCase( nameof( T ) );
 		}
+
+		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
+		{
+			using sys_minutes = std::chrono::sys_time< std::chrono::minutes >; // matches %R (minutes precision)
+			sys_minutes tp;
+
+			std::istringstream iss( std::string{ s } );
+			iss >> std::chrono::parse( "%FT%T%z", tp ); // same pattern as used in format
+
+			if ( !iss )
+				throw std::runtime_error( "Failed to parse time_point from: " + std::string{ s } );
+
+			// convert to your desired precision (e.g. system_clock::time_point)
+			return time_point_cast< std::chrono::system_clock::duration >( tp );
+		}
+
+		
 	} // namespace detail
 
 	template < typename T >
@@ -136,6 +154,10 @@ namespace iter8::db
 		else if constexpr ( std::is_integral_v< U > or std::same_as< U, ID > )
 		{
 			return "INTEGER";
+		}
+		else if constexpr ( std::is_enum_v< U > )
+		{
+			return "ENUM";
 		}
 		else if constexpr ( std::is_floating_point_v< U > )
 		{
@@ -172,7 +194,7 @@ namespace iter8::db
 	};
 
 	template < typename T >
-	concept DbModel = std::is_standard_layout_v< T > and requires {
+	concept DbModel = requires {
 		{ DbModelTraits< T >::TableName } -> std::convertible_to< std::string_view >;
 		DbModelTraits< T >::ColumnNames;
 	};

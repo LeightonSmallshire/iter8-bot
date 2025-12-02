@@ -5,6 +5,8 @@
 
 #include <sqlite3.h>
 
+#include <magic_enum/magic_enum.hpp>
+
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -367,28 +369,31 @@ namespace iter8::db
 		}
 
 
-		template < typename T, std::ranges::input_range range_t >
-			requires std::same_as< std::ranges::range_value_t< range_t >, T const& >
+		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< std::remove_cvref_t< range_t > > >
+			requires std::same_as<
+				std::ranges::range_value_t< std::remove_cvref_t< range_t > >,
+				std::remove_cvref_t< T > >
 		void Insert( range_t&& data )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
+			auto start_index = Traits::IsSingleValued ? 0 : 1;
 
 			std::ostringstream oss;
 			oss << "INSERT INTO " << Traits::TableName << " (";
 
-			for ( std::size_t i = 0; i < names.size(); ++i )
+			for ( std::size_t i = start_index; i < names.size(); ++i )
 			{
-				if ( i > 0 )
+				if ( i > start_index )
 					oss << ", ";
 				oss << detail::ToSnakeCase( names[ i ] );
 			}
 
 			oss << ") VALUES (";
 
-			for ( std::size_t i = 0; i < names.size(); ++i )
+			for ( std::size_t i = start_index; i < names.size(); ++i )
 			{
-				if ( i > 0 )
+				if ( i > start_index )
 					oss << ", ";
 				oss << '?';
 			}
@@ -401,7 +406,7 @@ namespace iter8::db
 			{
 				int param_index = 1;
 				boost::pfr::for_each_field( elem, [ & ]( auto const& field ) {
-					BindOne( stmt, param_index++, field );
+					BindOne( stmt, param_index, field );
 				} );
 
 				StepOnce( stmt );
@@ -438,8 +443,8 @@ namespace iter8::db
 
 			if ( rc != SQLITE_OK )
 			{
-				throw std::runtime_error(
-					"sqlite3_prepare_v3 failed: " + std::string( sqlite3_errmsg( db_ ) ) );
+				auto err = "sqlite3_prepare_v3 failed: " + std::string( sqlite3_errmsg( db_ ) );
+				throw std::runtime_error( err );
 			}
 			return Statement{ stmt };
 		}
@@ -528,6 +533,11 @@ namespace iter8::db
 			{
 				field = sqlite3_column_int( stmt, index ) != 0;
 			}
+			else if constexpr ( std::is_enum_v< U > )
+			{
+				unsigned char const* txt = sqlite3_column_text( stmt, index );
+				field = magic_enum::enum_cast< U >( txt ).value();
+			}
 			else if constexpr ( std::is_integral_v< T > )
 			{
 				field = static_cast< T >( sqlite3_column_int64( stmt, index ) );
@@ -549,6 +559,15 @@ namespace iter8::db
 					field.assign( reinterpret_cast< char const* >( txt ), len );
 				}
 			}
+			else if constexpr ( detail::is_time_point_v< U > )
+			{
+				unsigned char const* txt = sqlite3_column_text( stmt, index );
+				if ( !txt )
+					throw std::runtime_error( "Time point did not contain a string" );
+
+				std::string_view sv{ reinterpret_cast< char const* >( txt ) };
+				field = detail::ParseTimePoint( sv );
+			}
 			else
 			{
 				static_assert( false, "Unsupported field type for ReadOne" );
@@ -556,14 +575,30 @@ namespace iter8::db
 		}
 
 		template < typename U >
-		void BindScalar( Statement& stmt, int index, U const& field )
+		void BindScalar( Statement& stmt, int& index, U const& field )
 		{
 			using T = std::remove_cvref_t< U >;
 
 			int rc = SQLITE_OK;
-			if constexpr ( std::is_same_v< T, bool > || std::is_integral_v< T > )
+			if constexpr ( std::is_same_v< T, ID > )
+			{
+				if ( field == ID::Zero )
+					return;
+			}
+			else if constexpr ( std::is_same_v< T, bool > || std::is_integral_v< T > )
 			{
 				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field ) );
+			}
+			else if constexpr ( std::is_enum_v< U > )
+			{
+				auto enum_str = magic_enum::enum_name( field );
+				rc = sqlite3_bind_text64(
+					stmt.handle,
+					index,
+					enum_str.data(),
+					static_cast< sqlite3_uint64 >( enum_str.size() ),
+					SQLITE_TRANSIENT,
+					SQLITE_UTF8 );
 			}
 			else if constexpr ( std::is_floating_point_v< T > )
 			{
@@ -579,6 +614,27 @@ namespace iter8::db
 					SQLITE_TRANSIENT,
 					SQLITE_UTF8 );
 			}
+			else if constexpr ( std::is_same_v< T, std::string_view > )
+			{
+				rc = sqlite3_bind_text64(
+					stmt.handle,
+					index,
+					field.data(),
+					static_cast< sqlite3_uint64 >( field.size() ),
+					SQLITE_TRANSIENT,
+					SQLITE_UTF8 );
+			}
+			else if constexpr ( detail::is_time_point_v< U > )
+			{
+				auto tp_str = std::format( "{0:%F}T{0:%T%z}", field );
+				rc = sqlite3_bind_text64(
+					stmt.handle,
+					index,
+					tp_str.c_str(),
+					static_cast< sqlite3_uint64 >( tp_str.size() ),
+					SQLITE_TRANSIENT,
+					SQLITE_UTF8 );
+			}
 			else
 			{
 				static_assert( false, "Unsupported field type for BindScalar" );
@@ -588,10 +644,11 @@ namespace iter8::db
 			{
 				throw SqliteError( sqlite3_errmsg( db_ ) );
 			}
+			index++;
 		}
 
 		template < typename Field >
-		void BindOne( Statement& stmt, int index, Field const& value )
+		void BindOne( Statement& stmt, int& index, Field const& value )
 		{
 			using T = std::remove_cvref_t< Field >;
 
@@ -599,7 +656,7 @@ namespace iter8::db
 			{
 				if ( !value.has_value() )
 				{
-					int rc = sqlite3_bind_null( stmt.handle, index );
+					int rc = sqlite3_bind_null( stmt.handle, index++ );
 					if ( rc != SQLITE_OK )
 					{
 						throw SqliteError( sqlite3_errmsg( db_ ) );
@@ -636,41 +693,6 @@ namespace iter8::db
 					return ">=";
 			}
 			return "=";
-		}
-
-		template < typename U >
-		SqlValue ToSqlValue( U const& field )
-		{
-			using T = std::remove_cvref_t< U >;
-
-			if constexpr ( detail::is_optional_v< T > )
-			{
-				if ( !field )
-				{
-					return SqlValue{ std::monostate{} }; // NULL
-				}
-				return ToSqlValue( *field );
-			}
-			else if constexpr ( std::is_same_v< T, bool > )
-			{
-				return SqlValue{ field };
-			}
-			else if constexpr ( std::is_integral_v< T > )
-			{
-				return SqlValue{ static_cast< std::int64_t >( field ) };
-			}
-			else if constexpr ( std::is_floating_point_v< T > )
-			{
-				return SqlValue{ static_cast< double >( field ) };
-			}
-			else if constexpr ( std::is_same_v< T, std::string > )
-			{
-				return SqlValue{ field };
-			}
-			else
-			{
-				static_assert( std::is_same_v< T, void >, "Unsupported field type for ToSqlValue" );
-			}
 		}
 
 		void BindSqlValue( Statement& stmt, int index, SqlValue const& v )
