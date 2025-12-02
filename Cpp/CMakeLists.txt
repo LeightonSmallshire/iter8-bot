@@ -1,8 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
-project(DiscordBot LANGUAGES CXX)
+project(DiscordBot LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ----------------------------------------
+# SQLite
+# ----------------------------------------
+
+add_library(sqlite3 STATIC
+    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite/sqlite3.c
+)
+
+target_include_directories(sqlite3 PUBLIC
+    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
+)
 
 # -------------------------------
 # Add your Discord bot executable
@@ -14,6 +26,8 @@ target_include_directories(discord_bot PRIVATE src)
 target_include_directories(discord_bot PUBLIC
     ${CMAKE_SOURCE_DIR}/thirdparty
 )
+
+target_link_libraries(discord_bot PRIVATE sqlite3)
 
 # ----------------------------------------------------------------
 # Magical logic for selecting from prebuilt binaries (64-bit only)
