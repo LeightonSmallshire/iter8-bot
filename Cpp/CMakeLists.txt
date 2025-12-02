@@ -16,18 +16,33 @@ target_include_directories(sqlite3 PUBLIC
     ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
 )
 
+# ---------------------------------------
+# Fetch spdlog
+# ---------------------------------------
+include(FetchContent)
+
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.16.0      
+)
+
+FetchContent_MakeAvailable(spdlog)
+
 # -------------------------------
 # Add your Discord bot executable
 # -------------------------------
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(discord_bot ${SOURCES})
+
 target_include_directories(discord_bot PRIVATE src)
 target_include_directories(discord_bot PUBLIC
     ${CMAKE_SOURCE_DIR}/thirdparty
 )
 
 target_link_libraries(discord_bot PRIVATE sqlite3)
+target_link_libraries(discord_bot PRIVATE spdlog::spdlog $<$<BOOL:${MINGW}>:ws2_32>)
 
 # ----------------------------------------------------------------
 # Magical logic for selecting from prebuilt binaries (64-bit only)
