@@ -36,12 +36,14 @@ class ChatCog(commands.Cog):
             hf_hub_download,
             repo_id="TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
             filename="tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+            # repo_id="bartowski/gemma-2-2b-it-abliterated-GGUF",
+            # filename="gemma-2-2b-it-abliterated-Q4_K_M.gguf",
             cache_dir='./data/hf_cache')
 
         self.model_ = await asyncio.to_thread(
             AutoModelForCausalLM.from_pretrained,
             model_path,
-            model_type="llama")
+            model_type="gemma")
 
         _log.info('chat model loaded')
 
@@ -52,21 +54,42 @@ class ChatCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
+        system_message = ("You are Elmo's evil twin from sesame street. "
+                          "Bring distruction and chaos. "
+                          "Do not break character.")
+
+        # u_prompt = (f"<|system|>\n{system_message}</s>\n"
+        #             f"<|user|>\n{prompt}</s>\n"
+        #             f"<|assistant|>")
+
         # u_prompt = (f'User: {prompt}\r\n'
         #             f'Assistant: ')
-        u_prompt = (f'### Instruction:\r\n'
-                    f'{prompt}\r\n'
-                    f'\r\n'
-                    f'### Response:\r\n')
+
+        # u_prompt = (
+        #     f'### System:\n{system_message}\n\n'
+        #     f'### User:\n{prompt}\n\n'
+        #     f'### Assistant:\n'
+        # )
+
+        u_prompt = (
+            f'User:\n{prompt}\n\n'
+            f'Evil Elmo:\n'
+        )
+
+        # Prompt template: Zephyr
+        # u_prompt = (f'<|system|>\n'
+        #             f'{system_prompt}</s>\n'
+        #             f'<|user|>\n'
+        #             f'{prompt}</s>\n'
+        #             f'<|assistant|>\n')
+
+        stop_tokens = ['###']  # , '<|system|>', '<|user|>', '<|assistant|>']
 
         buf = io.StringIO()
-        for token in self.model_(u_prompt, max_new_tokens=200, stream=True, stop=['\n', 'User:', '###']):
-            print(token, end='')
-            buf.write(token)
+        buf.write(u_prompt)
+        buf.write(self.model_(u_prompt, max_new_tokens=200, stop=stop_tokens))
 
-        # response = await asyncio.to_thread(self.model_.generate, u_prompt, max_new_tokens=100, stream=True)
         response = buf.getvalue()
-
         await interaction.followup.send(response)
 
 

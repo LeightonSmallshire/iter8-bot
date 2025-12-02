@@ -2,6 +2,9 @@
 
 int main() 
 {
-    iter8::DiscordBot bot;
+	std::cout << GIT_VERSION << std::endl;
+
+
+    //iter8::DiscordBot bot;
     return 0;
 }

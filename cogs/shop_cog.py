@@ -42,10 +42,11 @@ class ShopCog(commands.Cog):
 
         groups = [(cat, list(g)) for cat, g in groupby(shop_utils.SHOP_ITEMS, key=lambda x: x.CATEGORY)]
         for (idx, (category, group)) in enumerate(groups, 1):
-            embed.add_field(name=f"{category}", value="────────────────────────────────────────────────────────", inline=False)
+            embed.add_field(name=f"{category}",
+                            value="────────────────────────────────────────────────────────", inline=False)
 
             for item in group:
-                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
+                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
 
                 embed.add_field(
                     name=item.DESCRIPTION,
@@ -69,7 +70,7 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        users = { user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
+        users = {user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id}
         users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
 
         embed = discord.Embed(title="💵 How much is everyone worth? 💵", color=discord.Color.blue())
