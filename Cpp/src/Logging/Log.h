@@ -24,6 +24,12 @@ namespace iter8::log
 	}
 
 	template < typename... Args >
+	void Debug( spdlog::format_string_t< Args... > fmt, Args&&... args )
+	{
+		detail::GetLogger()->debug( fmt, std::forward< Args >( args )... );
+	}
+
+	template < typename... Args >
 	void Info( spdlog::format_string_t< Args... > fmt, Args&&... args )
 	{
 		detail::GetLogger()->info( fmt, std::forward< Args >( args )... );
