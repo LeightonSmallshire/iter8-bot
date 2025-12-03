@@ -2,19 +2,20 @@ services:
   iter8-bot-runner:
     build: .
     restart: always
+    env_file:
+      - ../.env
 
-  bot-web-server:
-    image: nginx:stable-alpine
-    restart: always
-    expose:
-      - "80" # internal only
-    volumes:
-      - ./Web/static:/usr/share/nginx/html:ro
-      - ./Web/config/:/etc/nginx/:ro
+#  bot-web-server:
+#    image: alpine:3.17.3
+#    restart: always
+#    expose:
+#      - "80" # internal only
+#    volumes:
+#      - ./Web/static:/var/www/my_static_app:ro
+#      - ./Web/config/nginx.conf:/etc/nginx/nginx.conf:ro
 
 networks:
   default:
-    external:
-      name: iter8-network
-    internal: true
     name: iter8-network
+    external: true
+    internal: true
