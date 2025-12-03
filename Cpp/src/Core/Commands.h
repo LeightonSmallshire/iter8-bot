@@ -8,12 +8,21 @@
 
 namespace iter8
 {
+	template < typename T >
+	concept SlashCommandHandler = Callable< T, dpp::task< void >, dpp::slashcommand_t const& >;
+
+	using AutocompleteHandler = std::function< dpp::task< void >( dpp::autocomplete_t const&, dpp::command_option const& ) >;
+
+	template < typename T, typename event_t >
+	concept ListenerHandler = Callable< T, dpp::task< void >, event_t const& >;
+
 	struct CommandArgumentDefinition
 	{
 		dpp::command_option_type type;
 		std::string name;
 		std::string description{};
 		bool required{};
+		AutocompleteHandler autocomplete{};
 	};
 
 	struct CommandDefinition
@@ -32,11 +41,5 @@ namespace iter8
 
 		return std::get< T >( opt );
 	}
-
-	template < typename T >
-	concept SlashCommandHandler = Callable< T, dpp::task< void >, dpp::slashcommand_t const >;
-
-	template < typename T, typename event_t >
-	concept ListenerHandler = Callable< T, dpp::task< void >, event_t const& >;
 
 } // namespace iter8

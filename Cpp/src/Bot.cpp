@@ -24,6 +24,21 @@ namespace iter8
 		RegisterCog< BotBrokenCog >();
 		RegisterCog< DevCog >();
 
+		ctx_.bot.on_autocomplete( [ this ]( dpp::autocomplete_t const& e ) -> dpp::task< void > {
+			if ( not ctx_.autocomplete_handlers.contains( e.name ) )
+				co_return;
+
+			auto const& handlers = ctx_.autocomplete_handlers[ e.name ];
+			auto it = std::ranges::find_if( e.options, [ & ]( auto const& o ) {
+				return o.focused and handlers.contains( o.name );
+			} );
+
+			if ( it == e.options.end() )
+				co_return;
+
+			co_await handlers.at( it->name )( e, *it );
+		} );
+
 		log::Info( "Bot starting..." );
 		ctx_.bot.start( dpp::st_wait );
 	}

@@ -29,6 +29,14 @@ namespace iter8
 					param.description,
 					param.required
 				};
+
+				if ( param.autocomplete )
+				{
+					arg.set_auto_complete( true );
+					ctx_.autocomplete_handlers[ command.name ][ param.name ] = std::move( param.autocomplete );
+				}
+
+
 				cmd.add_option( arg );
 			}
 
