@@ -43,7 +43,7 @@ echo "Rebuilding..."
 docker compose \
   -f $REPO_DIR/docker-compose.yml \
   -p autorun-iter8-bot \
-  --env-file ../.env \
+  --env-file ./.env \
   up \
   --build \
   --always-recreate-deps \

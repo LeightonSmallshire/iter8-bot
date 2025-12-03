@@ -10,7 +10,7 @@ services:
       - "80" # internal only
     volumes:
       - ./Web/static:/usr/share/nginx/html:ro
-      - ./Web/config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Web/config/:/etc/nginx/:ro
 
 networks:
   default:
