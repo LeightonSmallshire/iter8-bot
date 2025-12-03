@@ -138,6 +138,9 @@ class HotReloadBot(commands.Bot):
 
 
 def read_git_head():
+    if not os.path.isfile('.git/HEAD'):
+        return None, None
+    
     head = open('.git/HEAD').read().strip()
 
     if head.startswith('ref:'):
