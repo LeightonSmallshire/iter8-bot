@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives import serialization
 os.chdir(os.path.dirname(__file__))
 
 public_key = serialization.load_pem_public_key(
-    Path('pubkey.pem').read_bytes())
+    Path('public.pem').read_bytes())
 assert isinstance(public_key, ed25519.Ed25519PublicKey)
 
 
