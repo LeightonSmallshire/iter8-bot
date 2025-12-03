@@ -60,8 +60,9 @@ class HotReloadBot(commands.Bot):
         logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
         if is_work_hours and IS_LIVE:
-            bot_utils.defer_message(self, bot_utils.Users.Leighton, 'Bot connected')
-            bot_utils.defer_message(self, bot_utils.Users.Nathan, 'Bot connected')
+            message = f'Bot connected {read_git_head()}'
+            bot_utils.defer_message(self, bot_utils.Users.Leighton, message)
+            bot_utils.defer_message(self, bot_utils.Users.Nathan, message)
 
         server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
@@ -136,14 +137,20 @@ class HotReloadBot(commands.Bot):
             pass  # Avoid cascade errors
 
 
-print('Bot is sleepy...')
-while True:
-    time.sleep(10)
+def read_git_head():
+    head = open('.git/HEAD').read().strip()
+
+    if head.startswith('ref:'):
+        ref = head.split(' ')[1]
+        return head, open(f'.git/{ref}').read().strip()
+    else:
+        # Detached HEAD contains the hash directly
+        return head, None
 
 
 # --- Main Execution ---
 logger.setLevel(logging.DEBUG)
-logger.info("Starting Discord Bot...")
+logger.info(f"Starting Discord Bot... {read_git_head()}")
 
 bot = HotReloadBot()
 bot.run(DISCORD_TOKEN)
