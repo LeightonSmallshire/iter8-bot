@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Go — Single-file local game</title>
+  <style>
+    :root{--bg:#f7ecd6;--line:#333;--board-padding:20px}
+    html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial;background:var(--bg);color:#222}
+    .container{display:flex;gap:16px;padding:16px}
+    .left{flex:1;display:flex;flex-direction:column;align-items:center}
+    canvas{background:linear-gradient(#f6d79a,#e8b86b);box-shadow:0 6px 18px rgba(0,0,0,0.12);border-radius:6px}
+    .controls{display:flex;flex-direction:column;gap:8px;width:320px}
+    .panel{background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+    .row{display:flex;gap:8px;align-items:center}
+    button{cursor:pointer;padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:#f9f9f9}
+    button.primary{background:#222;color:#fff;border-color:#111}
+    select,input[type=number]{padding:6px;border-radius:6px;border:1px solid #ccc}
+    .info{font-size:14px}
+    .small{font-size:12px;color:#555}
+    .footer{margin-top:12px;font-size:13px;color:#444}
+    .legend{display:flex;gap:8px;align-items:center}
+    .stonePreview{width:18px;height:18px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,0.2)}
+    .black{background:#000}
+    .white{background:#fff}
+    .muted{color:#666}
+    .big{font-weight:600;font-size:16px}
+    .board-size{width:100%}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left">
+      <div class="panel">
+        <canvas id="board" width="760" height="760"></canvas>
+      </div>
+      <div class="footer small">Click to place stones. Hold <strong>Shift</strong> to place on intersections precisely. Right-click to pass (or use the Pass button).</div>
+    </div>
+
+    <div class="controls">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div class="big">Local Go — Play on same PC</div>
+            <div class="small muted">Simple rules: capture via removing stones with no liberties. Game ends on two consecutive passes.</div>
+          </div>
+          <div class="legend">
+            <div class="stonePreview black" title="Black"></div>
+            <div class="stonePreview white" title="White" style="border:1px solid #aaa"></div>
+          </div>
+        </div>
+        <hr>
+        <div class="row"><label>Board size:</label><select id="size" class="board-size"><option>9</option><option selected>13</option><option>19</option></select></div>
+        <div style="height:8px"></div>
+        <div class="row"><button id="newBtn" class="primary">New Game</button><button id="undoBtn">Undo</button><button id="passBtn">Pass</button></div>
+        <div style="height:8px"></div>
+        <div class="row"><button id="scoreBtn">Show Score / End Game</button></div>
+        <hr>
+        <div class="info">
+          <div><strong>Turn:</strong> <span id="turn">Black</span></div>
+          <div><strong>Prisoners:</strong> Black <span id="prisonersB">0</span> — White <span id="prisonersW">0</span></div>
+          <div><strong>Last move:</strong> <span id="lastMove">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="small"><strong>How to play</strong></div>
+        <ul class="small muted">
+          <li>Click an intersection to place a stone for the current player.</li>
+          <li>If your move removes the last liberties of opponent groups, they are captured.</li>
+          <li>Ko is prevented by simple repetition check (no immediate board repeat).</li>
+          <li>Two consecutive passes end the game — then score is calculated.</li>
+        </ul>
+        <hr>
+        <div class="small"><strong>Shortcuts</strong></div>
+        <div class="small muted">U: Undo · P: Pass · N: New game · S: Score</div>
+      </div>
+
+      <div class="panel">
+        <div class="small"><strong>Results</strong></div>
+        <div id="result" class="big" style="margin-top:8px">Game in progress</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Single-file Go implementation (basic rules, local play)
+    (function(){
+      const canvas = document.getElementById('board');
+      const ctx = canvas.getContext('2d');
+      const sizeSelect = document.getElementById('size');
+      const newBtn = document.getElementById('newBtn');
+      const undoBtn = document.getElementById('undoBtn');
+      const passBtn = document.getElementById('passBtn');
+      const scoreBtn = document.getElementById('scoreBtn');
+      const turnEl = document.getElementById('turn');
+      const prisonersB = document.getElementById('prisonersB');
+      const prisonersW = document.getElementById('prisonersW');
+      const lastMove = document.getElementById('lastMove');
+      const resultEl = document.getElementById('result');
+
+      let BOARD_SIZE = parseInt(sizeSelect.value,10);
+      let board = []; // 0 empty, 1 black, 2 white
+      let current = 1; // 1 black, 2 white
+      let history = []; // snapshots for undo
+      let prisoners = {1:0,2:0};
+      let lastBoards = []; // for simple ko / repetition prevention: store last few board snapshots
+      let lastMovePos = null;
+      let passes = 0; // consecutive passes
+
+      function initBoard(n){
+        BOARD_SIZE = n;
+        board = Array.from({length:BOARD_SIZE},()=>Array(BOARD_SIZE).fill(0));
+        history = [];
+        lastBoards = [];
+        current = 1;
+        prisoners = {1:0,2:0};
+        lastMovePos = null;
+        passes = 0;
+        resultEl.textContent = 'Game in progress';
+        updateInfo();
+        draw();
+      }
+
+      function cloneBoard(b){
+        return b.map(r=>r.slice());
+      }
+      function boardToKey(b){
+        return b.map(r=>r.join('')).join('|');
+      }
+
+      function neighbors(r,c){
+        const n=[];
+        if(r>0) n.push([r-1,c]);
+        if(r<BOARD_SIZE-1) n.push([r+1,c]);
+        if(c>0) n.push([r,c-1]);
+        if(c<BOARD_SIZE-1) n.push([r,c+1]);
+        return n;
+      }
+
+      // Flood fill to get group and its liberties
+      function getGroupAndLiberties(r,c, b){
+        const color = b[r][c];
+        if(color===0) return {group:[],liberties:new Set()};
+        const stack=[[r,c]];
+        const seen=new Set([r+','+c]);
+        const group=[];
+        const liberties=new Set();
+        while(stack.length){
+          const [rr,cc] = stack.pop();
+          group.push([rr,cc]);
+          for(const [nr,nc] of neighbors(rr,cc)){
+            if(b[nr][nc]===0) liberties.add(nr+','+nc);
+            else if(b[nr][nc]===color){
+              const key = nr+','+nc;
+              if(!seen.has(key)){seen.add(key);stack.push([nr,nc]);}
+            }
+          }
+        }
+        return {group,liberties};
+      }
+
+      function removeGroup(group, b){
+        for(const [r,c] of group) b[r][c]=0;
+      }
+
+      function applyMove(r,c){
+        // Passing
+        if(r===null){
+          history.push({board:cloneBoard(board),current,prisoners: {...prisoners},lastMovePos});
+          passes++;
+          lastMovePos = null;
+          current = 3-current;
+          lastBoards.push(boardToKey(board));
+          if(lastBoards.length>10) lastBoards.shift();
+          updateInfo();
+          draw();
+          checkEndOfGame();
+          return;
+        }
+
+        // place move
+        if(board[r][c]!==0) return; // occupied
+
+        const snapshot = cloneBoard(board);
+        // tentative placement
+        board[r][c]=current;
+
+        // capture opponent groups with 0 liberties
+        let captured = 0;
+        const opp = 3-current;
+        const toCheck = neighbors(r,c).filter(([rr,cc])=>board[rr][cc]===opp);
+        for(const [rr,cc] of toCheck){
+          const {group,liberties} = getGroupAndLiberties(rr,cc,board);
+          if(liberties.size===0){
+            removeGroup(group, board);
+            captured += group.length;
+          }
+        }
+
+        // Now check suicide (move with no liberties and didn't capture anything) -> illegal
+        const {liberties:myLibs} = getGroupAndLiberties(r,c,board);
+        if(myLibs.size===0 && captured===0){
+          // illegal: revert
+          board = snapshot;
+          return;
+        }
+
+        // Ko / repetition prevention: disallow if board matches any recent board (simple rule)
+        const key = boardToKey(board);
+        if(lastBoards.includes(key)){
+          // Revert
+          board = snapshot;
+          // Optionally, show message — we'll briefly flash result
+          flashResult('Illegal: repeats previous board (ko)');
+          return;
+        }
+
+        // move accepted
+        history.push({board:snapshot,current,prisoners:{...prisoners},lastMovePos});
+        if(captured>0) prisoners[current]+=captured; // current captured opponent stones
+        passes = 0;
+        lastMovePos = [r,c];
+        current = 3-current;
+        lastBoards.push(boardToKey(snapshot));
+        if(lastBoards.length>10) lastBoards.shift();
+        updateInfo();
+        draw();
+        checkEndOfGame();
+      }
+
+      function flashResult(msg){
+        const old = resultEl.textContent;
+        resultEl.textContent = msg;
+        setTimeout(()=>{ if(resultEl.textContent===msg) resultEl.textContent = old; },1200);
+      }
+
+      function undo(){
+        if(history.length===0) return;
+        const s = history.pop();
+        board = cloneBoard(s.board);
+        current = s.current;
+        prisoners = {...s.prisoners};
+        lastMovePos = s.lastMovePos;
+        passes = 0;
+        lastBoards.pop();
+        updateInfo();
+        draw();
+      }
+
+      function checkEndOfGame(){
+        if(passes>=2){
+          // end-game scoring
+          const {score,details} = scorePosition(board, prisoners);
+          let winnerText = '';
+          if(score.black>score.white) winnerText = `Black wins by ${score.black-score.white} points`;
+          else if(score.white>score.black) winnerText = `White wins by ${score.white-score.black} points`;
+          else winnerText = 'Tie';
+          resultEl.textContent = `${winnerText} — final: B ${score.black} — W ${score.white}`;
+        }
+      }
+
+      // Scoring: territory + prisoners (Chinese-style area counting simplified: stones + owned empty regions)
+      function scorePosition(b, prisoners){
+        // clone and compute empty regions
+        const visited = Array.from({length:BOARD_SIZE},()=>Array(BOARD_SIZE).fill(false));
+        let terr = {black:0,white:0};
+        for(let r=0;r<BOARD_SIZE;r++){
+          for(let c=0;c<BOARD_SIZE;c++){
+            if(b[r][c]!==0) continue;
+            if(visited[r][c]) continue;
+            // flood fill empty region
+            const stack=[[r,c]];
+            visited[r][c]=true;
+            const cells=[];
+            const bordering=new Set();
+            while(stack.length){
+              const [rr,cc]=stack.pop();
+              cells.push([rr,cc]);
+              for(const [nr,nc] of neighbors(rr,cc)){
+                if(b[nr][nc]===0){
+                  if(!visited[nr][nc]){visited[nr][nc]=true;stack.push([nr,nc]);}
+                } else if(b[nr][nc]===1) bordering.add('b');
+                else if(b[nr][nc]===2) bordering.add('w');
+              }
+            }
+            if(bordering.size===1){
+              const who = bordering.has('b')? 'black' : 'white';
+              terr[who] += cells.length;
+            }
+          }
+        }
+        const blackStones = b.flat().filter(x=>x===1).length;
+        const whiteStones = b.flat().filter(x=>x===2).length;
+        const score = {black: blackStones + terr.black + prisoners[1], white: whiteStones + terr.white + prisoners[2]};
+        return {score,details:{stones:{black:blackStones,white:whiteStones},territory:terr,prisoners:{...prisoners}}};
+      }
+
+      // Drawing
+      function draw(){
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        const padding = 36;
+        const margin = padding;
+        const N = BOARD_SIZE;
+        const gridSize = (w-2*margin)/(N-1);
+        // draw background / wood effect already in CSS
+        // draw grid
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.4;
+        for(let i=0;i<N;i++){
+          const x = margin + i*gridSize + 0.5;
+          // vertical
+          ctx.beginPath(); ctx.moveTo(x, margin+0.5); ctx.lineTo(x, h-margin+0.5); ctx.stroke();
+          const y = margin + i*gridSize + 0.5;
+          // horizontal
+          ctx.beginPath(); ctx.moveTo(margin+0.5, y); ctx.lineTo(w-margin+0.5, y); ctx.stroke();
+        }
+        // star points (hoshi)
+        const hoshi = (N>=13)? [3, Math.floor(N/2), N-4] : (N===9)? [2,4,6]: [Math.floor(N/2)];
+        ctx.fillStyle='#333';
+        for(const i of hoshi){
+          for(const j of hoshi){
+            // only draw hoshi for standard sizes
+            const x = margin + i*gridSize;
+            const y = margin + j*gridSize;
+            ctx.beginPath(); ctx.arc(x,y,gridSize*0.08,0,Math.PI*2); ctx.fill();
+          }
+        }
+
+        // stones
+        for(let r=0;r<N;r++){
+          for(let c=0;c<N;c++){
+            const s = board[r][c];
+            if(s===0) continue;
+            const x = margin + c*gridSize;
+            const y = margin + r*gridSize;
+            drawStone(x,y,gridSize*0.42, s===1? 'black':'white');
+          }
+        }
+
+        // highlight last move
+        if(lastMovePos){
+          const [lr,lc] = lastMovePos;
+          const x = margin + lc*gridSize;
+          const y = margin + lr*gridSize;
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.rect(x-gridSize*0.22, y-gridSize*0.22, gridSize*0.44, gridSize*0.44); ctx.stroke();
+        }
+      }
+
+      function drawStone(x,y,r,color){
+        // simple gradient circle
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+        if(color==='black'){
+          const g = ctx.createRadialGradient(x-r*0.4,y-r*0.6,1,x,y,r*1.2);
+          g.addColorStop(0,'#666'); g.addColorStop(0.6,'#111'); g.addColorStop(1,'#000');
+          ctx.fillStyle = g;
+        } else {
+          const g = ctx.createRadialGradient(x-r*0.4,y-r*0.6,1,x,y,r*1.2);
+          g.addColorStop(0,'#fff'); g.addColorStop(1,'#ddd');
+          ctx.fillStyle = g;
+          ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+        }
+        ctx.fill();
+      }
+
+      // Coordinates helpers
+      function pixelToIntersection(px,py){
+        const w = canvas.width; const margin = 36; const N = BOARD_SIZE; const gridSize = (w-2*margin)/(N-1);
+        // find closest intersection
+        const cx = (px - margin) / gridSize;
+        const cy = (py - margin) / gridSize;
+        const c = Math.round(cx);
+        const r = Math.round(cy);
+        if(r<0 || r>=N || c<0 || c>=N) return null;
+        return [r,c];
+      }
+
+      // UI events
+      canvas.addEventListener('click', (ev)=>{
+        const rect = canvas.getBoundingClientRect();
+        const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
+        const pt = pixelToIntersection(x,y);
+        if(!pt) return;
+        applyMove(pt[0],pt[1]);
+      });
+
+      // Right click -> pass
+      canvas.addEventListener('contextmenu', (ev)=>{ev.preventDefault(); applyMove(null);});
+
+      // buttons
+      newBtn.addEventListener('click', ()=>{
+        if(confirm('Start a new game? Current game will be lost.')) initBoard(parseInt(sizeSelect.value,10));
+      });
+      undoBtn.addEventListener('click', ()=>undo());
+      passBtn.addEventListener('click', ()=>applyMove(null));
+      scoreBtn.addEventListener('click', ()=>{
+        const {score,details} = scorePosition(board, prisoners);
+        resultEl.textContent = `Score — B ${score.black} : W ${score.white}`;
+        resultEl.textContent += ` (stones B:${details.stones.black} W:${details.stones.white}, terr B:${details.territory.black} W:${details.territory.white}, prisoners B:${details.prisoners[1]} W:${details.prisoners[2]})`;
+      });
+
+      sizeSelect.addEventListener('change', ()=>{
+        if(history.length>0 && !confirm('Change board size? This will reset the game.')){ sizeSelect.value = BOARD_SIZE; return; }
+        initBoard(parseInt(sizeSelect.value,10));
+      });
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown',(e)=>{
+        if(e.key==='u' || e.key==='U') undo();
+        if(e.key==='p' || e.key==='P') applyMove(null);
+        if(e.key==='n' || e.key==='N') { if(confirm('Start a new game?')) initBoard(parseInt(sizeSelect.value,10)); }
+        if(e.key==='s' || e.key==='S') scoreBtn.click();
+      });
+
+      function updateInfo(){
+        turnEl.textContent = current===1? 'Black':'White';
+        prisonersB.textContent = prisoners[1];
+        prisonersW.textContent = prisoners[2];
+        lastMove.textContent = lastMovePos? `r${lastMovePos[0]+1} c${lastMovePos[1]+1}` : '—';
+      }
+
+      // initialize
+      initBoard(BOARD_SIZE);
+
+      // Resize canvas adaptively (preserve square)
+      function fitCanvas(){
+        const container = canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width - 4, window.innerHeight - 160);
+        const pixelSize = Math.max(300, Math.min(900, Math.floor(size)));
+        canvas.width = pixelSize; canvas.height = pixelSize;
+        draw();
+      }
+      window.addEventListener('resize', fitCanvas);
+      setTimeout(fitCanvas,50);
+
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Local Games Launcher</title>
+  <style>
+    body{font-family:Segoe UI, Roboto, Arial; margin:0; background:#f3f4f6; color:#111}
+    header{background:#0b5; padding:16px; color:#fff}
+    .wrap{display:flex;gap:18px;padding:18px}
+    .sidebar{width:320px}
+    .panel{background:#fff;padding:14px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.06)}
+    select,button{padding:8px;border-radius:6px;border:1px solid #ccc}
+    iframe{flex:1;border:0;height:78vh;border-radius:8px;background:#fff}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:#666;font-size:13px}
+    .game-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+    .game-item{padding:8px;border-radius:6px;border:1px solid #eee;background:#fafafa;cursor:pointer}
+    .game-item:hover{background:#f0faff}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between">
+      <div><strong>Local Games</strong> — select a game to play on this PC</div>
+      <div class="muted">Files are loaded from the same folder as this launcher.</div>
+    </div>
+  </header>
+
+  <div class="wrap" style="max-width:1100px;margin:18px auto">
+    <div class="sidebar">
+      <div class="panel">
+        <div style="font-weight:600">Choose a game</div>
+        <div class="muted">Select and load a local HTML game in the panel to the right.</div>
+
+        <div class="game-list">
+          <div class="game-item" data-src="go.html">Go (local) — `go.html`</div>
+          <div class="game-item" data-src="tictactoe.html">Tic Tac Toe — `tictactoe.html`</div>
+        </div>
+
+        <hr style="margin:10px 0">
+        <div class="row" style="margin-bottom:8px">
+          <button id="openNew">Open in new tab</button>
+          <button id="reloadBtn">Reload iframe</button>
+          <button id="fullscreenBtn">Toggle Fullscreen</button>
+        </div>
+
+        <div class="muted">Tip: If a game doesn't load due to local file restrictions, open the file directly in your browser or serve the folder with a small HTTP server (Python).</div>
+      </div>
+
+      <div style="height:12px"></div>
+      <div class="panel muted">
+        <div style="font-weight:600">Quick server (optional)</div>
+        <div style="font-size:13px">In PowerShell, run the folder as a local server and open the launcher:</div>
+        <pre style="background:#f7f7f8;padding:8px;border-radius:6px">cd 'c:\\Users\\HChou\\Desktop\\Common\\MileStones\\Test'
+python -m http.server 8000; Start-Process http://localhost:8000/games.html</pre>
+      </div>
+    </div>
+
+    <iframe id="frame" src="go.html" title="Game frame"></iframe>
+  </div>
+
+  <script>
+    const frame = document.getElementById('frame');
+    const items = document.querySelectorAll('.game-item');
+    let currentSrc = 'go.html';
+    items.forEach(it=>{
+      it.addEventListener('click', ()=>{
+        const src = it.dataset.src;
+        loadGame(src);
+      });
+    });
+
+    function loadGame(src){
+      currentSrc = src;
+      frame.src = src;
+    }
+
+    document.getElementById('openNew').addEventListener('click', ()=>{
+      window.open(currentSrc, '_blank');
+    });
+    document.getElementById('reloadBtn').addEventListener('click', ()=>{ frame.contentWindow.location.reload(); });
+    document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
+      if(!document.fullscreenElement){
+        frame.requestFullscreen?.();
+      } else { document.exitFullscreen?.(); }
+    });
+
+    // keyboard support: 1 -> first game, 2 -> second
+    window.addEventListener('keydown',(e)=>{
+      if(e.key==='1') loadGame('go.html');
+      if(e.key==='2') loadGame('tictactoe.html');
+    });
+  </script>
+</body>
+</html>

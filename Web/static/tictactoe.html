@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tic Tac Toe — Local</title>
+  <style>
+    body{font-family:Segoe UI,Arial,Roboto;margin:0;background:#fafafa;display:flex;align-items:center;justify-content:center;height:100vh}
+    .board{display:grid;grid-template-columns:repeat(3,120px);gap:8px;background:#fff;padding:20px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+    .cell{width:120px;height:120px;display:flex;align-items:center;justify-content:center;font-size:48px;cursor:pointer;border-radius:8px;background:#f5f7fb}
+    .controls{position:fixed;top:16px;left:16px}
+    button{padding:8px 10px;border-radius:8px;border:1px solid #ccc}
+    .status{margin-top:10px;font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <button id="backBtn">Back to Launcher</button>
+    <button id="restart">Restart</button>
+    <div id="status" class="status">Turn: X</div>
+  </div>
+  <div class="board" id="board"></div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const status = document.getElementById('status');
+    const restart = document.getElementById('restart');
+    const backBtn = document.getElementById('backBtn');
+
+    let grid = Array(9).fill(null);
+    let turn = 'X';
+    let finished = false;
+
+    function draw(){
+      boardEl.innerHTML = '';
+      for(let i=0;i<9;i++){
+        const div = document.createElement('div');
+        div.className = 'cell';
+        div.textContent = grid[i] || '';
+        div.dataset.i = i;
+        div.addEventListener('click', ()=>cellClick(i));
+        boardEl.appendChild(div);
+      }
+      status.textContent = finished ? 'Game over' : `Turn: ${turn}`;
+    }
+
+    function cellClick(i){
+      if(finished || grid[i]) return;
+      grid[i] = turn;
+      const w = winner(grid);
+      if(w){
+        finished = true;
+        status.textContent = `${w} wins!`;
+      } else if(grid.every(x=>x!==null)){
+        finished = true; status.textContent = 'Tie';
+      } else {
+        turn = (turn==='X')? 'O' : 'X';
+      }
+      draw();
+    }
+
+    function winner(g){
+      const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      for(const [a,b,c] of lines){
+        if(g[a] && g[a]===g[b] && g[b]===g[c]) return g[a];
+      }
+      return null;
+    }
+
+    restart.addEventListener('click', ()=>{grid = Array(9).fill(null); turn='X'; finished=false; draw();});
+    backBtn.addEventListener('click', ()=>{ window.open('games.html','_self'); });
+
+    draw();
+  </script>
+</body>
+</html>
