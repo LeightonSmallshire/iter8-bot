@@ -1,3 +1,4 @@
+import time
 import json
 import os
 import sys
@@ -132,7 +133,12 @@ class HotReloadBot(commands.Bot):
             else:
                 await interaction.response.send_message(str(error), ephemeral=True)
         except Exception:
-            pass # Avoid cascade errors
+            pass  # Avoid cascade errors
+
+
+print('Bot is sleepy...')
+while True:
+    time.sleep(10)
 
 
 # --- Main Execution ---
