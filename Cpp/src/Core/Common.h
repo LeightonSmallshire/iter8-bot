@@ -2,6 +2,8 @@
 
 #include "dpp/dpp.h"
 
+#include <magic_enum/magic_enum.hpp>
+
 #include <filesystem>
 #include <source_location>
 
@@ -45,6 +47,11 @@ namespace iter8
 		static constexpr dpp::snowflake Ed = 1356197937520181339;
 		static constexpr dpp::snowflake Matt = 1333425159729840188;
 		static constexpr dpp::snowflake Tom = 1339198017324187681;
+
+		static bool IsTrustedUser( dpp::snowflake id )
+		{
+			return id == Nathan or id == Leighton;
+		}
 	};
 
 	template < typename F, typename R, typename... Args >
@@ -119,4 +126,39 @@ namespace iter8
 	{
 		return str | std::views::transform( []( char c ) -> char { return std::tolower( c ); } ) | std::ranges::to< std::string >();
 	}
+
+	namespace detail
+	{
+		template < typename E >
+		concept MagicEnumFormattable = std::is_enum_v< E >;
+	}
+
+	template< detail::MagicEnumFormattable  T >
+	struct EnumTraits
+	{
+		static constexpr bool UseStringFormat = true;
+	};
 } // namespace iter8
+
+namespace std
+{
+	template < ::iter8::detail::MagicEnumFormattable E >
+	struct formatter< E, char > : formatter< std::string_view, char >
+	{
+		template < typename FormatContext >
+		auto format( E value, FormatContext& ctx ) const
+		{
+			if constexpr ( ::iter8::EnumTraits< E >::UseStringFormat )
+			{
+				std::string_view name = magic_enum::enum_name( value );
+				if ( !name.empty() )
+				{
+					return formatter< std::string_view, char >::format( name, ctx );
+				}
+			}
+
+			using U = std::underlying_type_t< E >;
+			return formatter< U, char >{}.format( static_cast< U >( value ), ctx );
+		}
+	};
+} // namespace std

@@ -126,11 +126,11 @@ namespace iter8::db
 
 		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
 		{
-			using sys_minutes = std::chrono::sys_time< std::chrono::minutes >; // matches %R (minutes precision)
-			sys_minutes tp;
+			using sys_nanoseconds = std::chrono::sys_time< std::chrono::nanoseconds >;
+			sys_nanoseconds tp;
 
 			std::istringstream iss( std::string{ s } );
-			iss >> std::chrono::parse( "%FT%T%z", tp ); // same pattern as used in format
+			iss >> std::chrono::parse( "%FT%T%z", tp );
 
 			if ( !iss )
 				throw std::runtime_error( "Failed to parse time_point from: " + std::string{ s } );
@@ -253,3 +253,12 @@ namespace iter8::db
 		return detail::BuildCreateTableSqlImpl< T >( std::make_index_sequence< n >{} );
 	}
 } // namespace iter8::db
+
+namespace iter8
+{
+	template <>
+	struct iter8::EnumTraits< db::ID >
+	{
+		static constexpr bool UseStringFormat = false;
+	};
+}

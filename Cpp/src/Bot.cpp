@@ -1,6 +1,7 @@
 #include "Bot.h"
 
 #include "Cogs/BotBrokenCog.h"
+#include "Cogs/DevCog.h"
 
 #include "Model/User.h"
 #include "Model/Log.h"
@@ -21,7 +22,9 @@ namespace iter8
 		log::Init( ctx_.db );
 
 		RegisterCog< BotBrokenCog >();
+		RegisterCog< DevCog >();
 
+		log::Info( "Bot starting..." );
 		ctx_.bot.start( dpp::st_wait );
 	}
 } // namespace iter8
