@@ -8,6 +8,7 @@ namespace iter8
 	{
 		db::ID id{};
 		int count{};
-		int duration{};
+		double duration{};
+		double credit{};
 	};
 }

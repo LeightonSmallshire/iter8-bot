@@ -251,8 +251,11 @@ namespace iter8::db
 
 	public:
 		template < typename T >
-		void Init()
+		void Init( bool truncate )
 		{
+			if ( truncate )
+				Exec( std::format( "DROP TABLE {}", DbModelTraits< T >::TableName ) );
+
 			auto sql = BuildCreateTableSql< T >();
 			Exec( sql );
 		}
@@ -409,9 +412,13 @@ namespace iter8::db
 				std::remove_cvref_t< T > >
 		void Insert( range_t&& data )
 		{
+			if ( data.empty() )
+				return;
+
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
-			auto start_index = Traits::IsSingleValued ? 0 : 1;
+			bool has_id = not Traits::IsSingleValued and boost::pfr::get< 0 >( data.front() ) != ID::Zero;
+			auto start_index = has_id ? 0 : 1;
 
 			std::ostringstream oss;
 			oss << "INSERT INTO " << Traits::TableName << " (";
@@ -618,6 +625,7 @@ namespace iter8::db
 			{
 				if ( field == ID::Zero )
 					return;
+				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field ) );
 			}
 			else if constexpr ( std::is_same_v< T, bool > || std::is_integral_v< T > )
 			{

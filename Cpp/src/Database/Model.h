@@ -17,6 +17,11 @@ namespace iter8::db
 		Zero = 0
 	};
 
+	inline ID ToId(dpp::snowflake id)
+	{
+		return static_cast< db::ID >( id.operator uint64_t() );
+	}
+
 	namespace detail
 	{
 		template < typename T >

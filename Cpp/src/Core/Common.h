@@ -47,8 +47,10 @@ namespace iter8
 		static constexpr dpp::snowflake Ed = 1356197937520181339;
 		static constexpr dpp::snowflake Matt = 1333425159729840188;
 		static constexpr dpp::snowflake Tom = 1339198017324187681;
+		static constexpr dpp::snowflake Gary = 1359152866727821342;
 
-		static constexpr std::array Trusted = { Nathan, Leighton };
+		static constexpr std::array Trusted = { Nathan };
+		static constexpr std::array All = { Nathan, Leighton, Charlotte, Ed, Matt, Tom, Gary };
 
 		static bool IsTrusted( dpp::snowflake id )
 		{
@@ -135,11 +137,40 @@ namespace iter8
 		concept MagicEnumFormattable = std::is_enum_v< E >;
 	}
 
-	template< detail::MagicEnumFormattable  T >
+	template < detail::MagicEnumFormattable T >
 	struct EnumTraits
 	{
 		static constexpr bool UseStringFormat = true;
 	};
+
+	template < typename T >
+	dpp::task< T > Result( dpp::async< dpp::confirmation_callback_t > const& awaitable )
+	{
+		auto result = co_await awaitable;
+		co_return std::get< T >( result.value );
+	}
+
+	template < std::ranges::input_range R >
+		requires std::same_as< std::ranges::range_value_t< R >, dpp::task< void > >
+	dpp::task< void > AwaitAll( R&& tasks )
+	{
+		for ( auto& t : tasks )
+		{
+			co_await t;
+		}
+		co_return;
+	}
+
+	template < std::ranges::input_range R >
+		requires std::same_as< std::ranges::range_value_t< R >, dpp::async< dpp::confirmation_callback_t > >
+	dpp::task< void > AwaitAll( R&& tasks )
+	{
+		for ( auto t : tasks )
+		{
+			co_await t;
+		}
+		co_return;
+	}
 } // namespace iter8
 
 namespace std

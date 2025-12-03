@@ -25,7 +25,11 @@ namespace iter8
 		void InitLog();
 		void InitBot();
 
-		dpp::task<void> OnReady( dpp::ready_t const& e );
+		dpp::task< void > OnReady( dpp::ready_t const& e );
+		dpp::task< void > OnAutocomplete( dpp::autocomplete_t const& e );
+		void OnLog( dpp::log_t const& e );
+
+		dpp::task< void > CalculateUserCredit();
 
 	private:
 		Context ctx_;
