@@ -32,19 +32,19 @@ logger.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
 logger.addHandler(log_utils.DatabaseHandler())
 
 
-class IoTee:
-    def __init__(self):
-        self.buf_ = ''
-
-    def write(self, s: str):
-        self.buf_ += s
-        self.buf_ = self.buf_[:200000]
-
-    def flush(self):
-        pass
-
-sys.stdout = IoTee()
-sys.stderr = sys.stdout
+# class IoTee:
+#     def __init__(self):
+#         self.buf_ = ''
+#
+#     def write(self, s: str):
+#         self.buf_ += s
+#         self.buf_ = self.buf_[:200000]
+#
+#     def flush(self):
+#         pass
+#
+# sys.stdout = IoTee()
+# sys.stderr = sys.stdout
 
 
 now = datetime.datetime.now().time()

@@ -1,9 +1,24 @@
 services:
   iter8-bot-runner:
     build: .
+    read_only: true
     restart: always
     env_file:
       - ../.env
+    volumes:
+      - iter8-bot-data:/app/data:rw
+      - /home/nonroot/.cache # anonymous
+
+volumes:
+  iter8-bot-data:
+    name: iter8-bot-data
+    external: true
+
+networks:
+  default:
+    name: iter8-network
+    external: true
+
 
 #  bot-web-server:
 #    image: alpine:3.17.3
@@ -13,9 +28,3 @@ services:
 #    volumes:
 #      - ./Web/static:/var/www/my_static_app:ro
 #      - ./Web/config/nginx.conf:/etc/nginx/nginx.conf:ro
-
-networks:
-  default:
-    name: iter8-network
-    external: true
-    internal: true
