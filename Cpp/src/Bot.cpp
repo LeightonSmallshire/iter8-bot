@@ -16,13 +16,35 @@ namespace iter8
 			.db{ "data/storage.db" }
 		}
 	{
+		Init();
+
+		log::Info( "Bot starting..." );
+		ctx_.bot.start( dpp::st_wait );
+	}
+
+	void DiscordBot::Init()
+	{
+		InitDB();
+		InitLog();
+		InitBot();
+	}
+
+	void DiscordBot::InitDB()
+	{
 		ctx_.db.Init< User >();
 		ctx_.db.Init< Log >();
+	}
 
+	void DiscordBot::InitLog()
+	{
 		log::Init( ctx_.db );
+	}
 
+	void DiscordBot::InitBot()
+	{
 		RegisterCog< BotBrokenCog >();
 		RegisterCog< DevCog >();
+
 
 		ctx_.bot.on_autocomplete( [ this ]( dpp::autocomplete_t const& e ) -> dpp::task< void > {
 			if ( not ctx_.autocomplete_handlers.contains( e.name ) )
@@ -39,7 +61,22 @@ namespace iter8
 			co_await handlers.at( it->name )( e, *it );
 		} );
 
-		log::Info( "Bot starting..." );
-		ctx_.bot.start( dpp::st_wait );
+		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 	}
+
+	dpp::task< void > DiscordBot::OnReady( dpp::ready_t const& e )
+	{
+		log::Info( "Discord bot logged in as {} (ID: {})", ctx_.bot.me.username, ctx_.bot.me.id );
+
+		auto dms = Users::Trusted | std::views::transform( [ this ]( auto id ) { return ctx_.bot.co_direct_message_create( id, dpp::message( "Bot connected" ) ); } );
+
+
+
+		for (auto dm : dms)
+		{
+			co_await dm; 
+		}
+	}
+
+
 } // namespace iter8

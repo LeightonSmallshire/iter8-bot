@@ -35,7 +35,7 @@ namespace iter8
 
 	dpp::task< void > DevCog::OnGetLogs( dpp::slashcommand_t const& event )
 	{
-		if ( not Users::IsTrustedUser( event.command.usr.id ) )
+		if ( not Users::IsTrusted( event.command.usr.id ) )
 		{
 			co_await event.co_reply( "No logs 4 U" );
 			co_return;
@@ -73,7 +73,7 @@ namespace iter8
 
 	dpp::task< void > DevCog::OnDownload( dpp::slashcommand_t const& event )
 	{
-		if ( not Users::IsTrustedUser( event.command.usr.id ) )
+		if ( not Users::IsTrusted( event.command.usr.id ) )
 		{
 			co_await event.co_reply( "No files 4 U" );
 			co_return;
@@ -111,7 +111,7 @@ namespace iter8
 
 	dpp::task< void > DevCog::OnCrash( dpp::slashcommand_t const& event )
 	{
-		if ( not Users::IsTrustedUser( event.command.usr.id ) )
+		if ( not Users::IsTrusted( event.command.usr.id ) )
 		{
 			co_await event.co_reply( std::format( "Stop it {}", event.command.usr.get_mention() ) );
 			co_return;
@@ -189,7 +189,7 @@ namespace iter8
 					// Equivalent of glob(current + "/*")
 					for ( auto const& entry : fs::directory_iterator( p ) )
 					{
-						std::string path_str = entry.path().string();
+						std::string path_str = fs::relative( entry.path() ).string();
 						if ( entry.is_directory() )
 						{
 							path_str += '/';
@@ -212,14 +212,9 @@ namespace iter8
 						for ( auto const& entry : fs::directory_iterator( parent ) )
 						{
 							std::string name = entry.path().filename().string();
-#if __cpp_lib_starts_ends_with
 							if ( name.starts_with( prefix ) )
 							{
-#else
-							if ( name.rfind( prefix, 0 ) == 0 )
-							{ // simple prefix check
-#endif
-								std::string path_str = entry.path().string();
+								std::string path_str = fs::relative( entry.path() ).string();
 								if ( entry.is_directory() )
 								{
 									path_str += '/';
@@ -245,18 +240,25 @@ namespace iter8
 			choices.reserve( matches.size() );
 			for ( auto const& s : matches )
 			{
-				choices.emplace_back( s, s ); 
+				choices.emplace_back( s, s );
 			}
 
 			return choices;
 		}
-	}
+	} // namespace
 
 	dpp::task< void > DevCog::OnDownloadAutocomplete( dpp::autocomplete_t const& e, dpp::command_option const& opt )
 	{
+		auto response = dpp::interaction_response( dpp::ir_autocomplete_reply );
+		if (not Users::IsTrusted(e.command.usr.id))
+		{
+			response.autocomplete_choices = { { "BAD BAD STOP IT", "" } };
+			co_await ctx_.bot.co_interaction_response_create( e.command.id, e.command.token, response );
+			co_return;
+		}
+
 		auto current = std::get< std::string >( opt.value );
 
-		auto response = dpp::interaction_response( dpp::ir_autocomplete_reply );
 		response.autocomplete_choices = AutocompletePath( current );
 
 		co_await ctx_.bot.co_interaction_response_create( e.command.id, e.command.token, response );

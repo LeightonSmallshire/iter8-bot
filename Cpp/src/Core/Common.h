@@ -48,9 +48,11 @@ namespace iter8
 		static constexpr dpp::snowflake Matt = 1333425159729840188;
 		static constexpr dpp::snowflake Tom = 1339198017324187681;
 
-		static bool IsTrustedUser( dpp::snowflake id )
+		static constexpr std::array Trusted = { Nathan, Leighton };
+
+		static bool IsTrusted( dpp::snowflake id )
 		{
-			return id == Nathan or id == Leighton;
+			return std::ranges::contains( Trusted, id );
 		}
 	};
 

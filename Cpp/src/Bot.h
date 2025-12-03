@@ -20,6 +20,14 @@ namespace iter8
 		}
 
 	private:
+		void Init();
+		void InitDB();
+		void InitLog();
+		void InitBot();
+
+		dpp::task<void> OnReady( dpp::ready_t const& e );
+
+	private:
 		Context ctx_;
 		std::vector< std::unique_ptr< Cog > > cogs_;
 	};
