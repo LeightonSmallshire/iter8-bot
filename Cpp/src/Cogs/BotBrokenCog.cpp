@@ -1,6 +1,7 @@
 #include "BotBrokenCog.h"
 
 #include "Core/Common.h"
+#include "Logging/Log.h"
 
 #include <print>
 #include <ranges>
@@ -26,7 +27,7 @@ namespace iter8
 		auto thinking = event.co_thinking( true );
 
 		auto target = GetParameter< dpp::snowflake >( event, "user" ).value_or( Users::Leighton );
-		std::println( "Broken command from {}", event.command.get_issuing_user().username );
+		log::Info( "Broken command from {}", event.command.get_issuing_user().username );
 
 		auto const& channels = event.command.get_guild().channels;
 		auto it = std::ranges::find( channels, Channels::ParadiseBotBrokenSpam );
@@ -44,7 +45,7 @@ namespace iter8
 		auto thinking = event.co_thinking( true );
 
 		auto target = GetParameter< dpp::snowflake >( event, "user" ).value_or( Users::Leighton );
-		std::println( "Working command from {}", event.command.get_issuing_user().username );
+		log::Info( "Working command from {}", event.command.get_issuing_user().username );
 
 		auto const& channels = event.command.get_guild().channels;
 		auto it = std::ranges::find( channels, Channels::ParadiseBotBrokenSpam );

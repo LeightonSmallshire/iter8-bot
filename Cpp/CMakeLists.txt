@@ -43,6 +43,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(magic_enum)
 
 # ---------------------------------------
+# Fetch libarchive
+# ---------------------------------------
+set(ENABLE_TEST OFF CACHE BOOL "" FORCE)
+set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(libarchive
+    GIT_REPOSITORY https://github.com/libarchive/libarchive.git
+    GIT_TAG        v3.7.4     # or whatever version you want
+)
+
+FetchContent_MakeAvailable(libarchive)
+
+# ---------------------------------------
 # Fetch DPP
 # ---------------------------------------
 
@@ -72,8 +85,11 @@ target_link_libraries(discord_bot PRIVATE
     sqlite3
     spdlog::spdlog
     magic_enum::magic_enum
+    archive_static
     dpp
 )
+
+target_compile_definitions(discord_bot PRIVATE LIBARCHIVE_STATIC)
 
 if (WIN32)
     set(THIRDPARTY_DLLS

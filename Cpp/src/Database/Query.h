@@ -2,11 +2,13 @@
 
 #include "Model.h"
 
+#include <magic_enum/magic_enum.hpp>
+
 namespace iter8::db
 {
 	using SqlValue = std::variant< std::monostate, bool, std::int64_t, double, std::string >;
 
-	enum class CmpOp
+	enum class Cmp
 	{
 		Eq,
 		Is,
@@ -17,7 +19,7 @@ namespace iter8::db
 		Ge,
 	};
 
-	enum class OrderDir
+	enum class Ordering
 	{
 		Asc,
 		Desc,
@@ -28,14 +30,14 @@ namespace iter8::db
 	{
 		Field T::* field;
 		Field const& value;
-		CmpOp cmp;
+		Cmp cmp{ Cmp::Eq };
 	};
 
 	template < DbModel T, typename Field >
 	struct OrderParam
 	{
 		Field T::* field;
-		OrderDir dir;
+		Ordering dir;
 	};
 
 	namespace detail
@@ -44,7 +46,7 @@ namespace iter8::db
 		struct WhereParamImpl
 		{
 			int column_index;
-			CmpOp cmp;
+			Cmp cmp;
 			SqlValue value;
 		};
 
@@ -52,7 +54,7 @@ namespace iter8::db
 		struct OrderParamImpl
 		{
 			int column_index;
-			OrderDir dir;
+			Ordering dir;
 		};
 
 
@@ -64,7 +66,9 @@ namespace iter8::db
 			int result = -1;
 			int idx = 0;
 			boost::pfr::for_each_field( tmp, [ & ]( auto& f ) {
-				if ( std::addressof( f ) == std::addressof( tmp.*member ) )
+				auto lhs = static_cast< void* >( std::addressof( f ) );
+				auto rhs = static_cast< void* >( std::addressof( tmp.*member ) );
+				if ( lhs == rhs )
 				{
 					result = idx;
 				}
@@ -77,6 +81,51 @@ namespace iter8::db
 			}
 
 			return result;
+		}
+
+		template < typename U >
+		SqlValue ToSqlValue( U const& field )
+		{
+			using T = std::remove_cvref_t< U >;
+
+			if constexpr ( detail::is_optional_v< T > )
+			{
+				if ( !field )
+				{
+					return SqlValue{ std::monostate{} }; // NULL
+				}
+				return ToSqlValue( *field );
+			}
+			else if constexpr ( std::is_same_v< T, bool > )
+			{
+				return SqlValue{ field };
+			}
+			else if constexpr ( std::is_integral_v< T > or std::same_as< ID, T > )
+			{
+				return SqlValue{ static_cast< std::int64_t >( field ) };
+			}
+			else if constexpr ( std::is_floating_point_v< T > )
+			{
+				return SqlValue{ static_cast< double >( field ) };
+			}
+			else if constexpr ( std::is_enum_v< T > )
+			{
+				auto enum_str = magic_enum::enum_name( field );
+				return SqlValue{ std::string{ enum_str } };
+			}
+			else if constexpr (detail::is_time_point_v< U >)
+			{
+				auto tp_str = std::format( "{0:%F}T{0:%T%z}", field );
+				return SqlValue{ tp_str };
+			}
+			else if constexpr ( std::is_same_v< T, std::string > )
+			{
+				return SqlValue{ field };
+			}
+			else
+			{
+				static_assert( std::is_same_v< T, void >, "Unsupported field type for ToSqlValue" );
+			}
 		}
 
 		template < DbModel T, typename Field >

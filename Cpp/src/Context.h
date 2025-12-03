@@ -1,7 +1,9 @@
 #pragma once
 
-#include "dpp/dpp.h"
+#include "Core/Commands.h"
 #include "Database/Connection.h"
+
+#include "dpp/dpp.h"
 
 namespace iter8
 {
@@ -9,6 +11,8 @@ namespace iter8
 	{
 		dpp::cluster bot;
 		db::Connection db;
+
+		std::map< std::string, std::map< std::string, AutocompleteHandler > > autocomplete_handlers;
 	};
 
-}
+} // namespace iter8

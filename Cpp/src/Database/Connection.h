@@ -129,19 +129,28 @@ namespace iter8::db
 		public:
 			struct iterator
 			{
+				enum class Stage
+				{
+					NotStarted,
+					InProgress,
+					Complete
+				};
+
 				using iterator_category = std::input_iterator_tag;
 				using value_type = T;
 				using difference_type = std::ptrdiff_t;
 
 				Connection* db{ nullptr };
-				Statement& stmt{};
+				Statement* stmt;
 				std::optional< T > current{};
-				bool started{};
+				Stage stage{ Stage::NotStarted };
 
 				iterator() = default;
 				explicit iterator( Connection* ctx, Statement& statement )
-					: db( ctx ), stmt( statement )
-				{}
+					: db( ctx ), stmt( &statement )
+				{
+					advance();
+				}
 
 				T const& operator*() const
 				{
@@ -164,56 +173,81 @@ namespace iter8::db
 					advance();
 				}
 
-				friend bool operator==( iterator const& it,
-										std::default_sentinel_t ) noexcept
+				bool operator==( iterator const& other ) const
 				{
-					return !it.state || it.done_;
+					return db == other.db and stmt == other.stmt and stage == other.stage and current == other.current;
 				}
 
-				friend bool operator!=( iterator const& it,
-										std::default_sentinel_t s ) noexcept
+				bool operator!=( iterator const& other ) const
+				{
+					return !( *this == other );
+				}
+
+				friend bool operator==( iterator const& it, std::default_sentinel_t ) noexcept
+				{
+					return it.stage == Stage::Complete;
+				}
+
+				friend bool operator!=( iterator const& it, std::default_sentinel_t s ) noexcept
 				{
 					return !( it == s );
+				}
+
+				friend bool operator==( std::default_sentinel_t s, iterator const& it ) noexcept
+				{
+					return it == s;
+				}
+
+				friend bool operator!=( std::default_sentinel_t s, iterator const& it ) noexcept
+				{
+					return !( s == it );
 				}
 
 			private:
 				void advance()
 				{
-					if ( started and not current )
+					if ( stage == Stage::Complete )
 						return;
 
-					started = true;
+					stage = Stage::InProgress;
 
 					// Step once
-					if ( db->Step( stmt ) )
+					if ( db->Step( *stmt ) )
 					{
-						db->ReadRowInto( stmt, current );
+						db->ReadRowInto( *stmt, current );
 					}
 					else
 					{
 						current = {};
+						stage = Stage::Complete;
 					}
 				}
 			};
 
 			explicit DbCursor( Connection* db, Statement stmt )
-				: db_{ db }, statement_{ stmt }
+				: db_{ db }, statement_{ std::move( stmt ) }
 			{}
 
-			iterator begin()
+			friend iterator begin( DbCursor& c )
 			{
-				return iterator{ db_, statement_ };
+				return iterator{ c.db_, c.statement_ };
 			}
 
-			std::default_sentinel_t end() const noexcept
+			friend std::default_sentinel_t end( DbCursor& c ) noexcept
 			{
 				return {};
+			}
+
+			std::vector< T > ReadAll()
+			{
+				return std::ranges::to< std::vector >( *this );
 			}
 
 		private:
 			Connection* db_;
 			Statement statement_;
 		};
+
 
 	public:
 		template < typename T >
@@ -265,7 +299,7 @@ namespace iter8::db
 
 					auto const& o = order_by[ i ];
 					oss << detail::ToSnakeCase( names[ static_cast< std::size_t >( o.column_index ) ] )
-						<< ( o.dir == OrderDir::Desc ? " DESC" : " ASC" );
+						<< ( o.dir == Ordering::Desc ? " DESC" : " ASC" );
 				}
 			}
 
@@ -533,14 +567,14 @@ namespace iter8::db
 			{
 				field = sqlite3_column_int( stmt, index ) != 0;
 			}
-			else if constexpr ( std::is_enum_v< U > )
-			{
-				unsigned char const* txt = sqlite3_column_text( stmt, index );
-				field = magic_enum::enum_cast< U >( txt ).value();
-			}
-			else if constexpr ( std::is_integral_v< T > )
+			else if constexpr ( std::is_integral_v< T > or std::same_as< ID, T > )
 			{
 				field = static_cast< T >( sqlite3_column_int64( stmt, index ) );
+			}
+			else if constexpr ( std::is_enum_v< U > )
+			{
+				char const* txt = reinterpret_cast< char const* >( sqlite3_column_text( stmt, index ) );
+				field = magic_enum::enum_cast< U >( std::string{ txt } ).value();
 			}
 			else if constexpr ( std::is_floating_point_v< T > )
 			{
@@ -673,23 +707,23 @@ namespace iter8::db
 			}
 		}
 
-		inline char const* ToSqlOp( CmpOp op )
+		inline char const* ToSqlOp( Cmp op )
 		{
 			switch ( op )
 			{
-				case CmpOp::Eq:
+				case Cmp::Eq:
 					return "=";
-				case CmpOp::Is:
+				case Cmp::Is:
 					return "IS";
-				case CmpOp::IsNot:
+				case Cmp::IsNot:
 					return "IS NOT";
-				case CmpOp::Lt:
+				case Cmp::Lt:
 					return "<";
-				case CmpOp::Le:
+				case Cmp::Le:
 					return "<=";
-				case CmpOp::Gt:
+				case Cmp::Gt:
 					return ">";
-				case CmpOp::Ge:
+				case Cmp::Ge:
 					return ">=";
 			}
 			return "=";
