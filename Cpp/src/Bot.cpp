@@ -146,13 +146,9 @@ namespace iter8
 
 			for ( auto const& entry : log.entries )
 			{
-				auto get_moderator = ctx_.bot.co_guild_get_member( Guilds::Default, entry.user_id );
-				auto get_member = ctx_.bot.co_guild_get_member( Guilds::Default, entry.target_id );
-				auto get_user = ctx_.bot.co_user_get( entry.target_id );
-
-				auto moderator = co_await Result< dpp::guild_member >( get_moderator );
-				auto member = co_await Result< dpp::guild_member >( get_member );
-				auto user = co_await Result< dpp::user_identified >( get_user );
+				auto moderator = co_await GetMember( ctx_.bot, entry.user_id );
+				auto member = co_await GetMember( ctx_.bot, entry.target_id );
+				auto user = co_await GetUser( ctx_.bot, entry.target_id );
 
 				if ( member.is_guild_owner() or user.is_bot() )
 					continue;
@@ -202,8 +198,6 @@ namespace iter8
 
 			before = log.entries.back().id;
 		}
-
-
 
 		ctx_.db.Insert( leaderboard | std::views::values );
 	}

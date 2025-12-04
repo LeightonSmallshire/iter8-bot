@@ -31,6 +31,18 @@ namespace iter8
 		AddCommand( { "download", "Download files", { path_parm } }, std::bind_front( &DevCog::OnDownload, this ) );
 
 		AddCommand( { "crash", "KABOOM!" }, std::bind_front( &DevCog::OnCrash, this ) );
+
+		auto sql_text_param = CommandArgumentDefinition{
+			.type = dpp::co_string,
+			.name = "query",
+			.required = false,
+		};
+		auto sql_file_param = CommandArgumentDefinition{
+			.type = dpp::co_attachment,
+			.name = "file",
+			.required = false,
+		};
+		AddCommand( { "sql", "SQL database operations", { sql_text_param, sql_file_param } }, std::bind_front( &DevCog::OnSqlExec, this ) );
 	}
 
 	dpp::task< void > DevCog::OnGetLogs( dpp::slashcommand_t const& event )
@@ -130,6 +142,53 @@ namespace iter8
 
 		auto failed = dpp::message{ event.command.channel_id, "Crash failed." };
 		co_await ctx_.bot.co_message_create( failed );
+	}
+
+	dpp::task< void > DevCog::OnSqlExec( dpp::slashcommand_t const& event )
+	{
+		if ( not Users::IsTrusted( event.command.usr.id ) )
+		{
+			co_await event.co_reply( "No squeal 4 U" );
+			co_return;
+		}
+
+		co_await event.co_thinking( true );
+
+		auto sql = GetParameter< std::string >( event, "query" ).or_else( [ & ] {
+			return GetParameter< dpp::snowflake >( event, "file" ).and_then( [ & ]( auto id ) -> std::optional< std::string > {
+				auto const& attachments = event.command.resolved.attachments;
+				if ( not attachments.contains( id ) )
+					return std::nullopt;
+
+				auto const& file = attachments.at( id );
+
+				auto resp = ctx_.bot.co_request( file.url, dpp::m_get ).sync_wait();
+				if ( resp.status != 200 )
+					return std::nullopt;
+
+				return resp.body;
+			} );
+		} );
+
+		if ( not sql )
+		{
+			co_await event.co_follow_up( "You must provide code or a file to execute" );
+			co_return;
+		}
+
+		auto result = ctx_.db.ExecRaw( *sql );
+
+		auto reply = dpp::message{};
+		if ( result.length() >= 1900 )
+		{
+			reply.add_file( "results.txt", result );
+		}
+		else
+		{
+			reply.content = std::format( "```{}```", result );
+		}
+
+		co_await event.co_follow_up( reply );
 	}
 
 	namespace
@@ -250,7 +309,7 @@ namespace iter8
 	dpp::task< void > DevCog::OnDownloadAutocomplete( dpp::autocomplete_t const& e, dpp::command_option const& opt )
 	{
 		auto response = dpp::interaction_response( dpp::ir_autocomplete_reply );
-		if (not Users::IsTrusted(e.command.usr.id))
+		if ( not Users::IsTrusted( e.command.usr.id ) )
 		{
 			response.autocomplete_choices = { { "BAD BAD STOP IT", "" } };
 			co_await ctx_.bot.co_interaction_response_create( e.command.id, e.command.token, response );

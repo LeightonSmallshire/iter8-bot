@@ -171,6 +171,49 @@ namespace iter8
 		}
 		co_return;
 	}
+
+	namespace detail
+	{
+		template < typename T >
+		T const& MinImpl( T const& v )
+		{
+			return v;
+		}
+
+		template < typename T, typename... Ts >
+		T const& MinImpl( T const& v, Ts const&... vs )
+		{
+			T const m = MinImpl( vs... );
+			return v < m ? v : m;
+		}
+
+		template < typename T >
+		T const& MaxImpl( T const& v )
+		{
+			return v;
+		}
+
+		template < typename T, typename... Ts >
+		T const& MaxImpl( T const& v, Ts const&... vs )
+		{
+			T const m = MaxImpl( vs... );
+			return v > m ? v : m;
+		}
+	} // namespace detail
+
+	template < typename T, typename... Ts >
+		requires( std::convertible_to< T, Ts > and ... )
+	T const& Min( T const& v, Ts const&... vs )
+	{
+		return detail::MinImpl( v, vs... );
+	}
+
+	template < typename T, typename... Ts >
+		requires( std::convertible_to< T, Ts > and ... )
+	T const& Max( T const& v, Ts const&... vs )
+	{
+		return detail::MaxImpl( v, vs... );
+	}
 } // namespace iter8
 
 namespace std
