@@ -5,20 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Go — Single-file local game</title>
   <style>
-    :root{--bg:#f7ecd6;--line:#333;--board-padding:20px}
-    html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial;background:var(--bg);color:#222}
-    .container{display:flex;gap:16px;padding:16px}
-    .left{flex:1;display:flex;flex-direction:column;align-items:center}
-    canvas{background:linear-gradient(#f6d79a,#e8b86b);box-shadow:0 6px 18px rgba(0,0,0,0.12);border-radius:6px}
-    .controls{display:flex;flex-direction:column;gap:8px;width:320px}
-    .panel{background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+    :root{--bg:#2a2a2a;--line:#333;--board-padding:20px}
+    html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial;background:var(--bg);color:#e0e0e0}
+    .container{display:flex;gap:16px;padding:16px;align-items:stretch;box-sizing:border-box;height:calc(100% - 32px)}
+    .left{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+    canvas{background:linear-gradient(#8a8a8a,#9a8a7a);box-shadow:0 6px 18px rgba(0,0,0,0.4);border-radius:6px}
+    /* controls becomes a sidebar (aside) with adjustable width via the resizer */
+    .controls{display:flex;flex-direction:column;gap:8px;width:320px;min-width:220px;max-width:720px;overflow-y:auto;padding:8px 6px;box-sizing:border-box;flex-shrink:0}
+    .resizer{width:12px;cursor:col-resize;background:linear-gradient(90deg,rgba(255,255,255,0.03),rgba(255,255,255,0.06));border-left:1px solid rgba(255,255,255,0.04);border-right:1px solid rgba(0,0,0,0.12);box-shadow:inset 0 0 8px rgba(0,0,0,0.35);transition:background .08s}
+    .resizer:hover{background:linear-gradient(90deg,rgba(255,255,255,0.06),rgba(255,255,255,0.12))}
+    .panel{background:#333;padding:12px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:#e0e0e0}
     .row{display:flex;gap:8px;align-items:center}
-    button{cursor:pointer;padding:8px 10px;border-radius:6px;border:1px solid #ccc;background:#f9f9f9}
-    button.primary{background:#222;color:#fff;border-color:#111}
-    select,input[type=number]{padding:6px;border-radius:6px;border:1px solid #ccc}
-    .info{font-size:14px}
-    .small{font-size:12px;color:#555}
-    .footer{margin-top:12px;font-size:13px;color:#444}
+    button{cursor:pointer;padding:8px 10px;border-radius:6px;border:1px solid #555;background:#444;color:#e0e0e0}
+    button.primary{background:#0b5;color:#fff;border-color:#0a4}
+    select,input[type=number]{padding:6px;border-radius:6px;border:1px solid #555;background:#444;color:#e0e0e0}
+    .info{font-size:14px;color:#e0e0e0}
+    .small{font-size:12px;color:#aaa}
+    .footer{margin-top:12px;font-size:13px;color:#999}
     .legend{display:flex;gap:8px;align-items:center}
     .stonePreview{width:18px;height:18px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,0.2)}
     .black{background:#000}
@@ -34,10 +37,12 @@
       <div class="panel">
         <canvas id="board" width="760" height="760"></canvas>
       </div>
-      <div class="footer small">Click to place stones. Hold <strong>Shift</strong> to place on intersections precisely. Right-click to pass (or use the Pass button).</div>
+      <div class="footer small">Click to place stones. Right-click to pass (or use the Pass button).</div>
     </div>
 
-    <div class="controls">
+    <div id="resizer" class="resizer" title="Drag to resize" role="separator" aria-orientation="vertical"></div>
+
+    <aside class="controls" id="controls">
       <div class="panel">
         <div class="row" style="justify-content:space-between">
           <div>
@@ -64,6 +69,11 @@
       </div>
 
       <div class="panel">
+        <div class="small"><strong>Results</strong></div>
+        <div id="result" class="big" style="margin-top:8px">Game in progress</div>
+      </div>
+
+      <div class="panel">
         <div class="small"><strong>How to play</strong></div>
         <ul class="small muted">
           <li>Click an intersection to place a stone for the current player.</li>
@@ -75,12 +85,7 @@
         <div class="small"><strong>Shortcuts</strong></div>
         <div class="small muted">U: Undo · P: Pass · N: New game · S: Score</div>
       </div>
-
-      <div class="panel">
-        <div class="small"><strong>Results</strong></div>
-        <div id="result" class="big" style="margin-top:8px">Game in progress</div>
-      </div>
-    </div>
+    </aside>
   </div>
 
   <script>
@@ -325,7 +330,7 @@
             // only draw hoshi for standard sizes
             const x = margin + i*gridSize;
             const y = margin + j*gridSize;
-            ctx.beginPath(); ctx.arc(x,y,gridSize*0.08,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x,y,gridSize*0.2,0,Math.PI*2); ctx.fill();
           }
         }
 
@@ -336,7 +341,7 @@
             if(s===0) continue;
             const x = margin + c*gridSize;
             const y = margin + r*gridSize;
-            drawStone(x,y,gridSize*0.42, s===1? 'black':'white');
+            drawStone(x,y,gridSize*0.45, s===1? 'black':'white');
           }
         }
 
@@ -394,7 +399,8 @@
 
       // buttons
       newBtn.addEventListener('click', ()=>{
-        if(confirm('Start a new game? Current game will be lost.')) initBoard(parseInt(sizeSelect.value,10));
+        const size = parseInt(sizeSelect.value, 10);
+        initBoard(size);
       });
       undoBtn.addEventListener('click', ()=>undo());
       passBtn.addEventListener('click', ()=>applyMove(null));
@@ -413,7 +419,7 @@
       window.addEventListener('keydown',(e)=>{
         if(e.key==='u' || e.key==='U') undo();
         if(e.key==='p' || e.key==='P') applyMove(null);
-        if(e.key==='n' || e.key==='N') { if(confirm('Start a new game?')) initBoard(parseInt(sizeSelect.value,10)); }
+        if(e.key==='n' || e.key==='N') initBoard(parseInt(sizeSelect.value,10));
         if(e.key==='s' || e.key==='S') scoreBtn.click();
       });
 
@@ -438,6 +444,44 @@
       }
       window.addEventListener('resize', fitCanvas);
       setTimeout(fitCanvas,50);
+
+      // Resizable sidebar with pointer events
+      (function(){
+        const resizer = document.getElementById('resizer');
+        const controlsEl = document.getElementById('controls');
+        const container = resizer.parentElement;
+        let dragging = false;
+        const minW = 220;
+        const maxW = 720;
+
+        resizer.addEventListener('pointerdown', ()=>{
+          dragging = true;
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+          console.log('pointerdown - dragging started');
+        });
+
+        document.addEventListener('pointermove', (e)=>{
+          if(!dragging) return;
+          const containerRect = container.getBoundingClientRect();
+          const resizerRect = resizer.getBoundingClientRect();
+          // width from resizer right edge to container right edge
+          const newW = Math.min(maxW, Math.max(minW, containerRect.right - e.clientX));
+          controlsEl.style.width = newW + 'px';
+          console.log('pointermove - newW:', newW, 'clientX:', e.clientX);
+        });
+
+        function stopDrag(){
+          if(!dragging) return;
+          dragging = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          console.log('drag ended');
+        }
+
+        document.addEventListener('pointerup', stopDrag);
+        document.addEventListener('pointercancel', stopDrag);
+      })();
 
     })();
   </script>
