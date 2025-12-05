@@ -420,9 +420,9 @@ async def get_shop_credit(user_id: int) -> float:
         gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
         gifts_received  = await db.select(Gift, where=[WhereParam("receiver", user.id)])
 
-        stock_unfulfilled = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
-        stock_fulfilled_long = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
-        stock_fulfilled_short = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
+        # stock_unfulfilled = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS")])
+        # stock_fulfilled_long = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", False)])
+        # stock_fulfilled_short = await db.select(Trade, where=[WhereParam("user_id", user.id), WhereParam("sold_at", None, "IS NOT"), WhereParam("short", True)])
 
         credit = user.duration
 
@@ -434,9 +434,9 @@ async def get_shop_credit(user_id: int) -> float:
         credit -= sum([g.amount for g in gifts_sent])
         credit += sum([g.amount for g in gifts_received])
 
-        credit -= sum([s.bought_at * s.count for s in stock_unfulfilled])
-        credit += sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_long])
-        credit -= sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_short])
+        # credit -= sum([s.bought_at * s.count for s in stock_unfulfilled])
+        # credit += sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_long])
+        # credit -= sum([(s.sold_at - s.bought_at) * s.count for s in stock_fulfilled_short])
 
         return credit
 
