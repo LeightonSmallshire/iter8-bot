@@ -27,17 +27,15 @@ git --git-dir=$REPO_DIR/.git --work-tree=$REPO_DIR fetch --all
 git --git-dir=$REPO_DIR/.git --work-tree=$REPO_DIR reset --hard "origin/${BRANCH_NAME}"
 
 # ==========================
-# Verify dockerfile signature - bail on failure
+# 3. Verify manifest - bail on failure
 # ==========================
-echo "Verifying dockerfile signature"
-openssl pkeyutl -verify -pubin -inkey "./crypto/public.pem" -sigfile "$REPO_DIR/Dockerfile.sig" -in "$REPO_DIR/Dockerfile"
 
-echo "Verifying docker-compose signature"
-openssl pkeyutl -verify -pubin -inkey "./crypto/public.pem" -sigfile "$REPO_DIR/docker-compose.yml.sig" -in "$REPO_DIR/docker-compose.yml"
+echo "Verifying manifest"
+crypto/verify.sh
 
-# todo; single signature for hazmat files?
-
-echo "Accepted."
+# ==========================
+# 4. Rebuild and Restart
+# ==========================
 echo "Rebuilding..."
 
 docker compose \
@@ -51,30 +49,3 @@ docker compose \
   --remove-orphans \
   --force-recreate \
   -d
-
-## ==========================
-## 3. Docker build
-## ==========================
-#echo "Building Docker image: $TAG_NAME"
-#docker build -t "$TAG_NAME" -f "Dockerfile" .
-#
-## ==========================
-## 4. Remove old container (ignore errors)
-## ==========================
-#echo "Removing existing container (if any): $CONTAINER_NAME"
-#docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-#
-## ==========================
-## 5. Run new container
-## ==========================
-#echo "Starting container: $CONTAINER_NAME"
-#docker run -d \
-#    --name "$CONTAINER_NAME" \
-#    --restart unless-stopped \
-#    --read-only \
-#    --env-file "../.env" \
-#    -v "iter8-bot-data:/app/data" \
-#    --tmpfs "/home/nonroot/.cache:rw,noexec,size=256m,uid=0,gid=0,mode=1777" \
-#    "$TAG_NAME"
-#
-#echo "Done."

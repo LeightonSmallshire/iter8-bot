@@ -1,13 +1,25 @@
+name: autorun-iter8-bot
+
 services:
   iter8-bot-runner:
-    build: .
+    build: Python
     read_only: true
     restart: always
     env_file:
-      - ../.env
+      - ../.env # Actually in AutoDeploy... weird inside-out repo
     volumes:
       - iter8-bot-data:/app/data:rw
       - /home/nonroot/.cache # anonymous
+
+  bot-web-server:
+    build: Web
+    restart: always
+    read_only: true
+    expose:
+      - "80" # internal only
+    tmpfs:
+      - /var/cache/nginx
+      - /run
 
 volumes:
   iter8-bot-data:
@@ -18,13 +30,3 @@ networks:
   default:
     name: iter8-network
     external: true
-
-
-#  bot-web-server:
-#    image: alpine:3.17.3
-#    restart: always
-#    expose:
-#      - "80" # internal only
-#    volumes:
-#      - ./Web/static:/var/www/my_static_app:ro
-#      - ./Web/config/nginx.conf:/etc/nginx/nginx.conf:ro

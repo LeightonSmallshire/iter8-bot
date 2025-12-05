@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.primitives import serialization
 
 os.chdir(os.path.dirname(__file__))
+# openssl genpkey -algorithm Ed25519 -out private.pem -outpubkey public.pem -pass stdin
 
 public_key = serialization.load_pem_public_key(
     Path('public.pem').read_bytes())
