@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-#cd "$(dirname "$0")/../repo"
+cd "$(dirname "$0")/../repo"
 
 MANIFEST_FILE="manifest.txt"
 SIGNATURE_FILE="manifest.sig"
-KEY_FILE="$(dirname "$0")/public.pem"
+KEY_FILE="../crypto/public.pem"
 
 # 1. Generate Manifest
 # shellcheck disable=SC2094

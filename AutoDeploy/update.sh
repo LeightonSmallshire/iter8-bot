@@ -31,9 +31,7 @@ git --git-dir=$REPO_DIR/.git --work-tree=$REPO_DIR reset --hard "origin/${BRANCH
 # ==========================
 
 echo "Verifying manifest"
-pushd $REPO_DIR
-../crypto/verify.sh
-popd
+crypto/verify.sh
 
 # ==========================
 # 4. Rebuild and Restart

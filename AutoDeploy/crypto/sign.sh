@@ -35,4 +35,4 @@ openssl pkeyutl -sign \
 
 echo "Manifest signed"
 
-AutoDeploy/crypto/verify.sh
+#AutoDeploy/crypto/verify.sh
