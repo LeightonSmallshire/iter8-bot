@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x # debug
 
 # ==========================
 # Configuration Variables
 # ==========================
 REPO_URL="https://github.com/LeightonSmallshire/iter8-bot.git"
 REPO_DIR="./repo"
-BRANCH_NAME="${BRANCH_NAME:-main}"
-TAG_NAME="${TAG_NAME:-iter8-runner:latest}"
-DOCKERFILE="${DOCKERFILE:-Dockerfile}"
-CONTAINER_NAME="${CONTAINER_NAME:-iter8-runner}"
+BRANCH_NAME="main"
 
 # ==========================
 # 1. Clone repo if missing
@@ -31,7 +29,9 @@ git --git-dir=$REPO_DIR/.git --work-tree=$REPO_DIR reset --hard "origin/${BRANCH
 # ==========================
 
 echo "Verifying manifest"
-crypto/verify.sh
+pushd "${REPO_DIR}"
+../crypto/verify.sh
+popd
 
 # ==========================
 # 4. Rebuild and Restart
@@ -40,7 +40,6 @@ echo "Rebuilding..."
 
 docker compose \
   -f $REPO_DIR/docker-compose.yml \
-  -p autorun-iter8-bot \
   --env-file ./.env \
   up \
   --build \
