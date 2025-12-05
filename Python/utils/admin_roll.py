@@ -1,12 +1,13 @@
 from .database import *
-from .shop import AdminTicketItem
+from .shop import AdminRerollItem, AdminTicketItem
+
 
 async def get_extra_admin_rolls(consume: bool) -> list[int]:
     async with Database(DATABASE_NAME) as db:
         bonus_tickets = await db.select(Purchase, where=[WhereParam("item_id", AdminTicketItem.ITEM_ID), WhereParam("used", False)])
 
         if consume:
-            await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
+            await db.update(Purchase(None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
 
         return [t.user_id for t in bonus_tickets if not t.used]
     
@@ -18,7 +19,7 @@ async def get_last_admin_roll() -> Optional[Timestamps]:
     
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
-        timestamps = db.select(Timestamps)
+        timestamps = await db.select(Timestamps)
         timestamps.last_roll = datetime.datetime.now()
         await db.insert_or_update(timestamps)
     
