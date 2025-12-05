@@ -15,10 +15,12 @@ async def get_last_admin_roll() -> Optional[Timestamps]:
     async with Database(DATABASE_NAME) as db:
         return await db.select(Timestamps)
     
+    
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
-        roll_info = Timestamps(datetime.datetime.now())
-        await db.insert_or_update(roll_info)
+        timestamps = db.select(Timestamps)
+        timestamps.last_roll = datetime.datetime.now()
+        await db.insert_or_update(timestamps)
     
     
 async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
@@ -31,3 +33,4 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
         await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
 
         return True, None
+    
