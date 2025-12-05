@@ -8,7 +8,7 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
         if consume:
             await db.update(Purchase(None, None, None, None, True), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
 
-        return [t.user_id for t in bonus_tickets]
+        return [t.user_id for t in bonus_tickets if not t.used]
     
 
 async def get_last_admin_roll() -> Optional[Timestamps]:
