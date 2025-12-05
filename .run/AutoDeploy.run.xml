@@ -5,6 +5,7 @@
         <option name="commandLineOptions" value="--build" />
         <option name="sourceFilePath" value="AutoDeploy/docker-compose.yml" />
         <option name="upAlwaysRecreate" value="true" />
+        <option name="upDetach" value="false" />
         <option name="upForceRecreate" value="true" />
         <option name="upRemoveOrphans" value="true" />
         <option name="upRenewAnonVolumes" value="true" />
