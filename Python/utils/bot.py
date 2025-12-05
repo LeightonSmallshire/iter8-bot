@@ -124,7 +124,7 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
     ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
     role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)
-    prev_user = role.members[0] if role.members else None
+    prev_users = role.members if role.members else []
 
     list_embed = discord.Embed(title=embed_title, color=discord.Color.yellow())
     for idx, user_id in enumerate(roll_table, 1):
@@ -160,7 +160,7 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
     choice = roll_table[index]
     new_user = await interaction.guild.fetch_member(choice)
 
-    if prev_user is not None:
+    for prev_user in prev_users:
         await prev_user.remove_roles(role)
 
     await new_user.add_roles(role)
