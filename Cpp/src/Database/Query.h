@@ -104,6 +104,10 @@ namespace iter8::db
 			{
 				return SqlValue{ static_cast< std::int64_t >( field ) };
 			}
+			else if constexpr ( is_foreign_key_v< T > )
+			{
+				return SqlValue{ static_cast< std::int64_t >( field.value ) };
+			}
 			else if constexpr ( std::is_floating_point_v< T > )
 			{
 				return SqlValue{ static_cast< double >( field ) };

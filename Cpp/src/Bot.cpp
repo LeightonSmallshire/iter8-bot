@@ -3,9 +3,13 @@
 #include "Cogs/BotBrokenCog.h"
 #include "Cogs/DevCog.h"
 #include "Cogs/TimeoutCog.h"
+#include "Cogs/ShopCog.h"
 
 #include "Model/User.h"
 #include "Model/Log.h"
+#include "Model/ShopItem.h"
+#include "Model/Purchase.h"
+#include "Model/InventoryItem.h"
 
 #include "Logging/Log.h"
 
@@ -36,6 +40,9 @@ namespace iter8
 	{
 		ctx_.db.Init< User >( /*truncate=*/true );
 		ctx_.db.Init< Log >( /*truncate=*/true );
+		ctx_.db.Init< ShopItem >( /*truncate=*/false );
+		ctx_.db.Init< Purchase >( /*truncate=*/false );
+		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
 	}
 
 	void DiscordBot::InitLog()

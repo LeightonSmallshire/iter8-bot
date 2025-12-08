@@ -697,6 +697,10 @@ namespace iter8::db
 			{
 				field = static_cast< T >( sqlite3_column_int64( stmt, index ) );
 			}
+			else if constexpr ( detail::is_foreign_key_v< T > )
+			{
+				field.value = static_cast< ID >( sqlite3_column_int64( stmt, index ) );
+			}
 			else if constexpr ( std::is_enum_v< U > )
 			{
 				char const* txt = reinterpret_cast< char const* >( sqlite3_column_text( stmt, index ) );
@@ -745,6 +749,10 @@ namespace iter8::db
 				if ( field == ID::Zero )
 					return;
 				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field ) );
+			}
+			else if constexpr ( detail::is_foreign_key_v< T > )
+			{
+				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field.value ) );
 			}
 			else if constexpr ( std::is_same_v< T, bool > || std::is_integral_v< T > )
 			{

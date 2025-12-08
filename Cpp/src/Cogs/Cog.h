@@ -40,7 +40,7 @@ namespace iter8
 				cmd.add_option( arg );
 			}
 
-			ctx_.bot.global_command_create( cmd );
+			ctx_.bot.guild_command_create( cmd, Guilds::Default );
 
 			ctx_.bot.register_command( command.name, std::move( handler ) );
 		}

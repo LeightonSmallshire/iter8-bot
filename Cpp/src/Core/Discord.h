@@ -127,6 +127,25 @@ namespace iter8
 		return std::nullopt;
 	}
 
+	inline dpp::task< dpp::guild > GetGuild( dpp::cluster& bot, dpp::snowflake id )
+	{
+		if ( auto guild = dpp::find_guild( id ) )
+			co_return *guild;
+
+		auto result = co_await bot.co_guild_get( id );
+		co_return std::get< dpp::guild >( result.value );
+	}
+
+	inline dpp::task< dpp::role > GetRole( dpp::cluster& bot, dpp::snowflake guild_id, dpp::snowflake role_id )
+	{
+		if ( auto role = dpp::find_role( role_id ) )
+			co_return *role;
+
+		auto result = co_await bot.co_roles_get( guild_id );
+		auto roles = std::get< dpp::role_map >( result.value );
+		co_return roles.at( role_id );
+	}
+
 	inline dpp::task< dpp::guild_member > GetMember( dpp::cluster& bot, dpp::snowflake id )
 	{
 		if ( auto member = detail::FindGuildMember( Guilds::Default, id ) )
