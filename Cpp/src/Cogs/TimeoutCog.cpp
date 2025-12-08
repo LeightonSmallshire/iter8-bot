@@ -55,7 +55,7 @@ namespace iter8
 		co_await event.co_follow_up( msg );
 	}
 
-	dpp::task< std::optional< TimeoutInfo > > FindModerator( dpp::cluster& bot, dpp::snowflake target )
+	dpp::task< std::optional< TimeoutInfo > > FindTimeoutInfo( dpp::cluster& bot, dpp::snowflake target )
 	{
 		dpp::snowflake before{};
 
@@ -120,7 +120,7 @@ namespace iter8
 
 		log::Info( "Timeout in {} : {} : until {}", event.updating_guild.name, event.updated.get_nickname(), after.value_or( {} ) );
 
-		auto update_info = co_await FindModerator( ctx_.bot, event.updated.user_id );
+		auto update_info = co_await FindTimeoutInfo( ctx_.bot, event.updated.user_id );
 
 		bool do_update = update_info and ( update_info->moderator != event.updating_guild.owner_id or timeout_removed );
 		if ( not do_update )
