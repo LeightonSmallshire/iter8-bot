@@ -9,7 +9,7 @@ namespace iter8
 	struct Log
 	{
 		db::ID id{};
-		spdlog::log_clock::time_point timestamp{};
+		TimePoint timestamp{};
 		spdlog::level::level_enum level;
 		std::string message;
 	};

@@ -250,11 +250,29 @@ namespace iter8::db
 
 
 	public:
+		std::string ExecRaw( std::string_view sql )
+		{
+			std::vector< std::vector< std::string > > result;
+
+			Statement stmt = Prepare( sql );
+
+			int row_count = 0;
+			while ( Step( stmt ) )
+			{
+				result.push_back( ReadRowAsString( stmt ) );
+			}
+
+			if ( result.empty() )
+				return {};
+
+			return FormatTable( stmt, result );
+		}
+
 		template < typename T >
 		void Init( bool truncate )
 		{
 			if ( truncate )
-				Exec( std::format( "DROP TABLE {}", DbModelTraits< T >::TableName ) );
+				Exec( std::format( "DROP TABLE IF EXISTS {}", DbModelTraits< T >::TableName ) );
 
 			auto sql = BuildCreateTableSql< T >();
 			Exec( sql );
@@ -308,7 +326,7 @@ namespace iter8::db
 
 			oss << ';';
 
-			Statement stmt = Prepare( oss.str() );
+			Statement stmt = Prepare( oss.view() );
 
 			int param_index = 1;
 			for ( auto const& w : where )
@@ -317,6 +335,71 @@ namespace iter8::db
 			}
 
 			return DbCursor< T >{ this, std::move( stmt ) };
+		}
+
+		template < typename T >
+		std::optional< T > SelectOne( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		{
+			using Traits = DbModelTraits< T >;
+			constexpr auto& names = Traits::ColumnNames;
+
+			std::ostringstream oss;
+			oss << "SELECT ";
+
+			for ( std::size_t i = 0; i < names.size(); ++i )
+			{
+				if ( i > 0 )
+					oss << ", ";
+				oss << detail::ToSnakeCase( names[ i ] );
+			}
+
+			oss << " FROM " << Traits::TableName;
+
+			if ( !where.empty() )
+			{
+				oss << " WHERE ";
+				for ( std::size_t i = 0; i < where.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << " AND ";
+
+					auto const& w = where[ i ];
+					oss << detail::ToSnakeCase( names[ static_cast< std::size_t >( w.column_index ) ] )
+						<< ' ' << ToSqlOp( w.cmp ) << " ?";
+				}
+			}
+
+			if ( !order_by.empty() )
+			{
+				oss << " ORDER BY ";
+				for ( std::size_t i = 0; i < order_by.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << ", ";
+
+					auto const& o = order_by[ i ];
+					oss << detail::ToSnakeCase( names[ static_cast< std::size_t >( o.column_index ) ] )
+						<< ( o.dir == Ordering::Desc ? " DESC" : " ASC" );
+				}
+			}
+
+			oss << ';';
+
+			Statement stmt = Prepare( oss.view() );
+
+			int param_index = 1;
+			for ( auto const& w : where )
+			{
+				BindSqlValue( stmt, param_index++, w.value );
+			}
+
+			if ( not Step( stmt ) )
+				return {};
+
+			std::optional< T > result;
+			ReadRowInto( stmt, result );
+
+			return *result;
 		}
 
 		template < typename T >
@@ -353,12 +436,12 @@ namespace iter8::db
 
 			oss << ';';
 
-			Statement stmt = Prepare( oss.str() );
+			Statement stmt = Prepare( oss.view() );
 
 			// Bind all fields from 'data' first.
 			int param_index = 1;
 			boost::pfr::for_each_field( data, [ & ]( auto const& field ) {
-				BindOne( stmt, param_index++, field );
+				BindOne( stmt, param_index, field );
 			} );
 
 			// Then WHERE values.
@@ -394,7 +477,7 @@ namespace iter8::db
 
 			oss << ';';
 
-			Statement stmt = Prepare( oss.str() );
+			Statement stmt = Prepare( oss.view() );
 
 			int param_index = 1;
 			for ( auto const& w : where )
@@ -405,12 +488,9 @@ namespace iter8::db
 			StepOnce( stmt );
 		}
 
-
-		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< std::remove_cvref_t< range_t > > >
-			requires std::same_as<
-				std::ranges::range_value_t< std::remove_cvref_t< range_t > >,
-				std::remove_cvref_t< T > >
-		void Insert( range_t&& data )
+		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< range_t > >
+			requires DbModel< std::remove_cvref_t< T > >
+		void InsertRange( range_t&& data )
 		{
 			if ( data.empty() )
 				return;
@@ -441,7 +521,7 @@ namespace iter8::db
 
 			oss << ");";
 
-			Statement stmt = Prepare( oss.str() );
+			Statement stmt = Prepare( oss.view() );
 
 			for ( auto&& elem : data )
 			{
@@ -452,6 +532,13 @@ namespace iter8::db
 
 				StepOnce( stmt );
 			}
+		}
+
+		template < DbModel... Ts >
+			requires( sizeof...( Ts ) > 0 ) && AllSame< Ts... >
+		void Insert( Ts const&... ts )
+		{
+			InsertRange( std::array{ ts... } );
 		}
 
 	private:
@@ -470,13 +557,13 @@ namespace iter8::db
 			}
 		}
 
-		Statement Prepare( std::string const& sql )
+		Statement Prepare( std::string_view sql )
 		{
 			sqlite3_stmt* stmt = nullptr;
 
 			int rc = sqlite3_prepare_v3(
 				db_,
-				sql.c_str(),
+				sql.data(),
 				-1,
 				SQLITE_PREPARE_PERSISTENT,
 				&stmt,
@@ -563,6 +650,38 @@ namespace iter8::db
 			boost::pfr::for_each_field( data, [ & ]( auto& field ) {
 				ReadOne( stmt, col++, field );
 			} );
+		}
+
+		std::vector< std::string > ReadRowAsString( Statement& stmt )
+		{
+			std::vector< std::string > row;
+
+			int n = sqlite3_column_count( stmt.handle );
+
+			for ( int i = 0; i < n; i++ )
+			{
+				unsigned char const* txt = sqlite3_column_text( stmt.handle, i );
+				if ( txt )
+				{
+					row.emplace_back( reinterpret_cast< char const* >( txt ) );
+				}
+				else
+				{
+					void const* data = sqlite3_column_blob( stmt.handle, i );
+					if ( data )
+					{
+						int size = sqlite3_column_bytes( stmt.handle, i );
+						auto str = std::string_view{ reinterpret_cast< char const* >( data ), static_cast< std::size_t >( size ) };
+						row.emplace_back( str );
+					}
+					else
+					{
+						row.emplace_back( "NULL" );
+					}
+				}
+			}
+
+			return row;
 		}
 
 		template < typename U >
@@ -772,6 +891,79 @@ namespace iter8::db
 			{
 				throw SqliteError( sqlite3_errmsg( db_ ) );
 			}
+		}
+
+		std::string FormatTable( Statement& stmt, std::vector< std::vector< std::string > > const& rows )
+		{
+			auto headings = std::vector< std::string >{};
+
+			int n = sqlite3_column_count( stmt.handle );
+			for ( int i = 0; i < n; ++i )
+			{
+				char const* name = sqlite3_column_name( stmt.handle, i );
+				headings.emplace_back( name );
+			}
+
+			std::vector< std::size_t > widths( n, 0 );
+			for ( auto const& row : rows )
+			{
+				for ( std::size_t c = 0; c < row.size(); ++c )
+				{
+					widths[ c ] = Max( widths[ c ], headings[ c ].size(), row[ c ].size() );
+				}
+			}
+
+			std::ostringstream out;
+
+			for ( std::size_t c = 0; c < n; ++c )
+			{
+				auto const& heading = headings[ c ];
+				out << headings[ c ];
+
+				if ( heading.size() < widths[ c ] )
+				{
+					out << std::string( widths[ c ] - heading.size(), ' ' );
+				}
+
+				if ( c + 1 < n )
+				{
+					out << " | ";
+				}
+			}
+
+			out << '\n';
+
+			for ( std::size_t c = 0; c < n; ++c )
+			{
+				auto extra = c == 0 ? 1 : 2;
+				out << std::string( widths[ c ] + extra, '-' );
+				if ( c + 1 < n )
+					out << '+';
+			}
+
+			out << '\n';
+
+			for ( auto const& row : rows )
+			{
+				for ( std::size_t c = 0; c < n; ++c )
+				{
+					auto const& value = row[ c ];
+					out << value;
+
+					if ( value.size() < widths[ c ] )
+					{
+						out << std::string( widths[ c ] - value.size(), ' ' );
+					}
+
+					if ( c + 1 < n )
+					{
+						out << " | ";
+					}
+				}
+				out << '\n';
+			}
+
+			return out.str();
 		}
 
 	private:
