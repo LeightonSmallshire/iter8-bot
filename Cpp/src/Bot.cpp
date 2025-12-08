@@ -2,6 +2,7 @@
 
 #include "Cogs/BotBrokenCog.h"
 #include "Cogs/DevCog.h"
+#include "Cogs/TimeoutCog.h"
 
 #include "Model/User.h"
 #include "Model/Log.h"
@@ -46,6 +47,8 @@ namespace iter8
 	{
 		RegisterCog< BotBrokenCog >();
 		RegisterCog< DevCog >();
+		RegisterCog< TimeoutCog >();
+		RegisterCog< ShopCog >();
 
 		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 		ctx_.bot.on_autocomplete( std::bind_front( &DiscordBot::OnAutocomplete, this ) );
@@ -104,7 +107,7 @@ namespace iter8
 		}
 	}
 
-	static double ParseAuditTimestamp( std::string_view s )
+	static TimePoint ParseAuditTimestamp( std::string_view s )
 	{
 		if ( s.size() >= 2 && s.front() == '"' && s.back() == '"' )
 		{
@@ -123,15 +126,15 @@ namespace iter8
 		if ( iss.fail() )
 			throw std::runtime_error( "Failed to parse audit timestamp." );
 
-		auto since_epoch = tp.time_since_epoch();
-		auto secs = std::chrono::duration_cast< std::chrono::duration< double > >( since_epoch );
-		return secs.count();
+		return tp;
 	}
 
 	dpp::task< void > DiscordBot::CalculateUserCredit()
 	{
 		auto constexpr AuditLogUpdateType = "communication_disabled_until";
 		auto const page_size = 100;
+
+		ctx_.timeouts = Users::All | std::views::transform( []( auto id ) { return std::make_pair( id, std::optional< TimePoint >{} ); } ) | std::ranges::to< std::map >();
 
 		auto leaderboard = Users::All | std::views::transform( []( auto id ) { return std::make_pair( id, User{ db::ToId( id ), 0, 0, 0 } ); } ) | std::ranges::to< std::map >();
 		dpp::snowflake before{};
@@ -172,23 +175,31 @@ namespace iter8
 					{
 						auto end = ParseAuditTimestamp( change.new_value );
 						record.count += 1;
-						record.duration += end - created_at;
-						record.credit += end - created_at;
+						record.duration += TimePointToDouble( end ) - created_at;
+						record.credit += TimePointToDouble( end ) - created_at;
+
+						ctx_.timeouts[ entry.target_id ] = end;
 					}
 
 					if ( timeout_changed )
 					{
 						auto end = ParseAuditTimestamp( change.new_value );
 						auto prev_end = ParseAuditTimestamp( change.old_value );
-						record.duration += end - prev_end;
-						record.credit += end - prev_end;
+						auto change = DurationToDouble( end - prev_end );
+
+						record.duration += change;
+						record.credit += change;
+
+						ctx_.timeouts[ entry.target_id ] = end;
 					}
 
 					if ( timeout_removed )
 					{
 						auto prev_end = ParseAuditTimestamp( change.old_value );
-						record.duration = created_at - prev_end;
-						record.credit = created_at - prev_end;
+						record.duration = created_at - TimePointToDouble( prev_end );
+						record.credit = created_at - TimePointToDouble( prev_end );
+
+						ctx_.timeouts[ entry.target_id ] = {};
 					}
 				}
 			}
@@ -199,7 +210,7 @@ namespace iter8
 			before = log.entries.back().id;
 		}
 
-		ctx_.db.Insert( leaderboard | std::views::values );
+		ctx_.db.InsertRange( leaderboard | std::views::values );
 	}
 
 } // namespace iter8

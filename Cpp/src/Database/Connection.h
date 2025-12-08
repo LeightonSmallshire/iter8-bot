@@ -272,7 +272,7 @@ namespace iter8::db
 		void Init( bool truncate )
 		{
 			if ( truncate )
-				Exec( std::format( "DROP TABLE {}", DbModelTraits< T >::TableName ) );
+				Exec( std::format( "DROP TABLE IF EXISTS {}", DbModelTraits< T >::TableName ) );
 
 			auto sql = BuildCreateTableSql< T >();
 			Exec( sql );
@@ -338,6 +338,71 @@ namespace iter8::db
 		}
 
 		template < typename T >
+		std::optional< T > SelectOne( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		{
+			using Traits = DbModelTraits< T >;
+			constexpr auto& names = Traits::ColumnNames;
+
+			std::ostringstream oss;
+			oss << "SELECT ";
+
+			for ( std::size_t i = 0; i < names.size(); ++i )
+			{
+				if ( i > 0 )
+					oss << ", ";
+				oss << detail::ToSnakeCase( names[ i ] );
+			}
+
+			oss << " FROM " << Traits::TableName;
+
+			if ( !where.empty() )
+			{
+				oss << " WHERE ";
+				for ( std::size_t i = 0; i < where.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << " AND ";
+
+					auto const& w = where[ i ];
+					oss << detail::ToSnakeCase( names[ static_cast< std::size_t >( w.column_index ) ] )
+						<< ' ' << ToSqlOp( w.cmp ) << " ?";
+				}
+			}
+
+			if ( !order_by.empty() )
+			{
+				oss << " ORDER BY ";
+				for ( std::size_t i = 0; i < order_by.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << ", ";
+
+					auto const& o = order_by[ i ];
+					oss << detail::ToSnakeCase( names[ static_cast< std::size_t >( o.column_index ) ] )
+						<< ( o.dir == Ordering::Desc ? " DESC" : " ASC" );
+				}
+			}
+
+			oss << ';';
+
+			Statement stmt = Prepare( oss.view() );
+
+			int param_index = 1;
+			for ( auto const& w : where )
+			{
+				BindSqlValue( stmt, param_index++, w.value );
+			}
+
+			if ( not Step( stmt ) )
+				return {};
+
+			std::optional< T > result;
+			ReadRowInto( stmt, result );
+
+			return *result;
+		}
+
+		template < typename T >
 		void Update( T const& data, WhereClause< T > const& where = {} )
 		{
 			using Traits = DbModelTraits< T >;
@@ -376,7 +441,7 @@ namespace iter8::db
 			// Bind all fields from 'data' first.
 			int param_index = 1;
 			boost::pfr::for_each_field( data, [ & ]( auto const& field ) {
-				BindOne( stmt, param_index++, field );
+				BindOne( stmt, param_index, field );
 			} );
 
 			// Then WHERE values.
@@ -423,12 +488,9 @@ namespace iter8::db
 			StepOnce( stmt );
 		}
 
-
-		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< std::remove_cvref_t< range_t > > >
-			requires std::same_as<
-				std::ranges::range_value_t< std::remove_cvref_t< range_t > >,
-				std::remove_cvref_t< T > >
-		void Insert( range_t&& data )
+		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< range_t > >
+			requires DbModel< std::remove_cvref_t< T > >
+		void InsertRange( range_t&& data )
 		{
 			if ( data.empty() )
 				return;
@@ -470,6 +532,13 @@ namespace iter8::db
 
 				StepOnce( stmt );
 			}
+		}
+
+		template < DbModel... Ts >
+			requires( sizeof...( Ts ) > 0 ) && AllSame< Ts... >
+		void Insert( Ts const&... ts )
+		{
+			InsertRange( std::array{ ts... } );
 		}
 
 	private:
@@ -824,7 +893,7 @@ namespace iter8::db
 			}
 		}
 
-		std::string FormatTable( Statement& stmt, std::vector< std::vector< std::string > > const& rows)
+		std::string FormatTable( Statement& stmt, std::vector< std::vector< std::string > > const& rows )
 		{
 			auto headings = std::vector< std::string >{};
 
@@ -840,7 +909,7 @@ namespace iter8::db
 			{
 				for ( std::size_t c = 0; c < row.size(); ++c )
 				{
-					widths[ c ] = Max( widths[ c ], headings[c].size(), row[ c ].size() );
+					widths[ c ] = Max( widths[ c ], headings[ c ].size(), row[ c ].size() );
 				}
 			}
 
@@ -864,7 +933,7 @@ namespace iter8::db
 
 			out << '\n';
 
-			for (std::size_t c = 0; c < n; ++c)
+			for ( std::size_t c = 0; c < n; ++c )
 			{
 				auto extra = c == 0 ? 1 : 2;
 				out << std::string( widths[ c ] + extra, '-' );

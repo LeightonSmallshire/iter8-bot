@@ -30,8 +30,8 @@ namespace iter8
 		log::Info( "Broken command from {}", event.command.get_issuing_user().username );
 
 		auto const& channels = event.command.get_guild().channels;
-		auto it = std::ranges::find( channels, Channels::ParadiseBotBrokenSpam );
-		auto channel = it != channels.end() ? Channels::ParadiseBotBrokenSpam : event.command.get_channel().id;
+		auto it = std::ranges::find( channels, Channels::BotBrokenSpam );
+		auto channel = it != channels.end() ? Channels::BotBrokenSpam : event.command.get_channel().id;
 
 		auto message = dpp::message( channel, std::format( "<@{}> bot broken", target.str() ) );
 
@@ -48,8 +48,8 @@ namespace iter8
 		log::Info( "Working command from {}", event.command.get_issuing_user().username );
 
 		auto const& channels = event.command.get_guild().channels;
-		auto it = std::ranges::find( channels, Channels::ParadiseBotBrokenSpam );
-		auto channel = it != channels.end() ? Channels::ParadiseBotBrokenSpam : event.command.get_channel().id;
+		auto it = std::ranges::find( channels, Channels::BotBrokenSpam );
+		auto channel = it != channels.end() ? Channels::BotBrokenSpam : event.command.get_channel().id;
 
 		auto message = dpp::message( channel, std::format( "<@{}> bot working", target.str() ) );
 

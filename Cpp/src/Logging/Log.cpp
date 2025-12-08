@@ -31,7 +31,7 @@ namespace iter8::log
 
 		void flush_() override
 		{
-			db_.Insert( logs_ );
+			db_.InsertRange( logs_ );
 			logs_.clear();
 		}
 
