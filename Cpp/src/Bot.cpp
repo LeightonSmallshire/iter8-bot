@@ -11,6 +11,8 @@
 #include "Model/Purchase.h"
 #include "Model/InventoryItem.h"
 
+#include "Shop/Item.h"
+
 #include "Logging/Log.h"
 
 #include <generator>
@@ -43,8 +45,6 @@ namespace iter8
 		ctx_.db.Init< ShopItem >( /*truncate=*/true );
 		ctx_.db.Init< Purchase >( /*truncate=*/false );
 		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
-
-		ctx_.db.InsertRange( ReadItemsJson() );
 	}
 
 	void DiscordBot::InitLog()
@@ -62,6 +62,12 @@ namespace iter8
 		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 		ctx_.bot.on_autocomplete( std::bind_front( &DiscordBot::OnAutocomplete, this ) );
 		ctx_.bot.on_log( std::bind_front( &DiscordBot::OnLog, this ) );
+	}
+
+	void DiscordBot::InitShop()
+	{
+		ctx_.db.InsertRange( ReadItemsJson() );
+		shop::Handler::Init( ctx_.db );
 	}
 
 	dpp::task< void > DiscordBot::OnReady( dpp::ready_t const& e )

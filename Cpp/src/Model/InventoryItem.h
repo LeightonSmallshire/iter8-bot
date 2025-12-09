@@ -9,9 +9,9 @@ namespace iter8
 {
 	struct InventoryItem
 	{
-		db::ID id;
+		db::ID id{};
 		db::ForeignKey< User > user_id;
 		db::ForeignKey< ShopItem > item_id;
-		bool used;
+		bool used{};
 	};
 } // namespace iter8

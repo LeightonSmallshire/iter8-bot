@@ -57,13 +57,7 @@ namespace iter8
 	{
 		co_await event.co_thinking( true );
 
-		auto guild = co_await GetGuild( ctx_.bot, event.command.guild_id );
-
-		auto member_filter = []( dpp::guild_member const& member ) {
-			auto user = member.get_user();
-			return not member.is_guild_owner() and user and not user->is_bot();
-		};
-		auto members = guild.members | std::views::values | std::views::filter( member_filter );
+		auto members = co_await GetNonBotMembers( ctx_.bot, event.command.guild_id );
 		auto credit = members | std::views::transform( [ & ]( auto const& mem ) { return shop::GetCredit( ctx_.db, mem.user_id ); } );
 
 		auto entries = std::views::zip( members, credit ) | std::ranges::to< std::vector >();

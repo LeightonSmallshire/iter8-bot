@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Database/Model.h"
+#include "Database/Connection.h"
 
 #include "dpp/dpp.h"
 
@@ -24,16 +24,27 @@ namespace iter8::shop
 		BlackFridaySale = 13
 	};
 
-	class ItemHandler
+	class Handler
 	{
 	public:
-		virtual ~ItemHandler() = default;
+		Handler( db::Connection& db )
+			: db_{ db }
+		{}
+
+		virtual ~Handler() = default;
 		virtual dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) = 0;
 		virtual std::vector< dpp::component > GetInputHandlers()
 		{
 			return {};
 		}
-	};
 
-	std::shared_ptr< ItemHandler > GetShopHandler( db::ID item_id );
+		static void Init( db::Connection& db );
+		static std::shared_ptr< Handler > Get( db::ID item_id );
+
+	protected:
+		db::Connection& db_;
+
+	private:
+		inline static std::map< ItemId, std::shared_ptr< Handler > > s_ItemHandlers{};
+	};
 }

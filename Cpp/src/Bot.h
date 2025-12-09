@@ -21,9 +21,11 @@ namespace iter8
 
 	private:
 		void Init();
+
 		void InitDB();
 		void InitLog();
 		void InitBot();
+		void InitShop();
 
 		dpp::task< void > OnReady( dpp::ready_t const& e );
 		dpp::task< void > OnAutocomplete( dpp::autocomplete_t const& e );

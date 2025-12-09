@@ -29,16 +29,6 @@ namespace iter8::db
 
 	namespace detail
 	{
-		struct ForeignKeyImpl
-		{
-			ID value;
-
-			operator db::ID() const
-			{
-				return value;
-			}
-		};
-
 		template < typename T, typename Target, std::size_t... Is >
 		consteval bool HasFieldOfTypeImpl( std::index_sequence< Is... > )
 		{
@@ -107,9 +97,13 @@ namespace iter8::db
 		DbModelTraits< T >::ColumnNames;
 	};
 
-	template < DbModel T >
-	struct ForeignKey : detail::ForeignKeyImpl
+	template < DbModel T, auto Field = &T::id >
+	struct ForeignKey
 	{
+		using value_type = std::remove_cvref_t< decltype( std::declval< T >().*Field ) >;
+		value_type value{};
+
+		static constexpr auto field = Field;
 	};
 
 	namespace detail
@@ -118,8 +112,8 @@ namespace iter8::db
 		struct is_foreign_key : std::false_type
 		{};
 
-		template < DbModel T >
-		struct is_foreign_key< ForeignKey< T > > : std::true_type
+		template < DbModel T, auto Field >
+		struct is_foreign_key< ForeignKey< T, Field > > : std::true_type
 		{};
 
 		template < typename T >
@@ -128,14 +122,12 @@ namespace iter8::db
 		template < typename T >
 		struct foreign_key_target;
 
-		template < DbModel T >
-		struct foreign_key_target< ForeignKey< T > >
+		template < DbModel T, auto Field >
+		struct foreign_key_target< ForeignKey< T, Field > >
 		{
-			using type = T;
+			using model_type = T;
+			using value_type = typename ForeignKey< T, Field >::value_type;
 		};
-
-		template < typename T >
-		using foreign_key_target_t = typename foreign_key_target< T >::type;
 
 		template < typename T >
 		struct is_time_point : std::false_type
@@ -240,7 +232,7 @@ namespace iter8::db
 					  }
 					  if constexpr ( detail::is_foreign_key_v< Field > )
 					  {
-						  using Target = detail::foreign_key_target_t< Field >;
+						  using Target = typename detail::foreign_key_target< Field >::model_type;
 						  oss << " REFERENCES " << DbModelTraits< Target >::TableName << "(id)";
 					  }
 					  if constexpr ( !is_opt )
