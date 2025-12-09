@@ -15,14 +15,14 @@ namespace iter8
 
 	dpp::task< void > ShopCog::OnShopCommand( dpp::slashcommand_t const& event )
 	{
-		co_await event.co_thinking();
+		co_await event.co_thinking( true );
 
 		auto&& [ is_sale, end_date ] = shop::IsOngoingSale( ctx_.db );
 		float discount = is_sale ? 0.5f : 1.0f;
 
 		auto embed = dpp::embed{};
 		embed.set_title( "🛒 Clockwork Shop 🛒" );
-		embed.set_color( 0xFF0000FF );
+		embed.set_color( dpp::colors::summer_sky );
 
 		auto items = ctx_.db.Select< ShopItem >().ReadAll();
 		std::ranges::sort( items, std::less{}, []( auto const& i ) { return std::to_underlying( i.category ); } );
@@ -55,7 +55,7 @@ namespace iter8
 
 	dpp::task< void > ShopCog::OnCreditCommand( dpp::slashcommand_t const& event )
 	{
-		co_await event.co_thinking();
+		co_await event.co_thinking( true );
 
 		auto guild = co_await GetGuild( ctx_.bot, event.command.guild_id );
 
@@ -71,7 +71,7 @@ namespace iter8
 
 		auto embed = dpp::embed{};
 		embed.set_title( "💵 How much is everyone worth? 💵" );
-		embed.set_color( 0xFF0000FF );
+		embed.set_color( dpp::colors::summer_sky );
 
 		for ( auto&& [ user, value ] : entries )
 		{

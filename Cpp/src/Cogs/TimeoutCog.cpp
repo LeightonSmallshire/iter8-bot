@@ -21,7 +21,7 @@ namespace iter8
 
 		auto embed = dpp::embed{};
 		embed.set_title( "👑 Timeout Leaderboard 👑" );
-		embed.set_color( 0xFFFF0000 );
+		embed.set_color( dpp::colors::cinnabar );
 
 		for ( auto&& [ rank, user ] : std::views::enumerate( leaderboard ) )
 		{

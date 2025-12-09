@@ -519,7 +519,14 @@ namespace iter8::db
 				oss << '?';
 			}
 
-			oss << ");";
+			oss << ")";
+
+			if ( has_id )
+			{
+				oss << " ON CONFLICT(id) DO NOTHING";
+			}
+
+			oss << ";";
 
 			Statement stmt = Prepare( oss.view() );
 

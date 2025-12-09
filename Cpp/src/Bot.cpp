@@ -40,9 +40,11 @@ namespace iter8
 	{
 		ctx_.db.Init< User >( /*truncate=*/true );
 		ctx_.db.Init< Log >( /*truncate=*/true );
-		ctx_.db.Init< ShopItem >( /*truncate=*/false );
+		ctx_.db.Init< ShopItem >( /*truncate=*/true );
 		ctx_.db.Init< Purchase >( /*truncate=*/false );
 		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
+
+		ctx_.db.InsertRange( ReadItemsJson() );
 	}
 
 	void DiscordBot::InitLog()

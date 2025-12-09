@@ -31,6 +31,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 
 # ---------------------------------------
+# Fetch nlohmann json
+# ---------------------------------------
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG        v3.11.3
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ---------------------------------------
 # Fetch magic_enum
 # ---------------------------------------
 
@@ -84,6 +96,7 @@ target_include_directories(discord_bot PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty )
 target_link_libraries(discord_bot PRIVATE
     sqlite3
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
     magic_enum::magic_enum
     archive_static
     dpp
@@ -111,3 +124,12 @@ if (WIN32)
         COMMAND_EXPAND_LISTS
     )
 endif()
+
+add_custom_command(
+    TARGET discord_bot
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/data"
+            "$<TARGET_FILE_DIR:discord_bot>/data"
+    COMMENT "Copying data directory to output folder"
+)
