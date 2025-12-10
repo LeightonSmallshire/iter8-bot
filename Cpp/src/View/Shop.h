@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Components/Component.h" 
+#include "Component.h" 
 
 #include "Shop/Item.h"
 
@@ -17,7 +17,7 @@ namespace iter8::view
 		}
 
 	private:
-		std::map< shop::InputType, std::unique_ptr< Component > > MakeInputComponents( Context& ctx );
+		std::map< shop::InputType, dpp::component > MakeInputComponents( Context& ctx );
 
 	private:
 		dpp::component root_{};
@@ -26,7 +26,7 @@ namespace iter8::view
 		{
 			std::optional< shop::ItemId > selected{};
 			std::map< std::string, std::any > params{};
-			std::map< shop::InputType, std::unique_ptr< Component > > components{};
+			std::map< shop::InputType, dpp::component > components{};
 		};
 		std::shared_ptr< ShopContext > ctx_;
 	};

@@ -36,10 +36,5 @@ namespace iter8::shop
 				std::format( "🎲 {} is re-rolling the bully target!", event.command.usr.get_mention() ),
 				roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
 		}
-
-		std::vector< InputType > GetInputHandlers()
-		{
-			return {};
-		}
 	};
 } // namespace iter8::shop

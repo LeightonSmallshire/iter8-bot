@@ -29,7 +29,7 @@ namespace iter8::shop
 
 		std::vector< InputType > GetInputHandlers()
 		{
-			return {};
+			return { InputType::Text };
 		}
 	};
 } // namespace iter8::shop

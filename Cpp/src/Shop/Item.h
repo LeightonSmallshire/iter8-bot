@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Database/Connection.h"
-#include "View/Components/Component.h"
+#include "Context.h"
 
 #include "dpp/dpp.h"
 
@@ -30,7 +29,7 @@ namespace iter8::shop
 		User,
 		Duration,
 		Colour,
-		Nickname,
+		Text,
 		Confirm, // Don't need to specify this, added to all shop item types
 	};
 

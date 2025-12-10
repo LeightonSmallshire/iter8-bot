@@ -39,7 +39,7 @@ namespace iter8::shop
 
 		std::vector< InputType > GetInputHandlers()
 		{
-			return {};
+			return { InputType::Duration };
 		}
 	};
 } // namespace iter8::shop

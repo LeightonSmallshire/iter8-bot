@@ -52,7 +52,7 @@ namespace iter8::shop
 
 		std::vector< InputType > GetInputHandlers()
 		{
-			return {};
+			return { InputType::Colour };
 		}
 	};
 } // namespace iter8::shop

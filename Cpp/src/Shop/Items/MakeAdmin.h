@@ -42,10 +42,5 @@ namespace iter8::shop
 					roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
 			}
 		}
-
-		std::vector< InputType > GetInputHandlers()
-		{
-			return {};
-		}
 	};
 } // namespace iter8::shop

@@ -2,6 +2,7 @@
 
 #include "Core/Discord.h"
 #include "Shop/Item.h"
+#include "Logging/Log.h"
 
 namespace iter8::shop
 {
@@ -53,7 +54,7 @@ namespace iter8::shop
 
 		std::vector< InputType > GetInputHandlers()
 		{
-			return {};
+			return { InputType::User, InputType::Colour };
 		}
 	};
 } // namespace iter8::shop

@@ -22,10 +22,5 @@ namespace iter8::shop
 			
 			co_return;
 		}
-
-		std::vector< InputType > GetInputHandlers()
-		{
-			return {};
-		}
 	};
 } // namespace iter8::shop

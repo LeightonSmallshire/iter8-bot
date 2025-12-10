@@ -13,6 +13,6 @@ namespace iter8
 		db::ForeignKey< User > user_id;
 		db::ForeignKey< ShopItem > item_id;
 		TimePoint timestamp;
-		int cost;
+		float cost;
 	};
 } // namespace iter8

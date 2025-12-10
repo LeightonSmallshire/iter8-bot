@@ -55,10 +55,5 @@ namespace iter8::shop
 				co_await event.co_follow_up( std::format( "{} started a sale! Get 50% off for the next 30 minutes!", event.command.usr.get_mention() ) );
 			}
 		}
-
-		std::vector< InputType > GetInputHandlers()
-		{
-			return {};
-		}
 	};
 } // namespace iter8::shop

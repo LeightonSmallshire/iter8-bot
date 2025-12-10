@@ -63,6 +63,7 @@ namespace iter8
 		ctx_.bot.on_log( std::bind_front( &DiscordBot::OnLog, this ) );
 		ctx_.bot.on_button_click( std::bind_front( &DiscordBot::OnButtonClick, this ) );
 		ctx_.bot.on_select_click( std::bind_front( &DiscordBot::OnSelectClick, this ) );
+		ctx_.bot.on_form_submit( std::bind_front( &DiscordBot::OnFormSubmit, this ) );
 	}
 
 	void DiscordBot::InitShop()
@@ -134,6 +135,16 @@ namespace iter8
 	}
 
 	dpp::task< void > DiscordBot::OnSelectClick( dpp::select_click_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnFormSubmit( dpp::form_submit_t const& e )
 	{
 		auto it = ctx_.component_handlers.find( e.custom_id );
 		if ( it != ctx_.component_handlers.end() )

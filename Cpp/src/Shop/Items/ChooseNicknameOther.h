@@ -30,7 +30,7 @@ namespace iter8::shop
 
 		std::vector< InputType > GetInputHandlers()
 		{
-			return {};
+			return { InputType::User, InputType::User };
 		}
 	};
 } // namespace iter8::shop
