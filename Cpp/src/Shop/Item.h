@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Database/Connection.h"
+#include "View/Components/Component.h"
 
 #include "dpp/dpp.h"
 
@@ -24,25 +25,34 @@ namespace iter8::shop
 		BlackFridaySale = 13
 	};
 
+	enum class InputType
+	{
+		User,
+		Duration,
+		Colour,
+		Nickname,
+		Confirm, // Don't need to specify this, added to all shop item types
+	};
+
 	class Handler
 	{
 	public:
-		Handler( db::Connection& db )
-			: db_{ db }
+		Handler( Context& ctx )
+			: ctx_{ ctx }
 		{}
 
 		virtual ~Handler() = default;
-		virtual dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) = 0;
-		virtual std::vector< dpp::component > GetInputHandlers()
+		virtual dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) = 0;
+		virtual std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}
 
-		static void Init( db::Connection& db );
-		static std::shared_ptr< Handler > Get( db::ID item_id );
+		static void Init( Context& ctx );
+		static std::shared_ptr< Handler > Get( ItemId item_id );
 
 	protected:
-		db::Connection& db_;
+		Context& ctx_;
 
 	private:
 		inline static std::map< ItemId, std::shared_ptr< Handler > > s_ItemHandlers{};

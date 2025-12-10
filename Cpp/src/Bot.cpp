@@ -15,8 +15,6 @@
 
 #include "Logging/Log.h"
 
-#include <generator>
-
 namespace iter8
 {
 	DiscordBot::DiscordBot()
@@ -36,6 +34,7 @@ namespace iter8
 		InitDB();
 		InitLog();
 		InitBot();
+		InitShop();
 	}
 
 	void DiscordBot::InitDB()
@@ -62,12 +61,14 @@ namespace iter8
 		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 		ctx_.bot.on_autocomplete( std::bind_front( &DiscordBot::OnAutocomplete, this ) );
 		ctx_.bot.on_log( std::bind_front( &DiscordBot::OnLog, this ) );
+		ctx_.bot.on_button_click( std::bind_front( &DiscordBot::OnButtonClick, this ) );
+		ctx_.bot.on_select_click( std::bind_front( &DiscordBot::OnSelectClick, this ) );
 	}
 
 	void DiscordBot::InitShop()
 	{
 		ctx_.db.InsertRange( ReadItemsJson() );
-		shop::Handler::Init( ctx_.db );
+		shop::Handler::Init( ctx_ );
 	}
 
 	dpp::task< void > DiscordBot::OnReady( dpp::ready_t const& e )
@@ -119,6 +120,26 @@ namespace iter8
 			default:
 				log::Critical( "{}", e.message );
 				break;
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnButtonClick( dpp::button_click_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnSelectClick( dpp::select_click_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
 		}
 	}
 

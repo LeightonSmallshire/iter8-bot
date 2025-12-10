@@ -10,11 +10,11 @@ namespace iter8::shop
 	class BlackFridaySale : public Handler
 	{
 	public:
-		BlackFridaySale( db::Connection& db )
-			: Handler( db )
+		BlackFridaySale( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			if ( not event.owner )
 				co_return;
@@ -56,7 +56,7 @@ namespace iter8::shop
 			}
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

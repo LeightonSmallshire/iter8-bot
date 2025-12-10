@@ -9,11 +9,11 @@ namespace iter8::shop
 	class BullyReroll : public Handler
 	{
 	public:
-		BullyReroll( db::Connection& db )
-			: Handler( db )
+		BullyReroll( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			if ( not event.owner )
 				co_return;
@@ -37,7 +37,7 @@ namespace iter8::shop
 				roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

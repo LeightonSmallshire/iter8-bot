@@ -9,13 +9,13 @@ namespace iter8::shop
 	class AdminTicket : public Handler
 	{
 	public:
-		AdminTicket( db::Connection& db )
-			: Handler( db )
+		AdminTicket( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
-			db_.Insert< InventoryItem >( InventoryItem{
+			ctx_.db.Insert< InventoryItem >( InventoryItem{
 				.user_id = db::ToId( event.command.usr.id ),
 				.item_id = db::ToId( ItemId::AdminTicket ),
 			} );
@@ -23,7 +23,7 @@ namespace iter8::shop
 			co_return;
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

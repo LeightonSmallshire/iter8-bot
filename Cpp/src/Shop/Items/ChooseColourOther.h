@@ -8,11 +8,11 @@ namespace iter8::shop
 	class ChooseColourOther : public Handler
 	{
 	public:
-		ChooseColourOther( db::Connection& db )
-			: Handler( db )
+		ChooseColourOther( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			if ( not event.owner )
 				co_return;
@@ -51,7 +51,7 @@ namespace iter8::shop
 			co_await bot.co_guild_member_add_role( event.command.guild_id, user, role_id );
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

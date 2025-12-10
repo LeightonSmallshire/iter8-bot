@@ -3,6 +3,8 @@
 #include "Model/User.h"
 #include "Utils/Shop.h"
 #include "Shop/Item.h"
+#include "View/Shop.h"
+#include "Logging/Log.h"
 
 namespace iter8
 {
@@ -49,8 +51,14 @@ namespace iter8
 		if ( is_sale )
 			embed.set_footer( std::format( "Sale ends at {:%T}", *end_date ), {} );
 
+		view::Shop shop( ctx_ );
+
 		dpp::message msg( embed );
-		co_await event.co_follow_up( msg );
+		msg.add_component( shop.Root() );
+
+		auto confirm = co_await event.co_follow_up( msg );
+		if ( confirm.is_error() )
+			log::Error( "Follow-up failed: {}", confirm.get_error().message );
 	}
 
 	dpp::task< void > ShopCog::OnCreditCommand( dpp::slashcommand_t const& event )

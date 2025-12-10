@@ -8,11 +8,11 @@ namespace iter8::shop
 	class BullyTimeout : public Handler
 	{
 	public:
-		BullyTimeout( db::Connection& db )
-			: Handler( db )
+		BullyTimeout( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			if ( not event.owner )
 				co_return;
@@ -37,7 +37,7 @@ namespace iter8::shop
 				.co_guild_member_timeout( member.guild_id, member.user_id, std::chrono::system_clock::to_time_t( until ) );
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

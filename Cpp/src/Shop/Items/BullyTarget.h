@@ -8,11 +8,11 @@ namespace iter8::shop
 	class BullyTarget : public Handler
 	{
 	public:
-		BullyTarget( db::Connection& db )
-			: Handler( db )
+		BullyTarget( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			if ( not event.owner )
 				co_return;
@@ -38,7 +38,7 @@ namespace iter8::shop
 			co_await event.co_follow_up( std::format( "<@{}> made <@{}> is the new bully target. GET THEM!", event.command.usr.id.str(), user.str() ) );
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}

@@ -30,6 +30,8 @@ namespace iter8
 		dpp::task< void > OnReady( dpp::ready_t const& e );
 		dpp::task< void > OnAutocomplete( dpp::autocomplete_t const& e );
 		void OnLog( dpp::log_t const& e );
+		dpp::task< void > OnButtonClick( dpp::button_click_t const& e );
+		dpp::task< void > OnSelectClick( dpp::select_click_t const& e );
 
 		dpp::task< void > CalculateUserCredit();
 

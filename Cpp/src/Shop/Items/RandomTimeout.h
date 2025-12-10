@@ -9,11 +9,11 @@ namespace iter8::shop
 	class RandomTimeout : public Handler
 	{
 	public:
-		RandomTimeout( db::Connection& db )
-			: Handler( db )
+		RandomTimeout( Context& ctx )
+			: Handler( ctx )
 		{}
 
-		dpp::task< void > HandlePurchase( dpp::interaction_create_t& event, std::map< std::string, std::any > const& params ) override
+		dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) override
 		{
 			auto& bot = *event.owner;
 
@@ -35,7 +35,7 @@ namespace iter8::shop
 				.co_guild_member_timeout( member.guild_id, member.user_id, std::chrono::system_clock::to_time_t( until ) );
 		}
 
-		std::vector< dpp::component > GetInputHandlers()
+		std::vector< InputType > GetInputHandlers()
 		{
 			return {};
 		}
