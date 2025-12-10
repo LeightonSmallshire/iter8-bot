@@ -19,44 +19,9 @@ namespace iter8
 	{
 		co_await event.co_thinking( true );
 
-		auto&& [ is_sale, end_date ] = shop::IsOngoingSale( ctx_.db );
-		float discount = is_sale ? 0.5f : 1.0f;
-
-		auto embed = dpp::embed{};
-		embed.set_title( "🛒 Clockwork Shop 🛒" );
-		embed.set_color( dpp::colors::summer_sky );
-
-		auto items = ctx_.db.Select< ShopItem >().ReadAll();
-		std::ranges::sort( items, std::less{}, []( auto const& i ) { return std::to_underlying( i.category ); } );
-
-		auto groups = items | std::views::chunk_by( []( auto const& a, auto const& b ) { return a.category == b.category; } ) | std::ranges::to< std::vector >();
-
-		for ( auto&& [ idx, group ] : std::views::enumerate( groups ) )
-		{
-			auto category = group[ 0 ].category;
-			embed.add_field( std::format( "{}", category ), "────────────────────────────────────────────────────────" );
-
-			for ( auto const& item : group )
-			{
-				using clock = std::chrono::system_clock;
-				float cost = item.id != db::ToId( shop::ItemId::BlackFridaySale ) ? item.cost * discount : item.cost;
-				auto tp = clock::time_point{} + std::chrono::duration_cast< std::chrono::seconds >( std::chrono::duration< float >( cost ) );
-				embed.add_field( item.description, std::format( "{:%T}", std::chrono::round< std::chrono::seconds >( tp ) ) );
-			}
-
-			if ( idx < groups.size() - 1 )
-				embed.add_field( "", "\u200b" );
-		}
-
-		if ( is_sale )
-			embed.set_footer( std::format( "Sale ends at {:%T}", *end_date ), {} );
-
 		view::Shop shop( ctx_ );
 
-		dpp::message msg( embed );
-		msg.add_component( shop.Root() );
-
-		auto confirm = co_await event.co_follow_up( msg );
+		auto confirm = co_await event.co_follow_up( shop.Message() );
 		if ( confirm.is_error() )
 			log::Error( "Follow-up failed: {}", confirm.get_error().message );
 	}

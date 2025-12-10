@@ -23,20 +23,42 @@ namespace iter8::view
 
 		auto select_options = std::vector< dpp::select_option >{};
 
+		auto&& [ is_sale, end_date ] = shop::IsOngoingSale( bot_ctx.db );
+		float discount = is_sale ? 0.5f : 1.0f;
+
+		auto embed = dpp::embed{};
+		embed.set_title( "🛒 Clockwork Shop 🛒" );
+		embed.set_color( dpp::colors::summer_sky );
+
 		auto items = bot_ctx.db.Select< ShopItem >().ReadAll();
 		std::ranges::sort( items, std::less{}, []( auto const& i ) { return std::to_underlying( i.category ); } );
+
 		auto groups = items | std::views::chunk_by( []( auto const& a, auto const& b ) { return a.category == b.category; } ) | std::ranges::to< std::vector >();
 
-		for ( auto&& group : groups )
+		for ( auto&& [ idx, group ] : std::views::enumerate( groups ) )
 		{
+			auto category = group[ 0 ].category;
+			embed.add_field( std::format( "{}", category ), "────────────────────────────────────────────────────────" );
+
 			for ( auto const& item : group )
 			{
+				using clock = std::chrono::system_clock;
+				float cost = item.id != db::ToId( shop::ItemId::BlackFridaySale ) ? item.cost * discount : item.cost;
+				auto tp = clock::time_point{} + std::chrono::duration_cast< std::chrono::seconds >( std::chrono::duration< float >( cost ) );
+				embed.add_field( item.description, std::format( "{:%T}", std::chrono::round< std::chrono::seconds >( tp ) ) );
+
 				auto& option = select_options.emplace_back();
 				option.label = magic_enum::enum_name( static_cast< shop::ItemId >( std::to_underlying( item.id ) ) );
 				option.description = item.description;
 				option.value = option.label;
 			}
+
+			if ( idx < groups.size() - 1 )
+				embed.add_field( "", "\u200b" );
 		}
+
+		if ( is_sale )
+			embed.set_footer( std::format( "Sale ends at {:%T}", *end_date ), {} );
 
 		ComponentData options_cd{};
 		options_cd.id = std::format( "{}-shop-select", ( uintptr_t )this );
@@ -66,8 +88,12 @@ namespace iter8::view
 
 			auto confirm = ctx->components.at( shop::InputType::Confirm );
 			confirm.label = std::format( "Buy - {}", *ctx->selected );
+
+			auto cancel = ctx->components.at( shop::InputType::Cancel );
+
 			auto confirm_row = dpp::component{};
 			confirm_row.add_component( confirm );
+			confirm_row.add_component( cancel );
 			msg.add_component( confirm_row );
 
 			auto result = co_await event.co_edit_original_response( msg );
@@ -75,12 +101,13 @@ namespace iter8::view
 				log::Error( "Follow-up failed: {}", result.get_error().message );
 		};
 
-		root_.add_component( MakeComponent( bot_ctx, options_cd ) );
+		ctx_->message.add_embed( embed );
+		ctx_->message.add_component( dpp::component{}.add_component( MakeComponent( bot_ctx, options_cd ) ) );
 
-		// Cleanup handlers after thirty minutes
+		// Cleanup handlers after fifteen minutes
 		dpp::oneshot_timer t{
 			&bot_ctx.bot,
-			60 * 30, // seconds
+			60 * 15,
 			[ self_id, &bot_ctx ]( dpp::timer ) {
 				auto self_id_str = std::to_string( self_id );
 				std::erase_if( bot_ctx.component_handlers, [ & ]( auto const& kv ) { return kv.first.starts_with( self_id_str ); } );
@@ -186,8 +213,12 @@ namespace iter8::view
 
 				auto confirm = ctx->components.at( shop::InputType::Confirm );
 				confirm.label = std::format( "Buy - {}", *ctx->selected );
+
+				auto cancel = ctx->components.at( shop::InputType::Cancel );
+
 				auto confirm_row = dpp::component{};
 				confirm_row.add_component( confirm );
+				confirm_row.add_component( cancel );
 				msg.add_component( confirm_row );
 
 				co_await e.co_edit_original_response( msg );
@@ -246,8 +277,12 @@ namespace iter8::view
 
 				auto confirm = ctx->components.at( shop::InputType::Confirm );
 				confirm.label = std::format( "Buy - {}", *ctx->selected );
+
+				auto cancel = ctx->components.at( shop::InputType::Cancel );
+
 				auto confirm_row = dpp::component{};
 				confirm_row.add_component( confirm );
+				confirm_row.add_component( cancel );
 				msg.add_component( confirm_row );
 
 				co_await e.co_edit_original_response( msg );
@@ -293,19 +328,33 @@ namespace iter8::view
 				auto self_id_str = std::to_string( self_id );
 				std::erase_if( bot_ctx.component_handlers, [ & ]( auto const& kv ) { return kv.first.starts_with( self_id_str ); } );
 
-				co_await e.co_follow_up( std::format( "✅ Purchased **{}**.", item->description ) );
+				co_await e.co_edit_original_response( std::format( "✅ Purchased **{}**.", item->description ) );
 			}
 			else
 			{
-				co_await e.co_follow_up( "❌ You can't afford this purchase." );
+				co_await e.co_edit_original_response( "❌ You can't afford this purchase." );
 			}
+		};
+
+
+		auto cancel_cd = ComponentData{};
+		cancel_cd.id = std::format( "{}-shop-cancel", self_id );
+		cancel_cd.label = "Cancel";
+		cancel_cd.type = dpp::cot_button;
+		cancel_cd.style = dpp::cos_primary;
+		cancel_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+			co_await e.co_reply();
+			ctx->selected = {};
+			ctx->params.clear();
+			auto confirm = co_await e.co_edit_original_response( ctx->message );
 		};
 
 		result[ shop::InputType::User ] = MakeComponent( bot_ctx, user_component_cd );
 		result[ shop::InputType::Duration ] = MakeComponent( bot_ctx, duration_component_cd );
-		result[ shop::InputType::Confirm ] = MakeComponent( bot_ctx, confirm_cd );
 		result[ shop::InputType::Colour ] = MakeComponent( bot_ctx, colour_input_cd );
 		result[ shop::InputType::Text ] = MakeComponent( bot_ctx, nickname_input_cd );
+		result[ shop::InputType::Confirm ] = MakeComponent( bot_ctx, confirm_cd );
+		result[ shop::InputType::Cancel ] = MakeComponent( bot_ctx, cancel_cd );
 
 		return result;
 	}

@@ -30,7 +30,10 @@ namespace iter8::shop
 		Duration,
 		Colour,
 		Text,
-		Confirm, // Don't need to specify this, added to all shop item types
+
+		// Dont need to specify these, added automatically on selection
+		Confirm,
+		Cancel,
 	};
 
 	class Handler

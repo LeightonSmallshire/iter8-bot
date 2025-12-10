@@ -11,19 +11,20 @@ namespace iter8::view
 	public:
 		Shop( Context& ctx );
 
-		dpp::component Root()
+		dpp::message const& Message()
 		{
-			return root_;
+			return ctx_->message;
 		}
 
 	private:
+		
 		std::map< shop::InputType, dpp::component > MakeInputComponents( Context& ctx );
 
 	private:
-		dpp::component root_{};
-
 		struct ShopContext
 		{
+			dpp::message message{};
+
 			std::optional< shop::ItemId > selected{};
 			std::map< std::string, std::any > params{};
 			std::map< shop::InputType, dpp::component > components{};
