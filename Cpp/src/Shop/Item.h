@@ -34,6 +34,7 @@ namespace iter8::shop
 		// Dont need to specify these, added automatically on selection
 		Confirm,
 		Cancel,
+		Purchase,
 	};
 
 	class Handler
@@ -44,10 +45,26 @@ namespace iter8::shop
 		{}
 
 		virtual ~Handler() = default;
+
 		virtual dpp::task< void > HandlePurchase( dpp::interaction_create_t const& event, std::map< std::string, std::any > const& params ) = 0;
 		virtual std::vector< InputType > GetInputHandlers()
 		{
 			return {};
+		}
+
+		bool HasAllParameters(std::map< std::string, std::any > const& params)
+		{
+			auto param_types = GetInputHandlers();
+
+			if ( param_types.size() != params.size() )
+				return false;
+			
+			auto param_exists = [ & ]( auto type ) {
+				auto type_str = ToLower( magic_enum::enum_name( type ) );
+				return params.contains( type_str );
+			};
+
+			return std::ranges::all_of( param_types, param_exists );
 		}
 
 		static void Init( Context& ctx );

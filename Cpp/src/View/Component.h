@@ -17,6 +17,7 @@ namespace iter8::view
 		dpp::text_style_type text_style;
 		std::int32_t min_length;
 		std::int32_t max_length;
+		bool disabled{};
 		std::vector< dpp::select_option > options;
 		ComponentHandler handler;
 	};
@@ -40,6 +41,7 @@ namespace iter8::view
 							 .set_text_style( init_data.text_style )
 							 .set_min_length( init_data.min_length )
 							 .set_max_length( init_data.max_length )
+							 .set_disabled( init_data.disabled )
 							 .set_type( init_data.type );
 
 		for ( auto const& opt : init_data.options )

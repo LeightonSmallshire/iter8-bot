@@ -14,6 +14,20 @@
 
 namespace iter8::view
 {
+	static void SearchComponentsAndUpdate( std::vector< dpp::component >& comps, std::string match_id, std::function< void( dpp::component& ) > const& on_update )
+	{
+		for ( auto& c : comps )
+		{
+			if ( c.custom_id == match_id )
+			{
+				on_update( c );
+				return;
+			}
+
+			SearchComponentsAndUpdate( c.components, match_id, on_update );
+		}
+	}
+
 	Shop::Shop( Context& bot_ctx )
 		: ctx_{ std::make_shared< ShopContext >() }
 	{
@@ -124,9 +138,18 @@ namespace iter8::view
 		user_component_cd.id = std::format( "{}-shop-user", self_id );
 		user_component_cd.type = dpp::cot_user_selectmenu;
 		user_component_cd.placeholder = "Select a user to target:";
-		user_component_cd.handler = [ ctx = ctx_ ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		user_component_cd.handler = [ ctx = ctx_, self_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			auto const& event = static_cast< dpp::select_click_t const& >( e );
 			ctx->params[ "user" ] = dpp::snowflake( event.values[ 0 ] );
+
+			auto handler = shop::Handler::Get( *ctx->selected );
+			if ( handler->HasAllParameters( ctx->params ) )
+			{
+				auto msg = e.command.msg;
+				SearchComponentsAndUpdate( msg.components, std::format( "{}-shop-confirm", self_id ), []( auto& c ) {
+					c.disabled = false;
+				} );
+			}
 			co_await e.co_reply();
 		};
 
@@ -138,9 +161,19 @@ namespace iter8::view
 		duration_component_cd.type = dpp::cot_selectmenu;
 		duration_component_cd.placeholder = "Choose duration";
 		duration_component_cd.options = std::move( duration_options );
-		duration_component_cd.handler = [ ctx = ctx_ ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		duration_component_cd.handler = [ ctx = ctx_, self_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			auto const& event = static_cast< dpp::select_click_t const& >( e );
 			ctx->params[ "duration" ] = std::stoi( event.values[ 0 ] );
+
+			auto handler = shop::Handler::Get( *ctx->selected );
+			if ( handler->HasAllParameters( ctx->params ) )
+			{
+				auto msg = e.command.msg;
+				SearchComponentsAndUpdate( msg.components, std::format( "{}-shop-confirm", self_id ), []( auto& c ) {
+					c.disabled = false;
+				} );
+			}
+
 			co_await e.co_reply();
 		};
 
@@ -150,7 +183,7 @@ namespace iter8::view
 		colour_input_cd.type = dpp::cot_button;
 		colour_input_cd.label = "Enter colour";
 		colour_input_cd.style = dpp::cos_primary;
-		colour_input_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		colour_input_cd.handler = [ ctx = ctx_, self_id, &bot_ctx, colour_id = colour_input_cd.id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			ModalData modal_cd{};
 			modal_cd.id = std::format( "{}-shop-colour-modal", self_id );
 			modal_cd.title = "Enter a colour hex colour code";
@@ -164,7 +197,7 @@ namespace iter8::view
 
 			modal_cd.components.push_back( MakeComponent( bot_ctx, text_cd ) );
 
-			modal_cd.handler = [ ctx, &bot_ctx, self_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+			modal_cd.handler = [ ctx, &bot_ctx, self_id, colour_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 				auto const& event = static_cast< dpp::form_submit_t const& >( e );
 				auto hex_code = std::get< std::string >( event.components[ 0 ].value );
 
@@ -192,34 +225,23 @@ namespace iter8::view
 
 				auto handler = shop::Handler::Get( *ctx->selected );
 
-				auto msg = dpp::message{}.set_flags( dpp::m_ephemeral );
+				auto msg = e.command.msg;
+				auto update_emoji = dpp::component_emoji{
+					.name = actual_emoji.name,
+					.id = actual_emoji.id
+				};
 
-				for ( auto comp_type : handler->GetInputHandlers() )
+				SearchComponentsAndUpdate( msg.components, colour_id, [ & ]( auto& c ) {
+					c.label = hex_code;
+					c.emoji = update_emoji;
+				} );
+
+				if ( handler->HasAllParameters( ctx->params ) )
 				{
-					auto comp = ctx->components.at( comp_type );
-					if ( comp_type == shop::InputType::Colour )
-					{
-						comp.label = hex_code;
-						comp.emoji = dpp::component_emoji{
-							.name = actual_emoji.name,
-							.id = actual_emoji.id
-						};
-					}
-
-					auto row = dpp::component{};
-					row.add_component( comp );
-					msg.add_component( row );
+					SearchComponentsAndUpdate( msg.components, std::format( "{}-shop-confirm", self_id ), []( auto& c ) {
+						c.disabled = false;
+					} );
 				}
-
-				auto confirm = ctx->components.at( shop::InputType::Confirm );
-				confirm.label = std::format( "Buy - {}", *ctx->selected );
-
-				auto cancel = ctx->components.at( shop::InputType::Cancel );
-
-				auto confirm_row = dpp::component{};
-				confirm_row.add_component( confirm );
-				confirm_row.add_component( cancel );
-				msg.add_component( confirm_row );
 
 				co_await e.co_edit_original_response( msg );
 
@@ -238,7 +260,7 @@ namespace iter8::view
 		nickname_input_cd.type = dpp::cot_button;
 		nickname_input_cd.label = "Enter nickname";
 		nickname_input_cd.style = dpp::cos_primary;
-		nickname_input_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		nickname_input_cd.handler = [ ctx = ctx_, self_id, &bot_ctx, nickname_id = nickname_input_cd.id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			ModalData modal_cd{};
 			modal_cd.id = std::format( "{}-shop-nickanme-modal", self_id );
 			modal_cd.title = "Enter a new nickname";
@@ -252,7 +274,7 @@ namespace iter8::view
 
 			modal_cd.components.push_back( MakeComponent( bot_ctx, text_cd ) );
 
-			modal_cd.handler = [ ctx, &bot_ctx, self_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+			modal_cd.handler = [ ctx, &bot_ctx, self_id, nickname_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 				auto const& event = static_cast< dpp::form_submit_t const& >( e );
 				auto nickname = std::get< std::string >( event.components[ 0 ].value );
 
@@ -262,28 +284,18 @@ namespace iter8::view
 
 				auto handler = shop::Handler::Get( *ctx->selected );
 
-				auto msg = dpp::message{}.set_flags( dpp::m_ephemeral );
+				auto msg = e.command.msg;
 
-				for ( auto comp_type : handler->GetInputHandlers() )
+				SearchComponentsAndUpdate( msg.components, nickname_id, [ & ]( auto& c ) {
+					c.label = nickname;
+				} );
+
+				if ( handler->HasAllParameters( ctx->params ) )
 				{
-					auto comp = ctx->components.at( comp_type );
-					if ( comp_type == shop::InputType::Text )
-						comp.label = nickname;
-
-					auto row = dpp::component{};
-					row.add_component( comp );
-					msg.add_component( row );
+					SearchComponentsAndUpdate( msg.components, std::format( "{}-shop-confirm", self_id ), []( auto& c ) {
+						c.disabled = false;
+					} );
 				}
-
-				auto confirm = ctx->components.at( shop::InputType::Confirm );
-				confirm.label = std::format( "Buy - {}", *ctx->selected );
-
-				auto cancel = ctx->components.at( shop::InputType::Cancel );
-
-				auto confirm_row = dpp::component{};
-				confirm_row.add_component( confirm );
-				confirm_row.add_component( cancel );
-				msg.add_component( confirm_row );
 
 				co_await e.co_edit_original_response( msg );
 			};
@@ -299,8 +311,51 @@ namespace iter8::view
 		confirm_cd.id = std::format( "{}-shop-confirm", self_id );
 		confirm_cd.type = dpp::cot_button;
 		confirm_cd.style = dpp::cos_success;
+		confirm_cd.disabled = true;
 		confirm_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
-			co_await e.co_thinking( true );
+			co_await e.co_reply();
+
+			auto handler = shop::Handler::Get( *ctx->selected );
+
+			if ( not handler->HasAllParameters( ctx->params ) )
+			{
+				auto msg = e.command.msg;
+				msg.content = "❌ Please provide all parameters.";
+				co_await e.co_edit_original_response( msg );
+				co_return;
+			}
+
+			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::WhereParam( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
+
+			auto&& [ is_sale, end_date ] = shop::IsOngoingSale( bot_ctx.db );
+			float discount = is_sale ? 0.5f : 1.0f;
+
+			int count = ctx->params.contains( "duration" ) ? std::any_cast< int >( ctx->params.at( "duration" ) ) : 1;
+
+			float cost = item->cost * discount * count;
+			auto tp = TimePoint( std::chrono::duration_cast< std::chrono::system_clock::duration >( std::chrono::duration< double >( cost ) ) );
+
+			auto msg = dpp::message( std::format( "This purchase will cost you {:%T}", std::chrono::round< std::chrono::seconds >( tp ) ) );
+
+			auto confirm = ctx->components.at( shop::InputType::Purchase );
+			auto cancel = ctx->components.at( shop::InputType::Cancel );
+
+			auto confirm_row = dpp::component{};
+			confirm_row.add_component( confirm );
+			confirm_row.add_component( cancel );
+			msg.add_component( confirm_row );
+
+			co_await e.co_edit_original_response( msg );
+		};
+
+
+		auto purchase_cd = ComponentData{};
+		purchase_cd.id = std::format( "{}-shop-pruchase", self_id );
+		purchase_cd.label = "Purchase";
+		purchase_cd.type = dpp::cot_button;
+		purchase_cd.style = dpp::cos_success;
+		purchase_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+			co_await e.co_reply();
 
 			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::WhereParam( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
 
@@ -336,7 +391,6 @@ namespace iter8::view
 			}
 		};
 
-
 		auto cancel_cd = ComponentData{};
 		cancel_cd.id = std::format( "{}-shop-cancel", self_id );
 		cancel_cd.label = "Cancel";
@@ -353,7 +407,9 @@ namespace iter8::view
 		result[ shop::InputType::Duration ] = MakeComponent( bot_ctx, duration_component_cd );
 		result[ shop::InputType::Colour ] = MakeComponent( bot_ctx, colour_input_cd );
 		result[ shop::InputType::Text ] = MakeComponent( bot_ctx, nickname_input_cd );
+
 		result[ shop::InputType::Confirm ] = MakeComponent( bot_ctx, confirm_cd );
+		result[ shop::InputType::Purchase ] = MakeComponent( bot_ctx, purchase_cd );
 		result[ shop::InputType::Cancel ] = MakeComponent( bot_ctx, cancel_cd );
 
 		return result;
