@@ -205,7 +205,7 @@ namespace iter8::view
 		colour_input_cd.type = dpp::cot_button;
 		colour_input_cd.label = "Enter colour";
 		colour_input_cd.style = dpp::cos_primary;
-		colour_input_cd.handler = [ =, ctx = ctx_, &bot_ctx, ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		colour_input_cd.handler = [ =, ctx = ctx_, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			ModalData modal_cd{};
 			modal_cd.id = std::format( "{}-shop-colour-modal", self_id );
 			modal_cd.title = "Enter a colour hex colour code";
@@ -296,7 +296,7 @@ namespace iter8::view
 
 			modal_cd.components.push_back( MakeComponent( bot_ctx, text_cd ) );
 
-			modal_cd.handler = [ ctx, &bot_ctx, self_id, nickname_id ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+			modal_cd.handler = [ =, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 				auto const& event = static_cast< dpp::form_submit_t const& >( e );
 				auto nickname = std::get< std::string >( event.components[ 0 ].value );
 
@@ -334,7 +334,7 @@ namespace iter8::view
 		confirm_cd.type = dpp::cot_button;
 		confirm_cd.style = dpp::cos_success;
 		confirm_cd.disabled = true;
-		confirm_cd.handler = [ -, ctx = ctx_, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
+		confirm_cd.handler = [ =, ctx = ctx_, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			co_await e.co_reply();
 
 			auto handler = shop::Handler::Get( *ctx->selected );
@@ -347,7 +347,7 @@ namespace iter8::view
 				co_return;
 			}
 
-			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::WhereParam( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
+			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::Param( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
 
 			auto&& [ is_sale, end_date ] = shop::IsOngoingSale( bot_ctx.db );
 			float discount = is_sale ? 0.5f : 1.0f;
@@ -379,7 +379,7 @@ namespace iter8::view
 		purchase_cd.handler = [ ctx = ctx_, self_id, &bot_ctx ]( dpp::interaction_create_t const& e ) -> dpp::task< void > {
 			co_await e.co_reply();
 
-			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::WhereParam( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
+			auto item = bot_ctx.db.SelectOne< ShopItem >( db::Where( db::Param( &ShopItem::id, db::ToId( *ctx->selected ) ) ) );
 
 			auto&& [ is_sale, end_date ] = shop::IsOngoingSale( bot_ctx.db );
 			float discount = is_sale ? 0.5f : 1.0f;
@@ -402,7 +402,7 @@ namespace iter8::view
 
 				bot_ctx.db.Insert( purchase );
 
-				auto user = bot_ctx.db.SelectOne< User >( db::Where( db::WhereParam( &User::id, db::ToId( e.command.usr.id ) ) ) ).value();
+				auto user = bot_ctx.db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( e.command.usr.id ) ) ) ).value();
 				user.credit -= cost;
 				bot_ctx.db.Update( user );
 

@@ -58,8 +58,8 @@ namespace iter8
 		auto target = GetParameter< std::string >( event, "level" ).and_then( []( auto l ) { return magic_enum::enum_cast< spdlog::level::level_enum >( l ); } );
 		auto limit = GetParameter< std::int64_t >( event, "limit" ).value_or( 100 );
 
-		auto where = target.has_value() ? db::Where< Log >( db::WhereParam{ &Log::level, *target } ) : db::WhereClause< Log >{};
-		auto order = db::OrderBy< Log >( db::OrderParam{ &Log::id, db::Ordering::Desc } );
+		auto where = target.has_value() ? db::Where( db::Param( &Log::level, *target ) ) : db::WhereClause< Log >{};
+		auto order = db::OrderBy( db::Param( &Log::id, db::Ordering::Desc ) );
 
 		auto result = ctx_.db.Select< Log >( where, order );
 		auto logs = result | std::views::take( limit ) | std::ranges::to< std::vector >() | std::views::reverse;

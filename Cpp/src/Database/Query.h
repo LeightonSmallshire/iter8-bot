@@ -25,32 +25,35 @@ namespace iter8::db
 		Desc,
 	};
 
-	template < DbModel T, typename Field >
-	struct WhereParam
+	namespace detail
 	{
-		Field T::* field;
-		Field value;
-		Cmp cmp{ Cmp::Eq };
-	};
+		template < DbModel T, typename Field >
+		struct WhereParam
+		{
+			Field T::* field;
+			Field value;
+			Cmp cmp{ Cmp::Eq };
+		};
+
+		template < DbModel T, typename Field >
+		struct OrderParam
+		{
+			Field T::* field;
+			Ordering dir;
+		};
+	}
 
 	template < typename T, typename Field, typename V >
 		requires std::constructible_from< Field, V >
-	auto Param( Field T::* field, V&& v, Cmp cmp = Cmp::Eq ) -> WhereParam< T, Field >
+	auto Param( Field T::* field, V&& v, Cmp cmp = Cmp::Eq ) -> detail::WhereParam< T, Field >
 	{
-		return WhereParam< T, Field >{ field, v, cmp };
+		return detail::WhereParam< T, Field >{ field, v, cmp };
 	}
 
-	template < DbModel T, typename Field >
-	struct OrderParam
-	{
-		Field T::* field;
-		Ordering dir;
-	};
-
 	template < typename T, typename Field >
-	auto Param( Field T::* field, Ordering o ) -> WhereParam< T, Field >
+	auto Param( Field T::* field, Ordering o ) -> detail::OrderParam< T, Field >
 	{
-		return OrderParam< T, Field >{ field, o };
+		return detail::OrderParam< T, Field >{ field, o };
 	}
 
 	namespace detail
@@ -172,7 +175,7 @@ namespace iter8::db
 	using OrderByClause = std::vector< detail::OrderParamImpl< T > >;
 
 	template < DbModel T, typename... Fields >
-	WhereClause< T > Where( WhereParam< T, Fields > const&... params )
+	WhereClause< T > Where( detail::WhereParam< T, Fields > const&... params )
 	{
 		WhereClause< T > clause;
 		clause.reserve( sizeof...( Fields ) );
@@ -181,7 +184,7 @@ namespace iter8::db
 	}
 
 	template < DbModel T, typename... Fields >
-	OrderByClause< T > OrderBy( OrderParam< T, Fields > const&... params )
+	OrderByClause< T > OrderBy( detail::OrderParam< T, Fields > const&... params )
 	{
 		OrderByClause< T > clause;
 		clause.reserve( sizeof...( Fields ) );

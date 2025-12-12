@@ -13,7 +13,7 @@ namespace iter8::shop
 
 	float GetCredit( db::Connection& db, dpp::snowflake user_id )
 	{
-		auto user = db.SelectOne< User >( db::Where( db::WhereParam( &User::id, db::ToId( user_id ) ) ) );
+		auto user = db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( user_id ) ) ) );
 		if ( not user )
 			return 0;
 
@@ -29,8 +29,8 @@ namespace iter8::shop
 	{
 		auto const sale_id = db::ForeignKey< ShopItem >{ db::ToId( shop::ItemId::BlackFridaySale ) };
 		auto sale = db.SelectOne< Purchase >( 
-			db::Where( db::WhereParam( &Purchase::item_id, sale_id ) ), 
-			db::OrderBy( db::OrderParam( &Purchase::timestamp, db::Ordering::Desc ) )
+			db::Where( db::Param( &Purchase::item_id, sale_id ) ), 
+			db::OrderBy( db::Param( &Purchase::timestamp, db::Ordering::Desc ) )
 		);
 
 		if ( not sale )

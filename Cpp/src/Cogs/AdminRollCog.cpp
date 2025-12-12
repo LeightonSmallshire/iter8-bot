@@ -61,8 +61,8 @@ namespace iter8
 
 		auto roll_table = co_await GetNonBotMembers( ctx_.bot, event.command.guild_id );
 		auto extra_rolls = ctx_.db.Select< InventoryItem >( db::Where(
-			db::WhereParam( &InventoryItem::item_id, db::ForeignKey< ShopItem >{ db::ToId( shop::ItemId::AdminTicket ) } ),
-			db::WhereParam( &InventoryItem::used, false ) ) );
+			db::Param( &InventoryItem::item_id, db::ToId( shop::ItemId::AdminTicket ) ),
+			db::Param( &InventoryItem::used, false ) ) );
 
 		for ( auto roll : extra_rolls )
 		{

@@ -17,7 +17,7 @@ namespace iter8
 	{
 		co_await event.co_thinking();
 
-		auto leaderboard = ctx_.db.Select< User >( {}, db::OrderBy( db::OrderParam( &User::count, db::Ordering::Desc ), db::OrderParam( &User::duration, db::Ordering::Desc ) ) );
+		auto leaderboard = ctx_.db.Select< User >( {}, db::OrderBy( db::Param( &User::count, db::Ordering::Desc ), db::Param( &User::duration, db::Ordering::Desc ) ) );
 
 		auto embed = dpp::embed{};
 		embed.set_title( "👑 Timeout Leaderboard 👑" );
@@ -129,7 +129,7 @@ namespace iter8
 		if ( not do_update )
 			co_return;
 
-		auto record = ctx_.db.SelectOne< User >( db::Where( db::WhereParam( &User::id, db::ToId( event.updated.user_id ) ) ) );
+		auto record = ctx_.db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( event.updated.user_id ) ) ) );
 		User user = record.value_or( User{ db::ToId( event.updated.user_id ) } );
 
 		user.count++;
