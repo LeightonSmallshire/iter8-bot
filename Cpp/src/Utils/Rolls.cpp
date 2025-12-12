@@ -38,14 +38,18 @@ namespace iter8::roll
 			table_embed.add_field( MakeEmojiNumber( idx + 1 ), user.get_mention() );
 		}
 
-		auto table_msg = dpp::message{ "@everyone" };
+		auto table_msg = dpp::message{};
+		table_msg.channel_id = event.command.channel_id;
 		table_msg.add_embed( table_embed );
 
-		co_await event.co_follow_up( table_msg );
+		auto orig_result = co_await bot.co_message_create( table_msg );
+		auto orig_msg = std::get< dpp::message >( orig_result.value );
 
 		if ( table.empty() )
 		{
-			co_await event.co_follow_up( "There are no users for this roll." );
+			orig_msg.embeds = {};
+			orig_msg.content = "There are no users for this roll.";
+			co_await bot.co_message_edit( orig_msg );
 			co_return 0;
 		}
 
@@ -55,14 +59,20 @@ namespace iter8::roll
 		roll_embed.title = "Rolling...";
 		roll_embed.set_image( ROLL_GIF_URL );
 
-		auto roll_msg = dpp::message( roll_embed );
-		co_await event.co_edit_response( roll_msg );
+		auto roll_msg = dpp::message{};
+		roll_msg.channel_id = event.command.channel_id;
+		roll_msg.add_embed( roll_embed );
+
+		auto roll_result = co_await bot.co_message_create( roll_msg );
+		auto edit_msg = std::get< dpp::message >( roll_result.value );
 
 		co_await bot.co_sleep( 4 );
 
 		auto index = Random( table.size() );
 
-		co_await event.co_edit_response( std::format( "A  {} was rolled!", MakeEmojiNumber( index + 1 ) ) );
+		edit_msg.embeds = {};
+		edit_msg.content = std::format( "A  {} was rolled!", MakeEmojiNumber( index + 1 ) );
+		co_await bot.co_message_edit( edit_msg );
 
 		co_await bot.co_sleep( 3 );
 
@@ -73,10 +83,11 @@ namespace iter8::roll
 
 		co_await bot.co_guild_member_add_role( event.command.guild_id, new_user.user_id, role_id );
 
-		if ( prev_user )
-			co_await event.co_edit_response( std::format( response.first, prev_user->str(), new_user.user_id.str() ) );
-		else
-			co_await event.co_edit_response( std::format( response.second, new_user.user_id.str() ) );
+		edit_msg.content = prev_user
+							   ? std::format( response.first, prev_user->str(), new_user.user_id.str() )
+							   : std::format( response.second, new_user.user_id.str() );
+
+		co_await bot.co_message_edit( edit_msg );
 
 		co_return new_user.user_id;
 	}

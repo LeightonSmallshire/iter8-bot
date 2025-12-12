@@ -4,12 +4,14 @@
 #include "Cogs/DevCog.h"
 #include "Cogs/TimeoutCog.h"
 #include "Cogs/ShopCog.h"
+#include "Cogs/AdminRollCog.h"
 
 #include "Model/User.h"
 #include "Model/Log.h"
 #include "Model/ShopItem.h"
 #include "Model/Purchase.h"
 #include "Model/InventoryItem.h"
+#include "Model/Timestamps.h"
 
 #include "Shop/Item.h"
 
@@ -42,8 +44,9 @@ namespace iter8
 		ctx_.db.Init< User >( /*truncate=*/true );
 		ctx_.db.Init< Log >( /*truncate=*/true );
 		ctx_.db.Init< ShopItem >( /*truncate=*/true );
-		ctx_.db.Init< Purchase >( /*truncate=*/false );
-		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
+		ctx_.db.Init< Purchase >( /*truncate=*/true );
+		ctx_.db.Init< InventoryItem >( /*truncate=*/true );
+		ctx_.db.Init< Timestamps >( /*truncate=*/true );
 	}
 
 	void DiscordBot::InitLog()
@@ -57,6 +60,7 @@ namespace iter8
 		RegisterCog< DevCog >();
 		RegisterCog< TimeoutCog >();
 		RegisterCog< ShopCog >();
+		RegisterCog< AdminRollCog >();
 
 		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 		ctx_.bot.on_autocomplete( std::bind_front( &DiscordBot::OnAutocomplete, this ) );
@@ -255,6 +259,13 @@ namespace iter8
 				break;
 
 			before = log.entries.back().id;
+		}
+
+		for ( auto&& [ id, user ] : leaderboard )
+		{
+			auto purchases = ctx_.db.Select< Purchase >( db::Where( db::Param( &Purchase::user_id, db::ToId( id ) ) ) );
+			for ( auto const& purchase : purchases )
+				user.credit -= purchase.cost;
 		}
 
 		ctx_.db.InsertRange( leaderboard | std::views::values );

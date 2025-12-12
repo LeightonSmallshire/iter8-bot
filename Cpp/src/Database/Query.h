@@ -29,9 +29,16 @@ namespace iter8::db
 	struct WhereParam
 	{
 		Field T::* field;
-		Field const& value;
+		Field value;
 		Cmp cmp{ Cmp::Eq };
 	};
+
+	template < typename T, typename Field, typename V >
+		requires std::constructible_from< Field, V >
+	auto Param( Field T::* field, V&& v, Cmp cmp = Cmp::Eq ) -> WhereParam< T, Field >
+	{
+		return WhereParam< T, Field >{ field, v, cmp };
+	}
 
 	template < DbModel T, typename Field >
 	struct OrderParam
@@ -39,6 +46,12 @@ namespace iter8::db
 		Field T::* field;
 		Ordering dir;
 	};
+
+	template < typename T, typename Field >
+	auto Param( Field T::* field, Ordering o ) -> WhereParam< T, Field >
+	{
+		return OrderParam< T, Field >{ field, o };
+	}
 
 	namespace detail
 	{
@@ -117,7 +130,7 @@ namespace iter8::db
 				auto enum_str = magic_enum::enum_name( field );
 				return SqlValue{ std::string{ enum_str } };
 			}
-			else if constexpr (detail::is_time_point_v< U >)
+			else if constexpr ( detail::is_time_point_v< U > )
 			{
 				auto tp_str = std::format( "{0:%F}T{0:%T%z}", field );
 				return SqlValue{ tp_str };
@@ -175,4 +188,4 @@ namespace iter8::db
 		( clause.push_back( detail::MakeOrderImpl( params ) ), ... );
 		return clause;
 	}
-}
+} // namespace iter8::db

@@ -3,6 +3,8 @@
 #include "Model.h"
 #include "Query.h"
 
+#include "Logging/Log.h"
+
 #include <sqlite3.h>
 
 #include <magic_enum/magic_enum.hpp>
@@ -409,6 +411,15 @@ namespace iter8::db
 			constexpr auto& names = Traits::ColumnNames;
 			static_assert( !names.empty(), "DbModelTraits::ColumnNames must not be empty" );
 
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				if ( data.id == ID::Zero )
+				{
+					log::Error( "Attempting to update a record with a zero ID" );
+					throw std::logic_error( "Attempting to update a record with a zero ID" );
+				}
+			}
+
 			std::ostringstream oss;
 			oss << "UPDATE " << Traits::TableName << " SET ";
 
@@ -421,9 +432,18 @@ namespace iter8::db
 				oss << detail::ToSnakeCase( names[ i ] ) << " = ?";
 			}
 
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				oss << " WHERE id = ? ";
+			}
+
 			if ( !where.empty() )
 			{
-				oss << " WHERE ";
+				if constexpr ( Traits::IsSingleValued )
+				{
+					oss << " WHERE ";
+				}
+
 				for ( std::size_t i = 0; i < where.size(); ++i )
 				{
 					if ( i > 0 )
@@ -445,6 +465,11 @@ namespace iter8::db
 			} );
 
 			// Then WHERE values.
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				BindOne( stmt, param_index, data.id );
+			}
+
 			for ( auto const& w : where )
 			{
 				BindSqlValue( stmt, param_index++, w.value );
@@ -488,6 +513,35 @@ namespace iter8::db
 			StepOnce( stmt );
 		}
 
+		template < typename T >
+		static int HasId( T const& t )
+		{
+			using Traits = DbModelTraits< T >;
+			if constexpr ( Traits::IsSingleValued )
+			{
+				return false;
+			}
+			else
+			{
+				return boost::pfr::get< 0 >( t ) != ID::Zero;
+			}
+		}
+
+
+		template < typename T >
+		static int StartIndex( T const& t )
+		{
+			using Traits = DbModelTraits< T >;
+			if constexpr ( Traits::IsSingleValued )
+			{
+				return 0;
+			}
+			else
+			{
+				return boost::pfr::get< 0 >( t ) != ID::Zero ? 0 : 1;
+			}
+		}
+
 		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< range_t > >
 			requires DbModel< std::remove_cvref_t< T > >
 		void InsertRange( range_t&& data )
@@ -497,8 +551,9 @@ namespace iter8::db
 
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
-			bool has_id = not Traits::IsSingleValued and boost::pfr::get< 0 >( data.front() ) != ID::Zero;
-			auto start_index = has_id ? 0 : 1;
+
+			bool has_id = HasId( data.front() );
+			auto start_index = StartIndex( data.front() );
 
 			std::ostringstream oss;
 			oss << "INSERT INTO " << Traits::TableName << " (";
@@ -546,6 +601,25 @@ namespace iter8::db
 		void Insert( Ts const&... ts )
 		{
 			InsertRange( std::array{ ts... } );
+		}
+
+		template < DbModel T >
+		void InsertOrUpdate( T const& value )
+		{
+			if constexpr ( DbModelTraits< T >::IsSingleValued )
+			{
+				if ( SelectOne< T >() )
+					Update( value );
+				else
+					Insert( value );
+			}
+			else
+			{
+				if ( SelectOne< T >( Where( WhereParam( &T::id, value.id ) ) ) )
+					Update( value );
+				else
+					Insert( value );
+			}
 		}
 
 	private:

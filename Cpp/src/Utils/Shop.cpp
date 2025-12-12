@@ -17,14 +17,7 @@ namespace iter8::shop
 		if ( not user )
 			return 0;
 
-		auto user_param = db::ForeignKey< User >{ db::ToId( user_id ) };
-		auto purchases = db.Select< Purchase >( db::Where( db::WhereParam( &Purchase::user_id, user_param ) ) ).ReadAll();
-
-		auto credit = user->duration;
-
-		credit -= Sum( purchases, &Purchase::cost );
-
-		return credit;
+		return user->credit;
 	}
 
 	bool CanAffordPurchase( db::Connection& db, dpp::snowflake user_id, float cost )

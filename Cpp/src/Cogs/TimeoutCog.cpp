@@ -99,6 +99,9 @@ namespace iter8
 		auto before = ctx_.timeouts[ event.updated.user_id ];
 		auto after = from_time_t( event.updated.communication_disabled_until );
 
+		if ( before == after )
+			co_return;
+
 		ctx_.timeouts[ event.updated.user_id ] = after;
 
 		bool timeout_applied = after and not before;
@@ -131,10 +134,10 @@ namespace iter8
 
 		user.count++;
 		user.duration += duration_to_add;
-		user.duration += duration_to_add;
+		user.credit += duration_to_add;
 
 		if ( record )
-			ctx_.db.Update( user, db::Where( db::WhereParam( &User::id, user.id ) ) );
+			ctx_.db.Update( user );
 		else
 			ctx_.db.Insert( user );
 
