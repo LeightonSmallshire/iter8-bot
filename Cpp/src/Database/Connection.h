@@ -250,6 +250,31 @@ namespace iter8::db
 			Statement statement_;
 		};
 
+		class Transaction
+		{
+		public:
+			enum class Mode
+			{
+				Deferred,
+				Immediate,
+				Exclusive
+			};
+
+			explicit Transaction( class Connection* db, Mode mode = Mode::Immediate );
+
+			~Transaction();
+
+			Transaction( Transaction const& ) = delete;
+			Transaction& operator=( Transaction const& ) = delete;
+
+			void Commit();
+
+			void Rollback() noexcept;
+
+		private:
+			class Connection* db_{};
+			bool active_{};
+		};
 
 	public:
 		std::string ExecRaw( std::string_view sql )
@@ -620,6 +645,12 @@ namespace iter8::db
 				else
 					Insert( value );
 			}
+		}
+
+
+		Transaction BeginTransaction( Transaction::Mode mode = Transaction::Mode::Immediate )
+		{
+			return Transaction( this, mode );
 		}
 
 	private:

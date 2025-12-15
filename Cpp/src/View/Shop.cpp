@@ -151,17 +151,13 @@ namespace iter8::view
 
 			co_await e.co_reply();
 
+			auto msg = e.command.msg;
+
 			auto handler = shop::Handler::Get( *ctx->selected );
 			if ( handler->HasAllParameters( ctx->params ) )
 			{
-				auto msg = e.command.msg;
 				SearchComponentsAndUpdate( msg.components, confirm_id, []( auto& c ) {
 					c.disabled = false;
-				} );
-
-				// For some reason need to re-populate the duration field as the component does not hold the updated value
-				SearchComponentsAndUpdate( msg.components, duration_id, [ & ]( auto& c ) {
-					c.value = std::to_string( std::any_cast< int >( ctx->params[ "duration" ] ) );
 				} );
 
 				co_await e.co_edit_original_response( msg );
@@ -182,21 +178,25 @@ namespace iter8::view
 
 			co_await e.co_reply();
 
+			auto msg = e.command.msg;
+
+			SearchComponentsAndUpdate( msg.components, duration_id, [ & ]( dpp::component& c ) {
+				for ( auto& opt : c.options )
+				{
+					if ( opt.value == event.values[ 0 ] )
+						opt.is_default = true;
+				}
+			} );
+
 			auto handler = shop::Handler::Get( *ctx->selected );
 			if ( handler->HasAllParameters( ctx->params ) )
 			{
-				auto msg = e.command.msg;
 				SearchComponentsAndUpdate( msg.components, confirm_id, []( auto& c ) {
 					c.disabled = false;
 				} );
-
-				// For some reason need to re-populate the duration field as the component does not hold the updated value
-				SearchComponentsAndUpdate( msg.components, duration_id, [ & ]( auto& c ) {
-					c.value = std::to_string( std::any_cast< int >( ctx->params[ "duration" ] ) );
-				} );
-
-				co_await e.co_edit_original_response( msg );
 			}
+
+			co_await e.co_edit_original_response( msg );
 		};
 
 
@@ -397,19 +397,41 @@ namespace iter8::view
 					.cost = cost
 				};
 
-				auto handler = shop::Handler::Get( *ctx->selected );
-				co_await handler->HandlePurchase( e, ctx->params );
+				auto transaction = bot_ctx.db.BeginTransaction();
 
-				bot_ctx.db.Insert( purchase );
+				bool success{};
 
-				auto user = bot_ctx.db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( e.command.usr.id ) ) ) ).value();
-				user.credit -= cost;
-				bot_ctx.db.Update( user );
+				try
+				{
+					auto handler = shop::Handler::Get( *ctx->selected );
+					co_await handler->HandlePurchase( e, ctx->params );
 
-				auto self_id_str = std::to_string( self_id );
-				std::erase_if( bot_ctx.component_handlers, [ & ]( auto const& kv ) { return kv.first.starts_with( self_id_str ); } );
+					bot_ctx.db.Insert( purchase );
 
-				co_await e.co_edit_original_response( std::format( "✅ Purchased **{}**.", item->description ) );
+					auto user = bot_ctx.db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( e.command.usr.id ) ) ) ).value();
+					user.credit -= cost;
+					bot_ctx.db.Update( user );
+
+					auto self_id_str = std::to_string( self_id );
+					std::erase_if( bot_ctx.component_handlers, [ & ]( auto const& kv ) { return kv.first.starts_with( self_id_str ); } );
+
+					success = true;
+				}
+				catch ( std::exception& ex )
+				{
+					success = false;
+				}
+
+				if ( success )
+				{
+					transaction.Commit();
+					co_await e.co_edit_original_response( std::format( "✅ Purchased **{}**.", item->description ) );
+				}
+				else
+				{
+					transaction.Rollback();
+					co_await e.co_edit_original_response( "❌ An error occurred during purchase." );
+				}
 			}
 			else
 			{
