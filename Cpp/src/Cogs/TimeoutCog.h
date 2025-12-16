@@ -15,6 +15,7 @@ namespace iter8
 	public:
 		TimeoutCog( Context& ctx );
 
+	private:
 		dpp::task< void > OnLeaderboardCommand( dpp::slashcommand_t const& event );
 		dpp::task< void > OnMemberUpdate( dpp::guild_member_update_t const& event );
 

@@ -125,7 +125,7 @@ namespace iter8::db
 			}
 		};
 
-		template < DbModel T >
+		template < typename T >
 		class DbCursor
 		{
 		public:
@@ -245,6 +245,11 @@ namespace iter8::db
 				return std::ranges::to< std::vector >( *this );
 			}
 
+			Statement& GetStatement()
+			{
+				return statement_;
+			}
+
 		private:
 			Connection* db_;
 			Statement statement_;
@@ -306,7 +311,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		DbCursor< T > Select( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		DbCursor< T > Select( WhereClause const& where = {}, OrderByClause const& order_by = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -365,7 +370,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		std::optional< T > SelectOne( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		std::optional< T > SelectOne( WhereClause const& where = {}, OrderByClause const& order_by = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -426,11 +431,11 @@ namespace iter8::db
 			std::optional< T > result;
 			ReadRowInto( stmt, result );
 
-			return *result;
+			return result;
 		}
 
 		template < typename T >
-		void Update( T const& data, WhereClause< T > const& where = {} )
+		void Update( T const& data, WhereClause const& where = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -504,7 +509,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		void Delete( WhereClause< T > const& where = {} )
+		void Delete( WhereClause const& where = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -647,6 +652,104 @@ namespace iter8::db
 			}
 		}
 
+		template < DbModel... T >
+		DbCursor< std::tuple< T... > > JoinSelect(
+			JoinClause const& join = {},
+			WhereClause const& where = {},
+			OrderByClause const& order_by = {} )
+		{
+			static_assert( sizeof...( T ) >= 2, "JoinSelect requires at least 2 models" );
+
+			using TupleT = std::tuple< T... >;
+
+			detail::ValidateJoinPackOrThrow< TupleT >();
+
+			std::ostringstream oss;
+			oss << "SELECT ";
+
+			bool first_sel = true;
+			detail::AppendSelectList< TupleT >( oss, first_sel );
+
+			using First = std::tuple_element_t< 0, TupleT >;
+			oss << " FROM " << DbModelTraits< First >::TableName << " AS t0";
+
+			std::vector< bool > used( join.size(), false );
+
+			[ & ]< std::size_t... I >( std::index_sequence< I... > ) {
+				( ( [ & ] {
+					  if constexpr ( I == 0 )
+						  return;
+
+					  using Cur = std::tuple_element_t< I, TupleT >;
+
+					  auto edge = detail::FindJoinEdge< TupleT >( I, join, used );
+
+					  oss << ' ' << detail::ToSqlJoin( edge.join ) << ' '
+						  << DbModelTraits< Cur >::TableName << " AS t" << I
+						  << " ON ";
+
+					  detail::AppendJoinCondition< TupleT >( oss, edge );
+				  }() ),
+				  ... );
+			}( std::make_index_sequence< sizeof...( T ) >{} );
+
+			if ( !where.empty() )
+			{
+				constexpr auto& names = DbModelTraits< First >::ColumnNames;
+
+				oss << " WHERE ";
+				for ( std::size_t i = 0; i < where.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << " AND ";
+					auto const& w = where[ i ];
+					oss << "t0." << detail::ToSnakeCase( names[ static_cast< std::size_t >( w.column_index ) ] )
+						<< ' ' << ToSqlOp( w.cmp ) << " ?";
+				}
+			}
+
+			if ( !order_by.empty() )
+			{
+				constexpr auto& names = DbModelTraits< First >::ColumnNames;
+
+				oss << " ORDER BY ";
+				for ( std::size_t i = 0; i < order_by.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << ", ";
+					auto const& o = order_by[ i ];
+					oss << "t0." << detail::ToSnakeCase( names[ static_cast< std::size_t >( o.column_index ) ] )
+						<< ( o.dir == Ordering::Desc ? " DESC" : " ASC" );
+				}
+			}
+
+			oss << ';';
+
+			Statement stmt = Prepare( oss.view() );
+
+			int param_index = 1;
+			for ( auto const& w : where )
+				BindSqlValue( stmt, param_index++, w.value );
+
+			return DbCursor< std::tuple< T... > >{ this, std::move( stmt ) };
+		}
+
+		template < DbModel... T >
+		std::optional< std::tuple< T... > > JoinSelectOne(
+			JoinClause const join_type = {},
+			WhereClause const& where = {},
+			OrderByClause const& order_by = {} )
+		{
+			auto cursor = JoinSelect< T... >( std::move( join_type ), where, order_by );
+			auto& stmt = cursor.GetStatement();
+
+			if ( !Step( stmt ) )
+				return {};
+
+			std::optional< std::tuple< T... > > result;
+			ReadRowInto( stmt, result );
+			return result;
+		}
 
 		Transaction BeginTransaction( Transaction::Mode mode = Transaction::Mode::Immediate )
 		{
@@ -750,7 +853,8 @@ namespace iter8::db
 			}
 		}
 
-		template < DbModel T >
+		template < typename T >
+			requires( !detail::is_std_tuple_v< T > ) and ( DbModel< T > )
 		void ReadRowInto( Statement& stmt, std::optional< T >& value )
 		{
 			if ( not value )
@@ -762,6 +866,31 @@ namespace iter8::db
 			boost::pfr::for_each_field( data, [ & ]( auto& field ) {
 				ReadOne( stmt, col++, field );
 			} );
+		}
+
+		template < DbModel M >
+		void ReadRowIntoAt( Statement& stmt, M& value, int& col )
+		{
+			boost::pfr::for_each_field( value, [ & ]( auto& field ) {
+				ReadOne( stmt, col++, field );
+			} );
+		}
+
+		template < DbModel... Ts >
+		void ReadRowInto( Statement& stmt, std::optional< std::tuple< Ts... > >& value )
+		{
+			if ( !value )
+				value.emplace();
+
+			int col = 0;
+			[ & ]< std::size_t... I >( std::index_sequence< I... > ) {
+				( ( [ & ] {
+					  using M = std::tuple_element_t< I, std::tuple< Ts... > >;
+					  auto& opt = std::get< I >( *value );
+					  ReadRowIntoAt< M >( stmt, opt, col );
+				  }() ),
+				  ... );
+			}( std::make_index_sequence< sizeof...( Ts ) >{} );
 		}
 
 		std::vector< std::string > ReadRowAsString( Statement& stmt )

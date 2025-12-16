@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Common.h"
+#include "Core/Reflection.h"
 
 #include "boost/pfr.hpp"
 
@@ -78,7 +79,7 @@ namespace iter8::db
 		template < typename T >
 		std::string ToSnakeCase()
 		{
-			return ToSnakeCase( nameof( T ) );
+			return ToSnakeCase( TypeTraits< T >::Name );
 		}
 	} // namespace detail
 
@@ -127,6 +128,7 @@ namespace iter8::db
 		{
 			using model_type = T;
 			using value_type = typename ForeignKey< T, Field >::value_type;
+			static constexpr auto field = Field;
 		};
 
 		template < typename T >
@@ -181,6 +183,18 @@ namespace iter8::db
 
 		template < typename T >
 		using unwrap_optional_t = typename unwrap_optional_impl< T >::type;
+
+
+		template < typename T >
+		struct is_std_tuple : std::false_type
+		{};
+
+		template < typename... Ts >
+		struct is_std_tuple< std::tuple< Ts... > > : std::true_type
+		{};
+
+		template < typename T >
+		inline constexpr bool is_std_tuple_v = is_std_tuple< std::remove_cvref_t< T > >::value;
 
 		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
 		{

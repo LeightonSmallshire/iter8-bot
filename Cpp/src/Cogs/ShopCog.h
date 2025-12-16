@@ -9,6 +9,7 @@ namespace iter8
 	public:
 		ShopCog( Context& ctx );
 
+	private:
 		dpp::task< void > OnShopCommand( dpp::slashcommand_t const& event );
 		dpp::task< void > OnCreditCommand( dpp::slashcommand_t const& event );
 	};

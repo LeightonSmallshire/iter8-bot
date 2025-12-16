@@ -33,10 +33,10 @@ namespace iter8::shop
 			db::OrderBy( db::Param( &Purchase::timestamp, db::Ordering::Desc ) )
 		);
 
-		if ( not sale )
+		if ( not sale and not sale->timestamp )
 			return { false, std::nullopt };
 
-		auto end_time = sale->timestamp + std::chrono::minutes( 30 );
+		auto end_time = *sale->timestamp + std::chrono::minutes( 30 );
 		return { std::chrono::system_clock::now() < end_time, end_time };
 	}
 } // namespace iter8::shop

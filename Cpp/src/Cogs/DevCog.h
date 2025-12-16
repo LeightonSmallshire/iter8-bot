@@ -9,6 +9,7 @@ namespace iter8
 	public:
 		DevCog( Context& ctx ); 
 
+	private:
 		dpp::task< void > OnGetLogs( dpp::slashcommand_t const& event );
 		dpp::task< void > OnDownload( dpp::slashcommand_t const& event );
 		dpp::task< void > OnCrash( dpp::slashcommand_t const& event );

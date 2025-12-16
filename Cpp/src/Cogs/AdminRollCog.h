@@ -9,6 +9,7 @@ namespace iter8
 	public:
 		AdminRollCog( Context& ctx );
 
+	private:
 		dpp::task< void > OnRollAdminCommand( dpp::slashcommand_t const& event );
 	};
 } // namespace iter8
