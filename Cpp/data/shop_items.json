@@ -1,0 +1,86 @@
+﻿[
+  {
+    "id": 1,
+    "cost": 120,
+    "description": "⏱️ Timeout admin (price per minute)",
+    "category": "Timeout"
+  },
+  {
+    "id": 2,
+    "cost": 60,
+    "description": "⏱️ Timeout user (price per minute)",
+    "category": "Timeout"
+  },
+  {
+    "id": 3,
+    "cost": 600,
+    "description": "🎲 Reroll bully target",
+    "category": "Timeout"
+  },
+  {
+    "id": 4,
+    "cost": 1200,
+    "description": "🤕 Choose bully target",
+    "category": "Timeout"
+  },
+  {
+    "id": 5,
+    "cost": 30,
+    "description": "⏱️ Timeout bully target (price per minute)",
+    "category": "Timeout"
+  },
+  {
+    "id": 6,
+    "cost": 7200,
+    "description": "👑 Make yourself admin",
+    "category": "Admin"
+  },
+  {
+    "id": 7,
+    "cost": 1800,
+    "description": "🎟️ Add an extra ticket in the next admin dice roll",
+    "category": "Admin"
+  },
+  {
+    "id": 8,
+    "cost": 2700,
+    "description": "🎲 Reroll the admin",
+    "category": "Admin"
+  },
+  {
+    "id": 9,
+    "cost": 60,
+    "description": "✏️ Change your own nickname",
+    "category": "Customise"
+  },
+  {
+    "id": 10,
+    "cost": 300,
+    "description": "✏️ Change another user's nickname",
+    "category": "Customise"
+  },
+  {
+    "id": 11,
+    "cost": 60,
+    "description": "🖌️ Change your own colour",
+    "category": "Customise"
+  },
+  {
+    "id": 12,
+    "cost": 300,
+    "description": "🖌️ Change another user's colour",
+    "category": "Customise"
+  },
+  {
+    "id": 13,
+    "cost": 1800,
+    "description": "🏷️ Black Friday Sale! Everything half off for the next 30 minutes!",
+    "category": "Sale"
+  },
+  {
+    "id": 14,
+    "cost": 30,
+    "description": "⏱️ Timeout a random target (price per minute)",
+    "category": "Timeout"
+  }
+]
