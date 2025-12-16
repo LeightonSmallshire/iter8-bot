@@ -195,7 +195,52 @@ namespace iter8::db
 
 		template < typename T >
 		inline constexpr bool is_std_tuple_v = is_std_tuple< std::remove_cvref_t< T > >::value;
+	}
 
+	template < typename T >
+	static constexpr std::string_view GetSQLTypeMapping()
+	{
+		using U = std::remove_cv_t< std::remove_reference_t< T > >;
+
+		if constexpr ( std::is_same_v< U, bool > )
+		{
+			return "BOOLEAN";
+		}
+		else if constexpr ( std::is_integral_v< U > or std::same_as< U, ID > or detail::is_foreign_key_v< U > )
+		{
+			return "INTEGER";
+		}
+		else if constexpr ( std::is_enum_v< U > )
+		{
+			return "ENUM";
+		}
+		else if constexpr ( std::is_floating_point_v< U > )
+		{
+			return "REAL";
+		}
+		else if constexpr ( std::is_same_v< U, std::string > ||
+							std::is_same_v< U, std::string_view > ||
+							std::is_same_v< U, char const* > ||
+							std::is_same_v< U, char* > )
+		{
+			return "TEXT";
+		}
+		else if constexpr ( detail::is_blob_container_v< U > )
+		{
+			return "BLOB";
+		}
+		else if constexpr ( detail::is_time_point_v< U > )
+		{
+			return "DATETIME";
+		}
+		else
+		{
+			static_assert( false, "No SQL type mapping for this C++ type" );
+		}
+	}
+
+	namespace detail
+	{
 		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
 		{
 			using sys_nanoseconds = std::chrono::sys_time< std::chrono::nanoseconds >;
@@ -263,49 +308,6 @@ namespace iter8::db
 	} // namespace detail
 
 
-	template < typename T >
-	static constexpr std::string_view GetSQLTypeMapping()
-	{
-		using U = std::remove_cv_t< std::remove_reference_t< T > >;
-
-		if constexpr ( std::is_same_v< U, bool > )
-		{
-			return "BOOLEAN";
-		}
-		else if constexpr ( std::is_integral_v< U > or std::same_as< U, ID > or detail::is_foreign_key_v< U > )
-		{
-			return "INTEGER";
-		}
-		else if constexpr ( std::is_enum_v< U > )
-		{
-			return "ENUM";
-		}
-		else if constexpr ( std::is_floating_point_v< U > )
-		{
-			return "REAL";
-		}
-		else if constexpr ( std::is_same_v< U, std::string > ||
-							std::is_same_v< U, std::string_view > ||
-							std::is_same_v< U, char const* > ||
-							std::is_same_v< U, char* > )
-		{
-			return "TEXT";
-		}
-		else if constexpr ( detail::is_blob_container_v< U > )
-		{
-			return "BLOB";
-		}
-		else if constexpr ( detail::is_time_point_v< U > )
-		{
-			return "DATETIME";
-		}
-		else
-		{
-			static_assert( false, "No SQL type mapping for this C++ type" );
-		}
-	}
-
-
 	template < DbModel T >
 	std::string BuildCreateTableSql()
 	{
@@ -317,7 +319,7 @@ namespace iter8::db
 namespace iter8
 {
 	template <>
-	struct iter8::EnumTraits< db::ID >
+	struct EnumTraits< db::ID >
 	{
 		static constexpr bool UseStringFormat = false;
 	};

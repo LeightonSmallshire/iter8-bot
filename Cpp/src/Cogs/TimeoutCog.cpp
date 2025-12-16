@@ -121,8 +121,6 @@ namespace iter8
 		else if ( timeout_extended )
 			duration_to_add = DurationToDouble( *after - *before );
 
-		log::Info( "Timeout in {} : {} : until {}", event.updating_guild.name, event.updated.get_nickname(), after.value_or( {} ) );
-
 		auto update_info = co_await FindTimeoutInfo( ctx_.bot, event.updated.user_id );
 
 		bool do_update = update_info and ( update_info->moderator != event.updating_guild.owner_id or timeout_removed );

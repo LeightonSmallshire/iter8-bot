@@ -272,7 +272,16 @@ namespace iter8::db
 			{
 				std::optional< std::size_t > out{};
 				std::size_t idx = 0;
-				( ( !out && ti == typeid( Ts ) ? ( out = idx ) : void(), ++idx ), ... );
+
+				auto check = [ & ]( auto tag ) {
+					using T = std::remove_cvref_t< decltype( tag ) >;
+					if ( !out && ti == typeid( T ) )
+						out = idx;
+					++idx;
+				};
+
+				( check( Ts{} ), ... );
+
 				return out;
 			}
 		};

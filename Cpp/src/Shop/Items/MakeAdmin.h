@@ -39,7 +39,8 @@ namespace iter8::shop
 					Roles::BullyTarget,
 					roll_table,
 					"🎲 New admin was the bully target. Finding a new target...",
-					roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
+					"<@{}> is free! <@{}> is the new bully target. GET THEM!",
+					"<@{}> is the new bully target. GET THEM!" );
 			}
 		}
 	};

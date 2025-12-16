@@ -27,7 +27,8 @@ namespace iter8::shop
 				Roles::Admin,
 				roll_table,
 				std::format( "🚨 {} called for a reroll! 🚨", event.command.usr.get_mention() ),
-				roll::MakeResponsePair( "<@{}> is dead. Long live <@{}>.", "Long live <@{}>." ) );
+				"<@{}> is dead. Long live <@{}>.",
+				"Long live <@{}>." );
 
 			auto bully_role = co_await GetRole( bot, event.command.guild_id, Roles::BullyTarget );
 			auto bully_targets = bully_role.get_members();
@@ -41,7 +42,8 @@ namespace iter8::shop
 					Roles::BullyTarget,
 					roll_table,
 					"🎲 Admin landed on the bully target. Finding a new target...",
-					roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
+					"<@{}> is free! <@{}> is the new bully target. GET THEM!",
+					"<@{}> is the new bully target. GET THEM!" );
 			}
 		}
 	};

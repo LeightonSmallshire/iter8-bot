@@ -55,7 +55,7 @@ namespace iter8
 		auto reply = dpp::message{ "Rolling admin..." }.set_flags( dpp::m_ephemeral );
 		co_await event.co_reply( reply );
 
-		auto update = timestamps.value_or( {} );
+		auto update = timestamps.value_or( Timestamps{} );
 		update.last_roll = std::chrono::system_clock::now();
 		ctx_.db.InsertOrUpdate( update );
 
@@ -74,7 +74,8 @@ namespace iter8
 			Roles::Admin,
 			roll_table,
 			"🎲 Let's roll the dice! 🎲",
-			roll::MakeResponsePair( "<@{}> is dead. Long live <@{}>.", "Long live <@{}>." ) );
+			"<@{}> is dead. Long live <@{}>.",
+			"Long live <@{}>." );
 
 		co_await ctx_.bot.co_sleep( 2 );
 
@@ -85,6 +86,7 @@ namespace iter8
 			Roles::BullyTarget,
 			roll_table,
 			"🎲 Who's getting bullied? 🎲",
-			roll::MakeResponsePair( "<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!" ) );
+			"<@{}> is free! <@{}> is the new bully target. GET THEM!",
+			"<@{}> is the new bully target. GET THEM!" );
 	}
 } // namespace iter8

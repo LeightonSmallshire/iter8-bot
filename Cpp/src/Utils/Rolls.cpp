@@ -15,7 +15,8 @@ namespace iter8::roll
 		dpp::snowflake role_id,
 		std::vector< dpp::guild_member > const& table,
 		std::string_view title,
-		std::pair< std::format_string< std::string, std::string >, std::format_string< std::string > > response )
+		std::format_string< std::string, std::string > mod_response,
+		std::format_string< std::string > no_mod_response )
 	{
 		constexpr auto ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif";
 
@@ -84,8 +85,8 @@ namespace iter8::roll
 		co_await bot.co_guild_member_add_role( event.command.guild_id, new_user.user_id, role_id );
 
 		edit_msg.content = prev_user
-							   ? std::format( response.first, prev_user->str(), new_user.user_id.str() )
-							   : std::format( response.second, new_user.user_id.str() );
+							   ? std::format( mod_response, prev_user->str(), new_user.user_id.str() )
+							   : std::format( no_mod_response, new_user.user_id.str() );
 
 		co_await bot.co_message_edit( edit_msg );
 
