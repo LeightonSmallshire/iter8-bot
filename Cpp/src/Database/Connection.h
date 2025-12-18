@@ -2,6 +2,10 @@
 
 #include "Model.h"
 #include "Query.h"
+#include "Statement.h"
+#include "Transaction.h"
+
+#include "Logging/Log.h"
 
 #include <sqlite3.h>
 
@@ -22,108 +26,35 @@ namespace iter8::db
 		using std::runtime_error::runtime_error;
 	};
 
+	/// Database connection class used for executing commands on the DB.
+	///		Init 				Initialise a table for a given model type. Optional drop a possibly existing table.
+	///		Select 				SQL SELECT for a model type. Optional Where and OrderBy clauses.
+	///							Returns DbCursor which is iterable and will lazily retrieve the next row as it iterates. Use `ReadAll` on the cursor to fully evaluate.
+	///		SelectOne			Select but only returns the first result in a std::optional. 
+	///		Update				SQL UPDATE any rows that matches the record provided. If the model type as an ID column it will automatically match that record.
+	///							Optional Where clause
+	///		Delete				SQL DELETE for a model type. Optional Where clause.
+	///		InsertRange			SQL INSERT for a range that contains a model type.
+	///		Insert				Same as InsertRange but using variadic arguments
+	///		InsertOrUpdate		Insert if no record exists, Update otherwise
+	///		JoinSelect			Select but joining across two or more model tables. Optional Where and OrderBy clauses
+	///							Will automatically match searching for a ForeignKey on one of the model types. If a model contains more than one ForeignKey
+	///							then use an On clause to specify the join.
+	///		JoinSelectOne		JoinSelect but only returns the first result in a std::optional. 
+	///		ExecRaw				Execute a raw string query. Any results returned as a formatted table string
+	///		BeginTransaciton	Begin a transaction. Returns a RAII encapsulated object for managing the transaction 
+	///							which automatically rollbacks on destruction if you don't explicitly commit.
 	class Connection
 	{
 	public:
-		Connection( std::string_view path )
-		{
-			int const flags =
-				SQLITE_OPEN_READWRITE |
-				SQLITE_OPEN_CREATE |
-				SQLITE_OPEN_URI;
+		Connection( std::string_view path );
+		~Connection();
 
-			int rc = sqlite3_open_v2( path.data(), &db_, flags, nullptr );
-			if ( rc != SQLITE_OK )
-			{
-				std::string msg = db_ ? sqlite3_errmsg( db_ ) : "failed to open sqlite Connection";
-				if ( db_ )
-				{
-					sqlite3_close_v2( db_ );
-					db_ = nullptr;
-				}
-				throw SqliteError( msg );
-			}
-		}
-
-		~Connection()
-		{
-			if ( db_ )
-			{
-				sqlite3_close_v2( db_ );
-				db_ = nullptr;
-			}
-		}
-
-		Connection( Connection&& other ) noexcept
-			: db_( other.db_ )
-		{
-			other.db_ = nullptr;
-		}
-
-		Connection& operator=( Connection&& other ) noexcept
-		{
-			if ( this != &other )
-			{
-				if ( db_ )
-				{
-					sqlite3_close_v2( db_ );
-				}
-				db_ = other.db_;
-				other.db_ = nullptr;
-			}
-			return *this;
-		}
+		Connection( Connection&& other ) noexcept;
+		Connection& operator=( Connection&& other ) noexcept;
 
 	public:
-		struct Statement
-		{
-			sqlite3_stmt* handle{ nullptr };
-
-			Statement() = default;
-			explicit Statement( sqlite3_stmt* stmt )
-				: handle( stmt )
-			{}
-
-			Statement( Statement const& ) = delete;
-			Statement& operator=( Statement const& ) = delete;
-
-			Statement( Statement&& other ) noexcept
-				: handle( other.handle )
-			{
-				other.handle = nullptr;
-			}
-			Statement& operator=( Statement&& other ) noexcept
-			{
-				if ( this != &other )
-				{
-					finalize();
-					handle = other.handle;
-					other.handle = nullptr;
-				}
-				return *this;
-			}
-
-			~Statement()
-			{
-				finalize();
-			}
-
-			void finalize()
-			{
-				if ( handle )
-				{
-					sqlite3_finalize( handle );
-					handle = nullptr;
-				}
-			}
-
-			explicit operator bool() const noexcept
-			{
-				return handle != nullptr;
-			}
-		};
-
-		template < DbModel T >
+		template < typename T >
 		class DbCursor
 		{
 		public:
@@ -243,31 +174,17 @@ namespace iter8::db
 				return std::ranges::to< std::vector >( *this );
 			}
 
+			Statement& GetStatement()
+			{
+				return statement_;
+			}
+
 		private:
 			Connection* db_;
 			Statement statement_;
 		};
 
-
 	public:
-		std::string ExecRaw( std::string_view sql )
-		{
-			std::vector< std::vector< std::string > > result;
-
-			Statement stmt = Prepare( sql );
-
-			int row_count = 0;
-			while ( Step( stmt ) )
-			{
-				result.push_back( ReadRowAsString( stmt ) );
-			}
-
-			if ( result.empty() )
-				return {};
-
-			return FormatTable( stmt, result );
-		}
-
 		template < typename T >
 		void Init( bool truncate )
 		{
@@ -279,7 +196,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		DbCursor< T > Select( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		DbCursor< T > Select( WhereClause const& where = {}, OrderByClause const& order_by = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -338,7 +255,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		std::optional< T > SelectOne( WhereClause< T > const& where = {}, OrderByClause< T > const& order_by = {} )
+		std::optional< T > SelectOne( WhereClause const& where = {}, OrderByClause const& order_by = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -399,15 +316,24 @@ namespace iter8::db
 			std::optional< T > result;
 			ReadRowInto( stmt, result );
 
-			return *result;
+			return result;
 		}
 
 		template < typename T >
-		void Update( T const& data, WhereClause< T > const& where = {} )
+		void Update( T const& data, WhereClause const& where = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
 			static_assert( !names.empty(), "DbModelTraits::ColumnNames must not be empty" );
+
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				if ( data.id == ID::Zero )
+				{
+					log::Error( "Attempting to update a record with a zero ID" );
+					throw std::logic_error( "Attempting to update a record with a zero ID" );
+				}
+			}
 
 			std::ostringstream oss;
 			oss << "UPDATE " << Traits::TableName << " SET ";
@@ -421,9 +347,18 @@ namespace iter8::db
 				oss << detail::ToSnakeCase( names[ i ] ) << " = ?";
 			}
 
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				oss << " WHERE id = ? ";
+			}
+
 			if ( !where.empty() )
 			{
-				oss << " WHERE ";
+				if constexpr ( Traits::IsSingleValued )
+				{
+					oss << " WHERE ";
+				}
+
 				for ( std::size_t i = 0; i < where.size(); ++i )
 				{
 					if ( i > 0 )
@@ -445,6 +380,11 @@ namespace iter8::db
 			} );
 
 			// Then WHERE values.
+			if constexpr ( not Traits::IsSingleValued )
+			{
+				BindOne( stmt, param_index, data.id );
+			}
+
 			for ( auto const& w : where )
 			{
 				BindSqlValue( stmt, param_index++, w.value );
@@ -454,7 +394,7 @@ namespace iter8::db
 		}
 
 		template < typename T >
-		void Delete( WhereClause< T > const& where = {} )
+		void Delete( WhereClause const& where = {} )
 		{
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
@@ -488,6 +428,35 @@ namespace iter8::db
 			StepOnce( stmt );
 		}
 
+		template < typename T >
+		static int HasId( T const& t )
+		{
+			using Traits = DbModelTraits< T >;
+			if constexpr ( Traits::IsSingleValued )
+			{
+				return false;
+			}
+			else
+			{
+				return boost::pfr::get< 0 >( t ) != ID::Zero;
+			}
+		}
+
+
+		template < typename T >
+		static int StartIndex( T const& t )
+		{
+			using Traits = DbModelTraits< T >;
+			if constexpr ( Traits::IsSingleValued )
+			{
+				return 0;
+			}
+			else
+			{
+				return boost::pfr::get< 0 >( t ) != ID::Zero ? 0 : 1;
+			}
+		}
+
 		template < std::ranges::input_range range_t, typename T = std::ranges::range_value_t< range_t > >
 			requires DbModel< std::remove_cvref_t< T > >
 		void InsertRange( range_t&& data )
@@ -497,8 +466,9 @@ namespace iter8::db
 
 			using Traits = DbModelTraits< T >;
 			constexpr auto& names = Traits::ColumnNames;
-			bool has_id = not Traits::IsSingleValued and boost::pfr::get< 0 >( data.front() ) != ID::Zero;
-			auto start_index = has_id ? 0 : 1;
+
+			bool has_id = HasId( data.front() );
+			auto start_index = StartIndex( data.front() );
 
 			std::ostringstream oss;
 			oss << "INSERT INTO " << Traits::TableName << " (";
@@ -519,7 +489,14 @@ namespace iter8::db
 				oss << '?';
 			}
 
-			oss << ");";
+			oss << ")";
+
+			if ( has_id )
+			{
+				oss << " ON CONFLICT(id) DO NOTHING";
+			}
+
+			oss << ";";
 
 			Statement stmt = Prepare( oss.view() );
 
@@ -541,73 +518,136 @@ namespace iter8::db
 			InsertRange( std::array{ ts... } );
 		}
 
-	private:
-		void Exec( std::string_view sql )
+		template < DbModel T >
+		void InsertOrUpdate( T const& value )
 		{
-			char* err = nullptr;
-			int rc = sqlite3_exec( db_, sql.data(), nullptr, nullptr, &err );
-			if ( rc != SQLITE_OK )
+			if constexpr ( DbModelTraits< T >::IsSingleValued )
 			{
-				std::string msg = err ? err : "sqlite exec error";
-				if ( err )
+				if ( SelectOne< T >() )
+					Update( value );
+				else
+					Insert( value );
+			}
+			else
+			{
+				if ( SelectOne< T >( Where( WhereParam( &T::id, value.id ) ) ) )
+					Update( value );
+				else
+					Insert( value );
+			}
+		}
+
+		template < DbModel... T >
+		DbCursor< std::tuple< T... > > JoinSelect(
+			JoinClause const& join = {},
+			WhereClause const& where = {},
+			OrderByClause const& order_by = {} )
+		{
+			static_assert( sizeof...( T ) >= 2, "JoinSelect requires at least 2 models" );
+
+			using TupleT = std::tuple< T... >;
+
+			detail::ValidateJoinPackOrThrow< TupleT >();
+
+			std::ostringstream oss;
+			oss << "SELECT ";
+
+			bool first_sel = true;
+			detail::AppendSelectList< TupleT >( oss, first_sel );
+
+			using First = std::tuple_element_t< 0, TupleT >;
+			oss << " FROM " << DbModelTraits< First >::TableName << " AS t0";
+
+			std::vector< bool > used( join.size(), false );
+
+			[ & ]< std::size_t... I >( std::index_sequence< I... > ) {
+				( ( [ & ] {
+					  if constexpr ( I == 0 )
+						  return;
+
+					  using Cur = std::tuple_element_t< I, TupleT >;
+
+					  auto edge = detail::FindJoinEdge< TupleT >( I, join, used );
+
+					  oss << ' ' << detail::ToSqlJoin( edge.join ) << ' '
+						  << DbModelTraits< Cur >::TableName << " AS t" << I
+						  << " ON ";
+
+					  detail::AppendJoinCondition< TupleT >( oss, edge );
+				  }() ),
+				  ... );
+			}( std::make_index_sequence< sizeof...( T ) >{} );
+
+			if ( !where.empty() )
+			{
+				constexpr auto& names = DbModelTraits< First >::ColumnNames;
+
+				oss << " WHERE ";
+				for ( std::size_t i = 0; i < where.size(); ++i )
 				{
-					sqlite3_free( err );
+					if ( i > 0 )
+						oss << " AND ";
+					auto const& w = where[ i ];
+					oss << "t0." << detail::ToSnakeCase( names[ static_cast< std::size_t >( w.column_index ) ] )
+						<< ' ' << ToSqlOp( w.cmp ) << " ?";
 				}
-				throw SqliteError( msg );
 			}
-		}
 
-		Statement Prepare( std::string_view sql )
-		{
-			sqlite3_stmt* stmt = nullptr;
-
-			int rc = sqlite3_prepare_v3(
-				db_,
-				sql.data(),
-				-1,
-				SQLITE_PREPARE_PERSISTENT,
-				&stmt,
-				nullptr );
-
-			if ( rc != SQLITE_OK )
+			if ( !order_by.empty() )
 			{
-				auto err = "sqlite3_prepare_v3 failed: " + std::string( sqlite3_errmsg( db_ ) );
-				throw std::runtime_error( err );
+				constexpr auto& names = DbModelTraits< First >::ColumnNames;
+
+				oss << " ORDER BY ";
+				for ( std::size_t i = 0; i < order_by.size(); ++i )
+				{
+					if ( i > 0 )
+						oss << ", ";
+					auto const& o = order_by[ i ];
+					oss << "t0." << detail::ToSnakeCase( names[ static_cast< std::size_t >( o.column_index ) ] )
+						<< ( o.dir == Ordering::Desc ? " DESC" : " ASC" );
+				}
 			}
-			return Statement{ stmt };
+
+			oss << ';';
+
+			Statement stmt = Prepare( oss.view() );
+
+			int param_index = 1;
+			for ( auto const& w : where )
+				BindSqlValue( stmt, param_index++, w.value );
+
+			return DbCursor< std::tuple< T... > >{ this, std::move( stmt ) };
 		}
 
-		bool Step( Statement& stmt )
+		template < DbModel... T >
+		std::optional< std::tuple< T... > > JoinSelectOne(
+			JoinClause const join_type = {},
+			WhereClause const& where = {},
+			OrderByClause const& order_by = {} )
 		{
-			if ( !stmt.handle )
-				throw std::runtime_error( "Step called on null statement" );
+			auto cursor = JoinSelect< T... >( std::move( join_type ), where, order_by );
+			auto& stmt = cursor.GetStatement();
 
-			int rc = sqlite3_step( stmt.handle );
-			switch ( rc )
-			{
-				case SQLITE_ROW:
-					return true;
-				case SQLITE_DONE:
-					return false;
-				default:
-					throw std::runtime_error( std::format( "sqlite3_step failed: {}", sqlite3_errmsg( db_ ) ) );
-			}
+			if ( !Step( stmt ) )
+				return {};
+
+			std::optional< std::tuple< T... > > result;
+			ReadRowInto( stmt, result );
+			return result;
 		}
 
-		void StepOnce( Statement& stmt )
+		std::string ExecRaw( std::string_view sql );
+
+		Transaction BeginTransaction( Transaction::Mode mode = Transaction::Mode::Immediate )
 		{
-			if ( !stmt.handle )
-				throw std::runtime_error( "StepOnce called on null statement" );
-
-			int rc = sqlite3_step( stmt.handle );
-			if ( rc != SQLITE_DONE && rc != SQLITE_ROW )
-			{
-				throw std::runtime_error( "sqlite3_step (StepOnce) failed: " +
-										  std::string( sqlite3_errmsg( db_ ) ) );
-			}
-			sqlite3_reset( stmt.handle );
-			sqlite3_clear_bindings( stmt.handle );
+			return Transaction( this, mode );
 		}
+
+	private:
+		void Exec( std::string_view sql );
+		Statement Prepare( std::string_view sql );
+		bool Step( Statement& stmt );
+		void StepOnce( Statement& stmt );
 
 		template < typename Field >
 		void ReadOne( Statement& stmt, int index, Field& value )
@@ -638,7 +678,8 @@ namespace iter8::db
 			}
 		}
 
-		template < DbModel T >
+		template < typename T >
+			requires( !detail::is_std_tuple_v< T > ) and ( DbModel< T > )
 		void ReadRowInto( Statement& stmt, std::optional< T >& value )
 		{
 			if ( not value )
@@ -652,37 +693,32 @@ namespace iter8::db
 			} );
 		}
 
-		std::vector< std::string > ReadRowAsString( Statement& stmt )
+		template < DbModel M >
+		void ReadRowIntoAt( Statement& stmt, M& value, int& col )
 		{
-			std::vector< std::string > row;
-
-			int n = sqlite3_column_count( stmt.handle );
-
-			for ( int i = 0; i < n; i++ )
-			{
-				unsigned char const* txt = sqlite3_column_text( stmt.handle, i );
-				if ( txt )
-				{
-					row.emplace_back( reinterpret_cast< char const* >( txt ) );
-				}
-				else
-				{
-					void const* data = sqlite3_column_blob( stmt.handle, i );
-					if ( data )
-					{
-						int size = sqlite3_column_bytes( stmt.handle, i );
-						auto str = std::string_view{ reinterpret_cast< char const* >( data ), static_cast< std::size_t >( size ) };
-						row.emplace_back( str );
-					}
-					else
-					{
-						row.emplace_back( "NULL" );
-					}
-				}
-			}
-
-			return row;
+			boost::pfr::for_each_field( value, [ & ]( auto& field ) {
+				ReadOne( stmt, col++, field );
+			} );
 		}
+
+		template < DbModel... Ts >
+		void ReadRowInto( Statement& stmt, std::optional< std::tuple< Ts... > >& value )
+		{
+			if ( !value )
+				value.emplace();
+
+			int col = 0;
+			[ & ]< std::size_t... I >( std::index_sequence< I... > ) {
+				( ( [ & ] {
+					  using M = std::tuple_element_t< I, std::tuple< Ts... > >;
+					  auto& opt = std::get< I >( *value );
+					  ReadRowIntoAt< M >( stmt, opt, col );
+				  }() ),
+				  ... );
+			}( std::make_index_sequence< sizeof...( Ts ) >{} );
+		}
+
+		std::vector< std::string > ReadRowAsString( Statement& stmt );
 
 		template < typename U >
 		void ReadScalar( sqlite3_stmt* stmt, int index, U& field )
@@ -696,6 +732,10 @@ namespace iter8::db
 			else if constexpr ( std::is_integral_v< T > or std::same_as< ID, T > )
 			{
 				field = static_cast< T >( sqlite3_column_int64( stmt, index ) );
+			}
+			else if constexpr ( detail::is_foreign_key_v< T > )
+			{
+				field.value = static_cast< ID >( sqlite3_column_int64( stmt, index ) );
 			}
 			else if constexpr ( std::is_enum_v< U > )
 			{
@@ -745,6 +785,10 @@ namespace iter8::db
 				if ( field == ID::Zero )
 					return;
 				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field ) );
+			}
+			else if constexpr ( detail::is_foreign_key_v< T > )
+			{
+				rc = sqlite3_bind_int64( stmt.handle, index, static_cast< sqlite3_int64 >( field.value ) );
 			}
 			else if constexpr ( std::is_same_v< T, bool > || std::is_integral_v< T > )
 			{
@@ -834,137 +878,11 @@ namespace iter8::db
 			}
 		}
 
-		inline char const* ToSqlOp( Cmp op )
-		{
-			switch ( op )
-			{
-				case Cmp::Eq:
-					return "=";
-				case Cmp::Is:
-					return "IS";
-				case Cmp::IsNot:
-					return "IS NOT";
-				case Cmp::Lt:
-					return "<";
-				case Cmp::Le:
-					return "<=";
-				case Cmp::Gt:
-					return ">";
-				case Cmp::Ge:
-					return ">=";
-			}
-			return "=";
-		}
+		char const* ToSqlOp( Cmp op );
 
-		void BindSqlValue( Statement& stmt, int index, SqlValue const& v )
-		{
-			int rc = SQLITE_OK;
+		void BindSqlValue( Statement& stmt, int index, SqlValue const& v );
 
-			if ( std::holds_alternative< std::monostate >( v ) )
-			{
-				rc = sqlite3_bind_null( stmt.handle, index );
-			}
-			else if ( auto b = std::get_if< bool >( &v ) )
-			{
-				rc = sqlite3_bind_int( stmt.handle, index, *b ? 1 : 0 );
-			}
-			else if ( auto i = std::get_if< std::int64_t >( &v ) )
-			{
-				rc = sqlite3_bind_int64( stmt.handle, index, *i );
-			}
-			else if ( auto d = std::get_if< double >( &v ) )
-			{
-				rc = sqlite3_bind_double( stmt.handle, index, *d );
-			}
-			else if ( auto s = std::get_if< std::string >( &v ) )
-			{
-				rc = sqlite3_bind_text64(
-					stmt.handle,
-					index,
-					s->c_str(),
-					static_cast< sqlite3_uint64 >( s->size() ),
-					SQLITE_TRANSIENT,
-					SQLITE_UTF8 );
-			}
-
-			if ( rc != SQLITE_OK )
-			{
-				throw SqliteError( sqlite3_errmsg( db_ ) );
-			}
-		}
-
-		std::string FormatTable( Statement& stmt, std::vector< std::vector< std::string > > const& rows )
-		{
-			auto headings = std::vector< std::string >{};
-
-			int n = sqlite3_column_count( stmt.handle );
-			for ( int i = 0; i < n; ++i )
-			{
-				char const* name = sqlite3_column_name( stmt.handle, i );
-				headings.emplace_back( name );
-			}
-
-			std::vector< std::size_t > widths( n, 0 );
-			for ( auto const& row : rows )
-			{
-				for ( std::size_t c = 0; c < row.size(); ++c )
-				{
-					widths[ c ] = Max( widths[ c ], headings[ c ].size(), row[ c ].size() );
-				}
-			}
-
-			std::ostringstream out;
-
-			for ( std::size_t c = 0; c < n; ++c )
-			{
-				auto const& heading = headings[ c ];
-				out << headings[ c ];
-
-				if ( heading.size() < widths[ c ] )
-				{
-					out << std::string( widths[ c ] - heading.size(), ' ' );
-				}
-
-				if ( c + 1 < n )
-				{
-					out << " | ";
-				}
-			}
-
-			out << '\n';
-
-			for ( std::size_t c = 0; c < n; ++c )
-			{
-				auto extra = c == 0 ? 1 : 2;
-				out << std::string( widths[ c ] + extra, '-' );
-				if ( c + 1 < n )
-					out << '+';
-			}
-
-			out << '\n';
-
-			for ( auto const& row : rows )
-			{
-				for ( std::size_t c = 0; c < n; ++c )
-				{
-					auto const& value = row[ c ];
-					out << value;
-
-					if ( value.size() < widths[ c ] )
-					{
-						out << std::string( widths[ c ] - value.size(), ' ' );
-					}
-
-					if ( c + 1 < n )
-					{
-						out << " | ";
-					}
-				}
-				out << '\n';
-			}
-
-			return out.str();
-		}
+		std::string FormatTable( Statement& stmt, std::vector< std::vector< std::string > > const& rows );
 
 	private:
 		sqlite3* db_ = nullptr;

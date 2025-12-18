@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Common.h"
+#include "Core/Reflection.h"
 
 #include "boost/pfr.hpp"
 
@@ -17,13 +18,119 @@ namespace iter8::db
 		Zero = 0
 	};
 
-	inline ID ToId(dpp::snowflake id)
+	inline ID ToId( auto&& id )
 	{
-		return static_cast< db::ID >( id.operator uint64_t() );
+		return static_cast< db::ID >( static_cast< std::uint64_t >( id ) );
+	}
+
+	inline dpp::snowflake FromId( auto&& id )
+	{
+		return dpp::snowflake( static_cast< std::uint64_t >( id ) );
 	}
 
 	namespace detail
 	{
+		template < typename T, typename Target, std::size_t... Is >
+		consteval bool HasFieldOfTypeImpl( std::index_sequence< Is... > )
+		{
+			return (
+				// fold-expression over all field indices
+				( std::is_same_v<
+					  std::remove_cvref_t< decltype( boost::pfr::get< Is >( std::declval< T& >() ) ) >,
+					  Target > ||
+				  ... ) );
+		}
+
+		template < typename T, typename Target >
+		constexpr bool HasFieldOfType =
+			HasFieldOfTypeImpl< T, Target >(
+				std::make_index_sequence< boost::pfr::tuple_size_v< T > >{} );
+
+		inline std::string ToSnakeCase( std::string_view s )
+		{
+			std::string out;
+			out.reserve( s.size() + s.size() / 4 ); // small heuristic
+
+			bool prev_is_lower = false;
+
+			for ( char c : s )
+			{
+				bool is_upper = std::isupper( static_cast< unsigned char >( c ) ) != 0;
+
+				if ( is_upper )
+				{
+					if ( prev_is_lower )
+					{
+						out.push_back( '_' );
+					}
+					out.push_back( static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) ) );
+				}
+				else
+				{
+					out.push_back( c );
+				}
+
+				prev_is_lower = std::islower( static_cast< unsigned char >( c ) ) != 0;
+			}
+
+			return out;
+		}
+
+		template < typename T >
+		std::string ToSnakeCase()
+		{
+			return ToSnakeCase( TypeTraits< T >::Name );
+		}
+	} // namespace detail
+
+	template < typename T >
+	struct DbModelTraits
+	{
+		static constexpr bool IsSingleValued = !detail::HasFieldOfType< T, ID >;
+		static inline auto const TableName = IsSingleValued ? detail::ToSnakeCase< T >() : std::format( "{}s", detail::ToSnakeCase< T >() );
+
+		static constexpr auto ColumnNames = boost::pfr::names_as_array< T >();
+	};
+
+	template < typename T >
+	concept DbModel = requires {
+		{ DbModelTraits< T >::TableName } -> std::convertible_to< std::string_view >;
+		DbModelTraits< T >::ColumnNames;
+	};
+
+	template < DbModel T, auto Field = &T::id >
+	struct ForeignKey
+	{
+		using value_type = std::remove_cvref_t< decltype( std::declval< T >().*Field ) >;
+		value_type value{};
+
+		static constexpr auto field = Field;
+	};
+
+	namespace detail
+	{
+		template < typename T >
+		struct is_foreign_key : std::false_type
+		{};
+
+		template < DbModel T, auto Field >
+		struct is_foreign_key< ForeignKey< T, Field > > : std::true_type
+		{};
+
+		template < typename T >
+		inline constexpr bool is_foreign_key_v = is_foreign_key< T >::value;
+
+		template < typename T >
+		struct foreign_key_target;
+
+		template < DbModel T, auto Field >
+		struct foreign_key_target< ForeignKey< T, Field > >
+		{
+			using model_type = T;
+			using value_type = typename ForeignKey< T, Field >::value_type;
+			static constexpr auto field = Field;
+		};
+
 		template < typename T >
 		struct is_time_point : std::false_type
 		{};
@@ -77,75 +184,18 @@ namespace iter8::db
 		template < typename T >
 		using unwrap_optional_t = typename unwrap_optional_impl< T >::type;
 
-		template < typename T, typename Target, std::size_t... Is >
-		consteval bool HasFieldOfTypeImpl( std::index_sequence< Is... > )
-		{
-			return (
-				// fold-expression over all field indices
-				( std::is_same_v<
-					  std::remove_cvref_t< decltype( boost::pfr::get< Is >( std::declval< T& >() ) ) >,
-					  Target > ||
-				  ... ) );
-		}
-
-		template < typename T, typename Target >
-		constexpr bool HasFieldOfType =
-			HasFieldOfTypeImpl< T, Target >(
-				std::make_index_sequence< boost::pfr::tuple_size_v< T > >{} );
-
-		inline std::string ToSnakeCase( std::string_view s )
-		{
-			std::string out;
-			out.reserve( s.size() + s.size() / 4 ); // small heuristic
-
-			bool prev_is_lower = false;
-
-			for ( char c : s )
-			{
-				bool is_upper = std::isupper( static_cast< unsigned char >( c ) ) != 0;
-
-				if ( is_upper )
-				{
-					if ( prev_is_lower )
-					{
-						out.push_back( '_' );
-					}
-					out.push_back( static_cast< char >( std::tolower( static_cast< unsigned char >( c ) ) ) );
-				}
-				else
-				{
-					out.push_back( c );
-				}
-
-				prev_is_lower = std::islower( static_cast< unsigned char >( c ) ) != 0;
-			}
-
-			return out;
-		}
 
 		template < typename T >
-		std::string ToSnakeCase()
-		{
-			return ToSnakeCase( nameof( T ) );
-		}
+		struct is_std_tuple : std::false_type
+		{};
 
-		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
-		{
-			using sys_nanoseconds = std::chrono::sys_time< std::chrono::nanoseconds >;
-			sys_nanoseconds tp;
+		template < typename... Ts >
+		struct is_std_tuple< std::tuple< Ts... > > : std::true_type
+		{};
 
-			std::istringstream iss( std::string{ s } );
-			iss >> std::chrono::parse( "%FT%T%z", tp );
-
-			if ( !iss )
-				throw std::runtime_error( "Failed to parse time_point from: " + std::string{ s } );
-
-			// convert to your desired precision (e.g. system_clock::time_point)
-			return time_point_cast< std::chrono::system_clock::duration >( tp );
-		}
-
-		
-	} // namespace detail
+		template < typename T >
+		inline constexpr bool is_std_tuple_v = is_std_tuple< std::remove_cvref_t< T > >::value;
+	}
 
 	template < typename T >
 	static constexpr std::string_view GetSQLTypeMapping()
@@ -156,7 +206,7 @@ namespace iter8::db
 		{
 			return "BOOLEAN";
 		}
-		else if constexpr ( std::is_integral_v< U > or std::same_as< U, ID > )
+		else if constexpr ( std::is_integral_v< U > or std::same_as< U, ID > or detail::is_foreign_key_v< U > )
 		{
 			return "INTEGER";
 		}
@@ -189,23 +239,24 @@ namespace iter8::db
 		}
 	}
 
-	template < typename T >
-	struct DbModelTraits
-	{
-		static constexpr bool IsSingleValued = !detail::HasFieldOfType< T, ID >;
-		static inline auto const TableName = IsSingleValued ? detail::ToSnakeCase< T >() : std::format( "{}s", detail::ToSnakeCase< T >() );
-
-		static constexpr auto ColumnNames = boost::pfr::names_as_array< T >();
-	};
-
-	template < typename T >
-	concept DbModel = requires {
-		{ DbModelTraits< T >::TableName } -> std::convertible_to< std::string_view >;
-		DbModelTraits< T >::ColumnNames;
-	};
-
 	namespace detail
 	{
+		inline std::chrono::system_clock::time_point ParseTimePoint( std::string_view s )
+		{
+			using sys_nanoseconds = std::chrono::sys_time< std::chrono::nanoseconds >;
+			sys_nanoseconds tp;
+
+			std::istringstream iss( std::string{ s } );
+			iss >> std::chrono::parse( "%FT%T%z", tp );
+
+			if ( !iss )
+				throw std::runtime_error( "Failed to parse time_point from: " + std::string{ s } );
+
+			// convert to your desired precision (e.g. system_clock::time_point)
+			return time_point_cast< std::chrono::system_clock::duration >( tp );
+		}
+
+
 		template < DbModel T, std::size_t... Is >
 		std::string BuildCreateTableSqlImpl( std::index_sequence< Is... > )
 		{
@@ -238,7 +289,12 @@ namespace iter8::db
 					  {
 						  oss << " PRIMARY KEY";
 					  }
-					  else if constexpr ( !is_opt )
+					  if constexpr ( detail::is_foreign_key_v< Field > )
+					  {
+						  using Target = typename detail::foreign_key_target< Field >::model_type;
+						  oss << " REFERENCES " << DbModelTraits< Target >::TableName << "(id)";
+					  }
+					  if constexpr ( !is_opt )
 					  {
 						  oss << " NOT NULL";
 					  }
@@ -251,6 +307,7 @@ namespace iter8::db
 		}
 	} // namespace detail
 
+
 	template < DbModel T >
 	std::string BuildCreateTableSql()
 	{
@@ -262,8 +319,8 @@ namespace iter8::db
 namespace iter8
 {
 	template <>
-	struct iter8::EnumTraits< db::ID >
+	struct EnumTraits< db::ID >
 	{
 		static constexpr bool UseStringFormat = false;
 	};
-}
+} // namespace iter8

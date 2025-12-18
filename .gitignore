@@ -9,6 +9,8 @@
 __pycache__/
 out/
 data/
+!Cpp/data/
+!Cpp/data/shop_items.json
 .vs/
 .vscode/
 *.code-workspace

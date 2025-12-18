@@ -21,13 +21,18 @@ namespace iter8
 
 	private:
 		void Init();
+
 		void InitDB();
 		void InitLog();
 		void InitBot();
+		void InitShop();
 
 		dpp::task< void > OnReady( dpp::ready_t const& e );
 		dpp::task< void > OnAutocomplete( dpp::autocomplete_t const& e );
 		void OnLog( dpp::log_t const& e );
+		dpp::task< void > OnButtonClick( dpp::button_click_t const& e );
+		dpp::task< void > OnSelectClick( dpp::select_click_t const& e );
+		dpp::task< void > OnFormSubmit( dpp::form_submit_t const& e );
 
 		dpp::task< void > CalculateUserCredit();
 

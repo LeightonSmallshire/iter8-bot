@@ -3,13 +3,21 @@
 #include "Cogs/BotBrokenCog.h"
 #include "Cogs/DevCog.h"
 #include "Cogs/TimeoutCog.h"
+#include "Cogs/ShopCog.h"
+#include "Cogs/AdminRollCog.h"
+#include "Cogs/GiftingCog.h"
 
 #include "Model/User.h"
 #include "Model/Log.h"
+#include "Model/ShopItem.h"
+#include "Model/Purchase.h"
+#include "Model/InventoryItem.h"
+#include "Model/Timestamps.h"
+#include "Model/Gift.h"
+
+#include "Shop/Item.h"
 
 #include "Logging/Log.h"
-
-#include <generator>
 
 namespace iter8
 {
@@ -30,12 +38,18 @@ namespace iter8
 		InitDB();
 		InitLog();
 		InitBot();
+		InitShop();
 	}
 
 	void DiscordBot::InitDB()
 	{
 		ctx_.db.Init< User >( /*truncate=*/true );
 		ctx_.db.Init< Log >( /*truncate=*/true );
+		ctx_.db.Init< ShopItem >( /*truncate=*/true );
+		ctx_.db.Init< Purchase >( /*truncate=*/false );
+		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
+		ctx_.db.Init< Timestamps >( /*truncate=*/true );
+		ctx_.db.Init< Gift >( /*truncate=*/false );
 	}
 
 	void DiscordBot::InitLog()
@@ -49,10 +63,21 @@ namespace iter8
 		RegisterCog< DevCog >();
 		RegisterCog< TimeoutCog >();
 		RegisterCog< ShopCog >();
+		RegisterCog< AdminRollCog >();
+		RegisterCog< GiftingCog >();
 
 		ctx_.bot.on_ready( std::bind_front( &DiscordBot::OnReady, this ) );
 		ctx_.bot.on_autocomplete( std::bind_front( &DiscordBot::OnAutocomplete, this ) );
 		ctx_.bot.on_log( std::bind_front( &DiscordBot::OnLog, this ) );
+		ctx_.bot.on_button_click( std::bind_front( &DiscordBot::OnButtonClick, this ) );
+		ctx_.bot.on_select_click( std::bind_front( &DiscordBot::OnSelectClick, this ) );
+		ctx_.bot.on_form_submit( std::bind_front( &DiscordBot::OnFormSubmit, this ) );
+	}
+
+	void DiscordBot::InitShop()
+	{
+		ctx_.db.InsertRange( ReadItemsJson() );
+		shop::Handler::Init( ctx_ );
 	}
 
 	dpp::task< void > DiscordBot::OnReady( dpp::ready_t const& e )
@@ -104,6 +129,36 @@ namespace iter8
 			default:
 				log::Critical( "{}", e.message );
 				break;
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnButtonClick( dpp::button_click_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnSelectClick( dpp::select_click_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
+		}
+	}
+
+	dpp::task< void > DiscordBot::OnFormSubmit( dpp::form_submit_t const& e )
+	{
+		auto it = ctx_.component_handlers.find( e.custom_id );
+		if ( it != ctx_.component_handlers.end() )
+		{
+			auto handler = it->second; // copy out so that it's safe to erase from the map inside the invoked handler
+			co_await handler( e );
 		}
 	}
 
@@ -208,6 +263,21 @@ namespace iter8
 				break;
 
 			before = log.entries.back().id;
+		}
+
+		for ( auto&& [ id, user ] : leaderboard )
+		{
+			auto purchases = ctx_.db.Select< Purchase >( db::Where( db::Param( &Purchase::user_id, db::ToId( id ) ) ) );
+			for ( auto const& purchase : purchases )
+				user.credit -= purchase.cost;
+
+			auto sent_gifts = ctx_.db.Select< Gift >( db::Where( db::Param( &Gift::gifter_id, db::ToId( id ) ) ) );
+			for ( auto const& gift : sent_gifts )
+				user.credit -= gift.value;
+
+			auto recieved_gifts = ctx_.db.Select< Gift >( db::Where( db::Param( &Gift::recipient_id, db::ToId( id ) ) ) );
+			for ( auto const& gift : recieved_gifts )
+				user.credit += gift.value;
 		}
 
 		ctx_.db.InsertRange( leaderboard | std::views::values );

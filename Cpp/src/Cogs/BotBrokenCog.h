@@ -9,6 +9,7 @@ namespace iter8
 	public:
 		BotBrokenCog( Context& ctx );
 
+	private:
 		dpp::task< void > OnBrokenCommand( dpp::slashcommand_t const& event );
 		dpp::task< void > OnWorkingCommand( dpp::slashcommand_t const& event );
 		dpp::task< void > OnMessage( dpp::message_create_t const& event );

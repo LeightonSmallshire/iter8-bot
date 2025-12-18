@@ -17,11 +17,11 @@ namespace iter8
 	{
 		co_await event.co_thinking();
 
-		auto leaderboard = ctx_.db.Select< User >( {}, db::OrderBy( db::OrderParam( &User::count, db::Ordering::Desc ), db::OrderParam( &User::duration, db::Ordering::Desc ) ) );
+		auto leaderboard = ctx_.db.Select< User >( {}, db::OrderBy( db::Param( &User::count, db::Ordering::Desc ), db::Param( &User::duration, db::Ordering::Desc ) ) );
 
 		auto embed = dpp::embed{};
 		embed.set_title( "👑 Timeout Leaderboard 👑" );
-		embed.set_color( 0xFFFF0000 );
+		embed.set_color( dpp::colors::cinnabar );
 
 		for ( auto&& [ rank, user ] : std::views::enumerate( leaderboard ) )
 		{
@@ -99,6 +99,9 @@ namespace iter8
 		auto before = ctx_.timeouts[ event.updated.user_id ];
 		auto after = from_time_t( event.updated.communication_disabled_until );
 
+		if ( before == after )
+			co_return;
+
 		ctx_.timeouts[ event.updated.user_id ] = after;
 
 		bool timeout_applied = after and not before;
@@ -118,23 +121,21 @@ namespace iter8
 		else if ( timeout_extended )
 			duration_to_add = DurationToDouble( *after - *before );
 
-		log::Info( "Timeout in {} : {} : until {}", event.updating_guild.name, event.updated.get_nickname(), after.value_or( {} ) );
-
 		auto update_info = co_await FindTimeoutInfo( ctx_.bot, event.updated.user_id );
 
 		bool do_update = update_info and ( update_info->moderator != event.updating_guild.owner_id or timeout_removed );
 		if ( not do_update )
 			co_return;
 
-		auto record = ctx_.db.SelectOne< User >( db::Where( db::WhereParam( &User::id, db::ToId( event.updated.user_id ) ) ) );
+		auto record = ctx_.db.SelectOne< User >( db::Where( db::Param( &User::id, db::ToId( event.updated.user_id ) ) ) );
 		User user = record.value_or( User{ db::ToId( event.updated.user_id ) } );
 
 		user.count++;
 		user.duration += duration_to_add;
-		user.duration += duration_to_add;
+		user.credit += duration_to_add;
 
 		if ( record )
-			ctx_.db.Update( user, db::Where( db::WhereParam( &User::id, user.id ) ) );
+			ctx_.db.Update( user );
 		else
 			ctx_.db.Insert( user );
 
