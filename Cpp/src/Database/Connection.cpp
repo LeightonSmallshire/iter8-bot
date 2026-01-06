@@ -100,7 +100,7 @@ namespace iter8::db
 
 		if ( rc != SQLITE_OK )
 		{
-			auto err = "sqlite3_prepare_v3 failed: " + std::string( sqlite3_errmsg( db_ ) );
+			auto err = "sqlite3_prepare_v3 failed: " + std::string( sqlite3_errmsg( db_ ) ) + "\n\nsql was:\n" + std::string( sql );
 			throw std::runtime_error( err );
 		}
 		return Statement{ stmt };
