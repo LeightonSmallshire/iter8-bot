@@ -99,6 +99,41 @@ class DevCog(commands.Cog):
         os.abort()
         interaction.response.send_message('past abort somehow - very impressive')
 
+    @app_commands.command(name='show_perms', description="Shows all permissions for all roles and users")
+    @commands.check(bot_utils.is_guild_paradise)
+    async def do_show_perms(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        guild = interaction.guild
+        report = f"Permissions Report for {guild.name}\n"
+        report += "="*30 + "\n\n"
+
+        # --- Role Permissions ---
+        report += "### ROLE PERMISSIONS ###\n"
+        for role in sorted(guild.roles, reverse=True):
+            enabled_perms = [p[0] for p in role.permissions if p[1]]
+            report += f"Role: {role.name} (ID: {role.id})\n"
+            report += f"Perms: {', '.join(enabled_perms) if enabled_perms else 'None'}\n"
+            report += "-"*20 + "\n"
+
+        report += "\n" + "#"*30 + "\n\n"
+
+        # --- Member Permissions ---
+        report += "### MEMBER PERMISSIONS ###\n"
+        # Note: Depending on server size, you might want to limit this or use a generator
+        async for member in guild.fetch_members(limit=None):
+            enabled_perms = [p[0] for p in member.guild_permissions if p[1]]
+            report += f"Member: {member.display_name} ({member.name}#{member.discriminator})\n"
+            report += f"Perms: {', '.join(enabled_perms) if enabled_perms else 'None'}\n"
+            report += "-"*20 + "\n"
+
+        # Create a file-like object in memory
+        buffer = io.BytesIO(report.encode('utf-8'))
+        file = discord.File(fp=buffer, filename=f"{guild.id}_permissions.txt")
+
+        # Send the file
+        await interaction.followup.send(content="Permissions report:", file=file, ephemeral=True)
+        
     def get_env(self, uid: int):
         env = self.envs.get(uid)
         if env is None:
