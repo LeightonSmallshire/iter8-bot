@@ -148,3 +148,13 @@ add_custom_command(
             "$<TARGET_FILE_DIR:discord_bot>/data"
     COMMENT "Copying data directory to output folder"
 )
+
+# 1. Install the bot binary
+install(TARGETS discord_bot DESTINATION .)
+
+# 2. Install the data directory (Redistributable assets)
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data" DESTINATION .)
+
+# 3. If DPP or libarchive are built as shared libraries, install them too
+# This ensures any .so files needed are bundled in the output
+install(TARGETS dpp archive_static DESTINATION .)
