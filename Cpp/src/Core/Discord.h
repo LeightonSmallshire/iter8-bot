@@ -5,6 +5,7 @@
 
 #include "dpp/dpp.h"
 
+#include <ranges>
 #include <optional>
 
 namespace iter8
@@ -86,7 +87,7 @@ namespace iter8
 		static constexpr dpp::snowflake Tom = 1339198017324187681;
 		static constexpr dpp::snowflake Gary = 1359152866727821342;
 
-		static constexpr std::array Trusted = { Nathan };
+		static constexpr std::array Trusted = { Nathan, Leighton };
 		static constexpr std::array All = { Nathan, Leighton, Charlotte, Ed, Matt, Tom, Gary };
 
 		static bool IsTrusted( dpp::snowflake id )

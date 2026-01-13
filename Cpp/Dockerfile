@@ -1,5 +1,5 @@
 # --- Stage 1: Builder ---
-FROM debian:bookworm-slim AS builder
+FROM gcc:latest AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \

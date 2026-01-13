@@ -4,6 +4,7 @@
 
 #include <magic_enum/magic_enum.hpp>
 
+#include <format>
 #include <filesystem>
 #include <source_location>
 
