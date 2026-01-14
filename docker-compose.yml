@@ -1,18 +1,8 @@
 name: autorun-iter8-bot
 
 services:
-  # iter8-bot-runner:
-  #   build: Python
-  #   read_only: true
-  #   restart: always
-  #   env_file:
-  #     - ../.env # Actually in AutoDeploy... weird inside-out repo
-  #   volumes:
-  #     - iter8-bot-data:/app/data:rw
-  #     - /home/nonroot/.cache # anonymous
-
   iter8-bot-runner:
-    build: Cpp
+    build: Python
     read_only: true
     restart: always
     env_file:
@@ -20,6 +10,16 @@ services:
     volumes:
       - iter8-bot-data:/app/data:rw
       - /home/nonroot/.cache # anonymous
+
+  # iter8-bot-runner:
+  #   build: Cpp
+  #   read_only: true
+  #   restart: always
+  #   env_file:
+  #     - ../.env # Actually in AutoDeploy... weird inside-out repo
+  #   volumes:
+  #     - iter8-bot-data:/app/data:rw
+  #     - /home/nonroot/.cache # anonymous
 
   bot-web-server:
     build: Web
