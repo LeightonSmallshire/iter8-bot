@@ -81,22 +81,6 @@ FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
-# ---------------------------------------
-# Fetch DPP
-# ---------------------------------------
-
-set(DPP_BUILD_TEST OFF CACHE BOOL "Don't build DPP test programs" FORCE)
-set(DPP_NO_VCPKG ON CACHE BOOL "Don't use DPP's internal vcpkg" FORCE)
-set(BUILD_VOICE_SUPPORT OFF CACHE BOOL "Don't use VOIP" FORCE)
-
-FetchContent_Declare(
-    dpp
-    GIT_REPOSITORY https://github.com/brainboxdotcc/DPP
-    GIT_TAG        bef3e2be44f0cb11f7756da541a9e25df766a06b
-)
-
-FetchContent_MakeAvailable(dpp)
-
 # -------------------------------
 # Add your Discord bot executable
 # -------------------------------
@@ -106,6 +90,7 @@ add_executable(discord_bot ${SOURCES})
 
 target_include_directories(discord_bot PRIVATE src)
 target_include_directories(discord_bot PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty )
+target_include_directories(discord_bot PUBLIC "${CMAKE_SOURCE_DIR}/thirdparty/dpp/include/dpp-10.1" )
 
 target_link_libraries(discord_bot PRIVATE
     sqlite3
@@ -114,10 +99,22 @@ target_link_libraries(discord_bot PRIVATE
     magic_enum::magic_enum
     stb
     archive_static
-    dpp
 )
 
 target_compile_definitions(discord_bot PRIVATE LIBARCHIVE_STATIC)
+
+set(DPP_CFG_DIR "$<CONFIG>-$<PLATFORM_ID>-${CMAKE_SYSTEM_PROCESSOR}")
+
+set(DPP_BIN_DIR "${CMAKE_SOURCE_DIR}/thirdparty/dpp/bin/${DPP_CFG_DIR}")
+set(DPP_LIB_DIR "${CMAKE_SOURCE_DIR}/thirdparty/dpp/lib/${DPP_CFG_DIR}")
+
+target_link_directories(discord_bot PRIVATE
+    "${DPP_LIB_DIR}"
+)
+
+target_link_libraries(discord_bot PRIVATE
+    dpp
+)
 
 if (WIN32)
     set(THIRDPARTY_DLLS
@@ -125,18 +122,41 @@ if (WIN32)
         "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libssl-1_1-x64.dll"
         "${CMAKE_SOURCE_DIR}/thirdparty/opus/opus.dll"
         "${CMAKE_SOURCE_DIR}/thirdparty/zlib/zlib1.dll"
+        "${DPP_BIN_DIR}/dpp.dll"
     )
 
     add_custom_command(TARGET discord_bot POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${THIRDPARTY_DLLS}
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:discord_bot>
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND_EXPAND_LISTS
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              ${THIRDPARTY_DLLS}
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND ${CMAKE_COMMAND} -E $<$<BOOL:$<TARGET_RUNTIME_DLLS:discord_bot>>:copy_if_different>
+              $<TARGET_RUNTIME_DLLS:discord_bot>
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND_EXPAND_LISTS
+    )
+elseif(UNIX AND NOT APPLE)
+    set(THIRDPARTY_DLLS
+        "${DPP_BIN_DIR}/libdpp.so"
+    )
+
+    add_custom_command(TARGET discord_bot POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              ${THIRDPARTY_DLLS}
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND ${CMAKE_COMMAND} -E $<$<BOOL:$<TARGET_RUNTIME_DLLS:discord_bot>>:copy_if_different>
+              $<TARGET_RUNTIME_DLLS:discord_bot>
+              "$<TARGET_FILE_DIR:discord_bot>"
+
+      COMMAND_EXPAND_LISTS
     )
 endif()
 
