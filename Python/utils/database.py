@@ -450,7 +450,7 @@ async def init_database(timeout_data: list[User], stock_list: list[Stock]):
         await db.create_table(Gift)
 
         if await db.create_table(Timestamps):
-            await db.insert(Timestamps(datetime.datetime.now(),datetime.datetime.now()))
+            await db.insert(Timestamps(datetime.datetime.now() - datetime.timedelta(days=31), datetime.datetime.now()))
 
         await db.create_table(DatabaseVersion)
 

@@ -5,7 +5,7 @@ import datetime
 import logging
 import secrets
 from typing import Callable, Awaitable, Protocol, ClassVar
-from .bot import Roles, do_role_roll, get_non_bot_users
+from .bot import Roles, do_role_roll, get_non_bot_users, reset_role_permissions
 from .database import *
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
 
@@ -227,7 +227,7 @@ class AdminRerollItem(ShopItem):
                 ctx,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
-                f"🎲 Admin landed on the bully target. Finding a new targe...",
+                f"🎲 Admin landed on the bully target. Finding a new target...",
                 ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
             )
 
@@ -242,20 +242,24 @@ class MakeAdminItem(ShopItem):
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
         role = await ctx.guild.fetch_role(Roles.Admin)
         new_target = await ctx.guild.fetch_member(ctx.user.id)
-        current_target = role.members[0]
+
+        for member in role.members:
+            await member.remove_roles(role)
+
+        await new_target.add_roles(role)
+        await reset_role_permissions(ctx)
+
+        await ctx.followup.send(content=f"@everyone {ctx.user.mention} just made themselves an Admin!", allowed_mentions=discord.AllowedMentions(roles=True))
 
         bully_role = await ctx.guild.fetch_role(Roles.BullyTarget)
         bully_targets = [u.id for u in bully_role.members]
-
-        await current_target.remove_roles(role)
-        await new_target.add_roles(role)
 
         if ctx.user.id in bully_targets:
             await do_role_roll(
                 ctx,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
-                f"🎲 Admin landed on the bully target. Finding a new targe...",
+                f"🎲 Admin landed on the bully target. Finding a new target...",
                 ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
             )
 

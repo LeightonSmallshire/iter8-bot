@@ -48,14 +48,16 @@ class AdminRollCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
         if not is_correct_time(interaction):
-            await interaction.response.send_message(f"Wait till you've had your samosa!")
+            await interaction.response.send_message(f"Wait till you've had your samosa!", ephemeral=True)
             return
 
         if not await is_first_roll(interaction):
-            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).")
+            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
             return
         
         await interaction.response.defer()
+
+        await roll_utils.update_last_admin_roll()
 
         roll_table = bot_utils.get_non_bot_users(interaction)
         roll_table += await roll_utils.get_extra_admin_rolls(consume=True)
@@ -67,8 +69,6 @@ class AdminRollCog(commands.Cog):
             "🎲 Let's roll the dice! 🎲", 
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
-
-        await roll_utils.update_last_admin_roll()
 
         await asyncio.sleep(2)
         
