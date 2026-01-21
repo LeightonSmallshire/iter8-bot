@@ -1,19 +1,21 @@
 #include "Bot.h"
 
+#include "Cogs/AdminRollCog.h"
+#include "Cogs/AuditCog.h"
 #include "Cogs/BotBrokenCog.h"
 #include "Cogs/DevCog.h"
-#include "Cogs/TimeoutCog.h"
-#include "Cogs/ShopCog.h"
-#include "Cogs/AdminRollCog.h"
 #include "Cogs/GiftingCog.h"
+#include "Cogs/ShopCog.h"
+#include "Cogs/TimeoutCog.h"
 
-#include "Model/User.h"
-#include "Model/Log.h"
-#include "Model/ShopItem.h"
-#include "Model/Purchase.h"
-#include "Model/InventoryItem.h"
-#include "Model/Timestamps.h"
+#include "Model/AuditLog.h"
 #include "Model/Gift.h"
+#include "Model/InventoryItem.h"
+#include "Model/Log.h"
+#include "Model/Purchase.h"
+#include "Model/ShopItem.h"
+#include "Model/Timestamps.h"
+#include "Model/User.h"
 
 #include "Shop/Item.h"
 
@@ -50,6 +52,8 @@ namespace iter8
 		ctx_.db.Init< InventoryItem >( /*truncate=*/false );
 		ctx_.db.Init< Timestamps >( /*truncate=*/true );
 		ctx_.db.Init< Gift >( /*truncate=*/false );
+		ctx_.db.Init< AuditLogEntry >( /*truncate=*/false );
+		ctx_.db.Init< AuditLogChange >( /*truncate=*/false );
 	}
 
 	void DiscordBot::InitLog()
@@ -62,6 +66,7 @@ namespace iter8
 		RegisterCog< BotBrokenCog >();
 		RegisterCog< DevCog >();
 		RegisterCog< TimeoutCog >();
+		RegisterCog< AuditCog >();
 		RegisterCog< ShopCog >();
 		RegisterCog< AdminRollCog >();
 		RegisterCog< GiftingCog >();

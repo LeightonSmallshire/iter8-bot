@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Local Games Launcher</title>
+  <style>
+    html,body{height:100%;margin:0}
+    body{font-family:Segoe UI, Roboto, Arial; background:#2a2a2a; color:#e0e0e0}
+    header{background:#0b5; padding:16px; color:#fff}
+    .wrap{display:flex;gap:18px;padding:18px;box-sizing:border-box;width:100%;height:calc(100% - 48px)}
+    .sidebar{width:320px}
+    .panel{background:#333;padding:14px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.3);color:#e0e0e0}
+    select,button{padding:8px;border-radius:6px;border:1px solid #555;background:#444;color:#e0e0e0}
+    iframe{flex:1;border:0;height:70vh;min-height:500px;border-radius:8px;background:#333}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:#999;font-size:13px}
+    .game-list{margin-top:10px;display:flex;flex-direction:row;gap:6px}
+    .game-item{padding:8px;border-radius:6px;border:1px solid #555;background:#444;cursor:pointer;color:#e0e0e0}
+    .game-item:hover{background:#555}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="width:100%;margin:0 auto;display:flex;align-items:center;justify-content:space-between">
+      <div><strong>Local Games</strong> — select a game to play</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+      <div style="display:flex;flex-direction:column;gap:12px;flex:1;min-width:0">
+        <div class="panel">
+          <div style="font-weight:600">Choose a game</div>
+          <div class="muted">Select and load a local HTML game in the panel to the right.</div>
+
+          <div class="game-list">
+            <div class="game-item" data-src="go.html">Go (local) — `go.html`</div>
+            <div class="game-item" data-src="tictactoe.html">Tic Tac Toe — `tictactoe.html`</div>
+          </div>
+        </div>
+
+        <iframe id="frame" src="go.html" title="Game frame"></iframe>
+
+        <div class="panel">
+          <div style="font-weight:600">Controls</div>
+          <div class="muted">Manage your game experience.</div>
+
+          <hr style="margin:10px 0">
+          <div class="row" style="margin-bottom:8px">
+            <button id="reloadBtn">Reload iframe</button>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <script>
+    const frame = document.getElementById('frame');
+    const items = document.querySelectorAll('.game-item');
+    let currentSrc = 'go.html';
+    items.forEach(it=>{
+      it.addEventListener('click', ()=>{
+        const src = it.dataset.src;
+        loadGame(src);
+      });
+    });
+
+    function loadGame(src){
+      currentSrc = src;
+      frame.src = src;
+    }
+
+    document.getElementById('reloadBtn').addEventListener('click', ()=>{ frame.contentWindow.location.reload(); });
+
+    // keyboard support: 1 -> first game, 2 -> second
+    window.addEventListener('keydown',(e)=>{
+      if(e.key==='1') loadGame('go.html');
+      if(e.key==='2') loadGame('tictactoe.html');
+    });
+  </script>
+</body>
+</html>

@@ -53,14 +53,10 @@ class SingletonBashRunner:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT
         )
-        print('1')
 
         assert proc.stdout is not None
-        print('2')
 
         async for block in proc.stdout:
-            print('3')
-
             text = block.decode()
             self._buffer.write(text)
             print(text, end='')
@@ -69,7 +65,6 @@ class SingletonBashRunner:
             for q in self._waiters:
                 await q.put(text)
 
-        print('4')
         await proc.wait()
 
         # signal completion to all waiters

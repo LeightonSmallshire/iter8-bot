@@ -236,6 +236,7 @@ namespace iter8::db
 		else
 		{
 			static_assert( false, "No SQL type mapping for this C++ type" );
+            return "";
 		}
 	}
 
