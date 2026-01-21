@@ -17,13 +17,14 @@ async def get_last_admin_roll() -> Optional[Timestamps]:
     async with Database(DATABASE_NAME) as db:
         return await db.select(Timestamps)
     
-    
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
-        timestamps = await db.select(Timestamps)
-        timestamps.last_roll = datetime.datetime.now()
-        await db.insert_or_update(timestamps)
-    
+        timestamps = await get_last_admin_roll()
+        if timestamps is not None:
+            timestamps.last_roll = datetime.datetime.now()
+            await db.update(timestamps)
+        else:
+            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))    
     
 async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
     async with Database(DATABASE_NAME) as db:
