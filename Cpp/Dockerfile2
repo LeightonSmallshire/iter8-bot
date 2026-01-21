@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+
+# --- Stage 1: Builder ---
+# We use Alpine because it uses 'musl' libc, which is perfect for scratch
+FROM alpine:3.22 AS builder
+
+# Install build dependencies for Alpine (musl-based)
+RUN apk add --no-cache \
+    build-base \
+    cmake \
+    git \
+    openssl-dev \
+    openssl-libs-static \
+    xz-dev \
+    xz-static \
+    zlib-dev \
+    zlib-static \
+    libxml2-dev \
+    libxml2-static \
+    ca-certificates \
+    musl-dev
+
+    
+
+WORKDIR /src
+COPY . .
+
+# Force a fully static build
+RUN --mount=type=cache,target=/src/build \
+    cmake -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_VOICE_SUPPORT=OFF \
+    -DDPP_BUILD_STATIC=ON \
+    -DENABLE_TAR=OFF -DENABLE_CPIO=OFF -DENABLE_CAT=OFF \
+    -DCMAKE_EXE_LINKER_FLAGS="-static" \
+    -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" . \
+    && cmake --build build -j$(nproc) \
+    && mkdir /export \
+    && cp /src/build/discord_bot /export
+
+# RUN ldd /export/discord_bot
+RUN ls -lah /export/discord_bot
+
+# --- Stage 2: Runner ---
+FROM scratch
+WORKDIR /
+
+# Copy only the single self-contained binary
+COPY --from=builder /export/discord_bot .
+# Copy your data folder
+COPY --from=builder /src/data ./data
+
+# If your bot uses HTTPS (which Discord bots do), you MUST copy CA certificates
+# Otherwise, your bot won't be able to connect to Discord's API
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+ENTRYPOINT ["/discord_bot"]

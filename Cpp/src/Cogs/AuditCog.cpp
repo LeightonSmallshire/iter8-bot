@@ -38,7 +38,7 @@ namespace iter8
 			// });
 			// rest_request<auditlog>(this, API_PATH "/guilds", std::to_string(guild_id), "audit-logs" + parameters, m_get, "", callback);
 
-			auto const after = static_cast< uint64_t >( latest_db_event.value_or( {} ).id );
+			auto const after = static_cast< uint64_t >( latest_db_event.value_or( AuditLogEntry{} ).id );
 			auto audit_result = ctx_.bot.co_guild_auditlog_get( Guilds::Default, 0, 0, 0, after, 100 );
 			log = co_await Result< dpp::auditlog >( audit_result );
 

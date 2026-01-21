@@ -1,9 +1,13 @@
+# syntax=docker/dockerfile:1
+
 # --- Stage 1: Builder ---
-FROM gcc:latest AS builder
+# FROM gcc:latest AS builder
+FROM gcc:15 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
-    build-essential cmake git libssl-dev zlib1g-dev \
+    build-essential cmake git \
+    libssl-dev liblzma-dev zlib1g-dev libxml2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -12,17 +16,31 @@ COPY . .
 # 1. Configure with CMAKE_INSTALL_PREFIX to point to a temporary export folder
 # 2. Build the project
 # 3. Run 'cmake --install' to move the exe, data/, and libs into /export
-RUN cmake -B build \
+RUN --mount=type=cache,target=/src/build \
+    cmake -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/export \
     -DBUILD_VOICE_SUPPORT=OFF . \
-    && cmake --build build -j3 \
+    && cmake --build build -j$(nproc) \
     && cmake --install build
 
-# --- Stage 2: Runner ---
+
+# TESTING TESTING TESTING
+# ENV LD_LIBRARY_PATH=/app:/export
+# RUN cp -R /export /app
+# WORKDIR /app
+# ENTRYPOINT ["/bin/bash"]
+# TESTING TESTING TESTING
+
+
+# # --- Stage 2: Runner ---
 # Using the specific nonroot tag for Debian 12
+# FROM gcc:15 AS runner
 FROM gcr.io/distroless/cc-debian12:nonroot AS runner
+
 WORKDIR /app
+
+ENV LD_LIBRARY_PATH=/app
 
 # Copy EVERYTHING from the builder's export directory
 # This includes the exe and the 'data' folder
