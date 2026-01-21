@@ -120,11 +120,21 @@ def defer_message(bot, user_id, message):
 def make_emoji_number(num: int):
     return "".join([f":number_{d}:" for d in str(num)])
 
+async def reset_role_permissions(interaction: discord.Interaction):
+    users = get_non_bot_users(interaction)
+    for user_id in users:
+        user = await interaction.guild.fetch_member(user_id)
+        user_role = discord.utils.get(interaction.guild.roles, name=user.name)
+        if user_role:
+            await user_role.edit(permissions=interaction.guild.default_role.permissions)
+
 async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
     ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
     role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)
-    prev_users = role.members if role.members else []
+
+    for member in role.members:
+        await member.remove_roles(role)
 
     list_embed = discord.Embed(title=embed_title, color=discord.Color.yellow())
     for idx, user_id in enumerate(roll_table, 1):
@@ -160,11 +170,10 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
     choice = roll_table[index]
     new_user = await interaction.guild.fetch_member(choice)
 
-    for prev_user in prev_users:
-        await prev_user.remove_roles(role)
-
     await new_user.add_roles(role)
 
+    prev_user = role.members[0] if len(role.members) > 1 else None
+    message_contents = response[0].format(id, choice) if prev_user else response[1].format(choice)
     message_contents = response[0].format(prev_user.id, choice) if prev_user else response[1].format(choice)
     await msg.edit(content=message_contents)
 

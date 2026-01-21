@@ -78,7 +78,7 @@ class ShopOptionsView(discord.ui.View):
                 except BaseException as e:
                     await db.rollback()
                     await interaction.edit_original_response(
-                        view=None, content=f"❌ Purchase failed to process."
+                        view=None, content=f"❌ Purchase failed to process ({str(e)})."
                     )
                     traceback.print_exception(e)
 
