@@ -53,8 +53,10 @@ class Channels:
 
 class Roles:
     Admin = 1416037888847511646
+    Officer = 1463483465990406287
     DiceRoller = 1430187659678187581
     BullyTarget = 1432752493670170624
+
 
 
 def is_guild_paradise(ctx):
@@ -127,6 +129,10 @@ async def reset_role_permissions(interaction: discord.Interaction):
         user_role = discord.utils.get(interaction.guild.roles, name=user.name)
         if user_role:
             await user_role.edit(permissions=interaction.guild.default_role.permissions)
+
+    officers = interaction.guild.get_role(Roles.Officer) or await interaction.guild.fetch_role(Roles.Officer)
+    for officer in officers.members:
+        await officer.remove_roles(officers)
 
 async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
     ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
