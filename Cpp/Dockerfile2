@@ -25,19 +25,22 @@ RUN apk add --no-cache \
 WORKDIR /src
 COPY . .
 
+ARG TARGETARCH
+
 # Force a fully static build
-RUN --mount=type=cache,target=/src/build \
-    cmake -B build \
+RUN --mount=type=cache,target=/src/build/${TARGETARCH} \
+    cmake -B build/${TARGETARCH} \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_VOICE_SUPPORT=OFF \
     -DDPP_BUILD_STATIC=ON \
+    -DDPP_GENERIC=ON \
     -DENABLE_TAR=OFF -DENABLE_CPIO=OFF -DENABLE_CAT=OFF \
     -DCMAKE_EXE_LINKER_FLAGS="-static" \
     -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" . \
-    && cmake --build build -j$(nproc) \
+    && cmake --build build/${TARGETARCH} -j$(nproc) \
     && mkdir /export \
-    && cp /src/build/discord_bot /export
+    && cp /src/build/${TARGETARCH}/discord_bot /export
 
 # RUN ldd /export/discord_bot
 RUN ls -lah /export/discord_bot

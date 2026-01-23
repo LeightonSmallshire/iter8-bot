@@ -112,6 +112,7 @@ target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 set(DPP_BUILD_TEST OFF CACHE BOOL "Don't build DPP test programs" FORCE)
 set(DPP_NO_VCPKG ON CACHE BOOL "Don't use DPP's internal vcpkg" FORCE)
 set(BUILD_VOICE_SUPPORT OFF CACHE BOOL "Don't use VOIP" FORCE)
+set(DPP_GENERIC ON CACHE BOOL "Disable hardware-specific optimizations" FORCE)
 
 FetchContent_Declare(
     dpp
@@ -120,6 +121,17 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(dpp)
+
+if(NOT MSVC)
+    set_target_properties(dpp PROPERTIES COMPILE_OPTIONS "")
+    target_compile_options(dpp PRIVATE -O3)
+endif()
+
+# remove platform-specific flags
+string(REPLACE "-mavx2" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REPLACE "-msse4.2" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REPLACE "-msse4.1" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "" FORCE)
 
 # -------------------------------
 # Add your Discord bot executable
