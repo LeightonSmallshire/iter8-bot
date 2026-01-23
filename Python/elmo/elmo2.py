@@ -49,19 +49,19 @@ class LocalGrammarModel(ChatLlamaCpp):
         message = result.generations[0].message
 
         # ... rest of your parsing logic ...
-        try:
-            data = json.loads(message.content)
-            if "name" in data:
-                message.tool_calls = [
-                    ToolCall(
-                        name=data["name"],
-                        args=data.get("parameters", data.get("args", {})),
-                        id=f"call_{os.urandom(2).hex()}"
-                    )
-                ]
-                message.content = ""
-        except:
-            pass
+        # try:
+        data = json.loads(message.content)
+        if "name" in data:
+            message.tool_calls = [
+                ToolCall(
+                    name=data["name"],
+                    args=data.get("parameters", data.get("args", {})),
+                    id=f"call_{os.urandom(2).hex()}"
+                )
+            ]
+            message.content = ""
+        # except:
+        #     pass
 
         return result
 

@@ -6,3 +6,4 @@ duckduckgo-search
 langchain-huggingface
 transformers
 huggingface_hub
+ddgs~=9.10
