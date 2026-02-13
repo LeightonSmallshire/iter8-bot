@@ -122,7 +122,11 @@ def defer_message(bot, user_id, message):
 def make_emoji_number(num: int):
     return "".join([f":number_{d}:" for d in str(num)])
 
-async def reset_role_permissions(interaction: discord.Interaction):
+async def on_new_admin(interaction: discord.Interaction, new_admin: int):
+    new_admin_user = interaction.guild.get_member(new_admin) or await interaction.guild.fetch_member(new_admin)
+    if new_admin_user.is_timed_out():
+        await new_admin_user.timeout(None)
+
     users = get_non_bot_users(interaction)
     for user_id in users:
         user = await interaction.guild.fetch_member(user_id)

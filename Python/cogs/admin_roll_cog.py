@@ -70,6 +70,8 @@ class AdminRollCog(commands.Cog):
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
 
+        await bot_utils.on_new_admin(interaction, new_admin)
+
         await asyncio.sleep(2)
         
         roll_table = [x for x in bot_utils.get_non_bot_users(interaction) if x != new_admin]

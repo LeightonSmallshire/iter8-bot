@@ -5,7 +5,7 @@ import datetime
 import logging
 import secrets
 from typing import Callable, Awaitable, Protocol, ClassVar
-from .bot import Roles, do_role_roll, get_non_bot_users, reset_role_permissions
+from .bot import Roles, do_role_roll, get_non_bot_users, on_new_admin
 from .database import *
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
 
@@ -221,6 +221,7 @@ class AdminRerollItem(ShopItem):
             f"🚨 {ctx.user.display_name} called for a reroll! 🚨", 
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")            
         )
+        await on_new_admin(ctx, new_admin)
 
         if new_admin in bully_targets:
             await do_role_roll(
@@ -247,7 +248,7 @@ class MakeAdminItem(ShopItem):
             await member.remove_roles(role)
 
         await new_target.add_roles(role)
-        await reset_role_permissions(ctx)
+        await on_new_admin(ctx, new_target.id)
 
         await ctx.followup.send(content=f"@everyone {ctx.user.mention} just made themselves an Admin!", allowed_mentions=discord.AllowedMentions(roles=True))
 
