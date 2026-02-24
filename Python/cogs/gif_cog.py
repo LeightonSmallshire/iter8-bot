@@ -77,6 +77,16 @@ class GifCog(commands.Cog):
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
         await interaction.response.send_message(embed=embed)
 
+
+    @app_commands.command(name='bin', description='Get in the bin')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def bin(self, interaction: discord.Interaction):
+        embed = discord.Embed(title="Get in the bin")
+        embed.set_image(url="https://c.tenor.com/5oer_C4ZVCsAAAAd/tenor.gif")
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        await interaction.response.send_message(embed=embed)
+
+
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError) -> None:
