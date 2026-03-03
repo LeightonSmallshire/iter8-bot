@@ -1,12 +1,9 @@
-import operator
 
 import discord
 from discord.ext import commands
 from discord import app_commands
-import traceback
 import logging
 import io
-import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.database as db_utils
@@ -101,7 +98,7 @@ class DatabaseCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

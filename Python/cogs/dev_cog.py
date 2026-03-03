@@ -1,4 +1,3 @@
-import asyncio
 import glob
 import discord
 from discord import app_commands
@@ -12,7 +11,6 @@ import os
 import inspect
 import logging
 import contextlib
-import subprocess
 import traceback
 import sys
 
@@ -183,7 +181,7 @@ class DevCog(commands.Cog):
     @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
     async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'No REPL 4 U')
+            return await interaction.response.send_message('No REPL 4 U')
 
         if not code and not file:
             return await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
@@ -214,7 +212,7 @@ class DevCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def reset_env(self, interaction): 
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'No REPL 4 U')
+            return await interaction.response.send_message('No REPL 4 U')
         
         self.envs.pop(interaction.user.id, None)
         await interaction.response.send_message("Environment cleared.", ephemeral=True)
@@ -228,7 +226,7 @@ class DevCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

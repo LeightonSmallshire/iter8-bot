@@ -154,7 +154,7 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
             inline=False,
         )
 
-    await interaction.followup.send(content=f"@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
+    await interaction.followup.send(content="@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
 
     if not roll_table:
         await interaction.followup.send(content="There are no users for this roll.")
@@ -229,6 +229,8 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
+
+        logging.info(entry)
 
         if member not in guild.members:
             continue

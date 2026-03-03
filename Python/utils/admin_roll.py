@@ -1,5 +1,5 @@
 from .database import *
-from .shop import AdminRerollItem, AdminTicketItem
+from .shop import AdminRerollItem
 
 
 async def get_extra_admin_rolls(consume: bool) -> list[int]:

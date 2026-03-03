@@ -1,10 +1,8 @@
-import operator
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 from wcwidth import wcswidth
-import traceback
 import logging
 import re
 import datetime
@@ -93,7 +91,7 @@ class GamblingCog(commands.Cog):
                 )
 
             block = f"\n```{line}```\n"
-            subblock = f"```\n" + "\n".join(bettor_lines) + "\n```"
+            subblock = "```\n" + "\n".join(bettor_lines) + "\n```"
 
             embed.add_field(
                 name=block,
@@ -101,7 +99,7 @@ class GamblingCog(commands.Cog):
                 inline=False,
             )
 
-        embed.set_footer(text=f"Place your bets with /bet <user> <duration>")
+        embed.set_footer(text="Place your bets with /bet <user> <duration>")
 
         await interaction.followup.send(embed=embed)
     
@@ -134,11 +132,11 @@ class GamblingCog(commands.Cog):
         await interaction.response.defer(thinking=True)
 
         if (user.bot or interaction.guild.owner_id == user.id):
-            await interaction.followup.send(f"❌ You can't bet on bots.")
+            await interaction.followup.send("❌ You can't bet on bots.")
             return
 
         if not await shop_utils.can_afford_purchase(interaction.user.id, round(duration.total_seconds())):
-            await interaction.followup.send(f"❌ You can't afford to bet for that duration.")
+            await interaction.followup.send("❌ You can't afford to bet for that duration.")
             return
         
         await gamble_utils.record_gamble(interaction.user.id, user.id, round(duration.total_seconds()))
@@ -153,7 +151,7 @@ class GamblingCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

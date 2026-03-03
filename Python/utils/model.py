@@ -1,8 +1,8 @@
 import datetime
 import re
 from packaging.version import Version
-from dataclasses import dataclass, field, fields, asdict, Field
-from typing import Optional, Any, Type, TypeVar, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar, Literal, get_origin, get_args
+from dataclasses import dataclass, field, fields
+from typing import Optional, Any, TypeVar, Type, Protocol, ClassVar, Literal, get_origin, get_args
 
 
 # --- type mapping ---

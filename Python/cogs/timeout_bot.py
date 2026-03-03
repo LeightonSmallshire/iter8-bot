@@ -1,5 +1,3 @@
-import asyncio
-import operator
 
 import discord
 from discord.ext import commands
@@ -8,8 +6,6 @@ import traceback
 import logging
 import sys
 import datetime
-import subprocess
-import os
 import io
 
 import utils.bot as bot_utils
@@ -94,7 +90,7 @@ class TimeoutsCog(commands.Cog):
         channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
 
         if channel is None:
-            _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
+            _log.critical("Couldn't find channel 'clockwork-bot' to post in")
             return
 
         if (moderator is None) or (reason is None):
@@ -119,7 +115,7 @@ class TimeoutsCog(commands.Cog):
         channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
 
         if channel is None:
-            _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
+            _log.critical("Couldn't find channel 'clockwork-bot' to post in")
             return
 
         if (moderator is None) or (reason is None):
@@ -206,7 +202,7 @@ class TimeoutsCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

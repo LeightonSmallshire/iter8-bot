@@ -2,9 +2,7 @@ import discord
 import discord.utils
 import discord.ui
 import datetime
-import logging
 import secrets
-from typing import Callable, Awaitable, Protocol, ClassVar
 from .bot import Roles, do_role_roll, get_non_bot_users, on_new_admin
 from .database import *
 from view.components import UserSelect, DurationSelect, ColourSelect, TextSelect
@@ -228,7 +226,7 @@ class AdminRerollItem(ShopItem):
                 ctx,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
-                f"🎲 Admin landed on the bully target. Finding a new target...",
+                "🎲 Admin landed on the bully target. Finding a new target...",
                 ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
             )
 
@@ -260,7 +258,7 @@ class MakeAdminItem(ShopItem):
                 ctx,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
-                f"🎲 Admin landed on the bully target. Finding a new target...",
+                "🎲 Admin landed on the bully target. Finding a new target...",
                 ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")      
             )
 

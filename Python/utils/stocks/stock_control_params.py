@@ -1,5 +1,4 @@
 from ..model import Stock
-import math
 
 STOCK_BASE_PRICE                = 1
 STOCK_BASE_DRIFT                = 0

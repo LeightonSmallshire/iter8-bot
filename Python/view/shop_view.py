@@ -1,7 +1,5 @@
 import discord
-from discord import app_commands
 import discord.ui
-from typing import Callable
 import logging
 import datetime
 import utils.database as db_utils
@@ -84,7 +82,7 @@ class ShopOptionsView(discord.ui.View):
 
             else:
                 await interaction.edit_original_response(
-                    view=None, content=f"❌ You can't afford this purchase."
+                    view=None, content="❌ You can't afford this purchase."
                 )
 
 

@@ -75,7 +75,7 @@ async def update_stock(stock: Stock, dt: float):
     sigma = stock.volatility
     z = random.gauss(0, 1)
 
-    step_dir = math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * math.sqrt(dt) * z);
+    step_dir = math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * math.sqrt(dt) * z)
     if(step_dir<=pow(0.5,dt) or step_dir>pow(2,dt)):
         print(f'Step_dir is too {"big" if step_dir>1 else "small"}. Step_dir:{step_dir}\t,sigma: {sigma}\t,mu: {mu}\t,dt: {dt}')
         step_dir = min(pow(1.4,dt),max(step_dir,pow(0.6,dt)))

@@ -1,4 +1,3 @@
-import operator
 
 import discord
 from discord.ext import commands
@@ -6,7 +5,7 @@ from discord import app_commands
 import logging
 from zoneinfo import ZoneInfo
 from datetime import time, timedelta
-import random, secrets
+import random
 import asyncio
 import utils.bot as bot_utils
 import utils.log as log_utils
@@ -48,11 +47,11 @@ class AdminRollCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
         if not is_correct_time(interaction):
-            await interaction.response.send_message(f"Wait till you've had your samosa!", ephemeral=True)
+            await interaction.response.send_message("Wait till you've had your samosa!", ephemeral=True)
             return
 
         if not await is_first_roll(interaction):
-            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
+            await interaction.response.send_message("The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
             return
         
         await interaction.response.defer()
@@ -130,7 +129,7 @@ class AdminRollCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

@@ -4,16 +4,13 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from itertools import groupby
-import traceback
 import logging
-import sys
 import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.database as shop_utils
 import utils.shop as shop_utils
 from view.shop_view import ShopView
-from typing import Optional
 import utils.misc
 
 _log = logging.getLogger(__name__)
@@ -91,7 +88,7 @@ class ShopCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
