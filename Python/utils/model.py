@@ -17,14 +17,14 @@ TYPE_MAP = {
     Version: "VERSION"
 }
 
-def single_value_table(cls):
+def single_value_table(cls:Any)->Any:
     setattr(cls, "__single_value_table__", True)
     return cls
 
-# --- A dataclass type that has an int id ---
+# --- A dataclass type that has an id column ---
 class HasIdTable(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
-    id: int
+    id: int | None
 
 # --- A dataclass type marked as single-value ---
 class SingleValueTable(Protocol):
@@ -37,7 +37,7 @@ IsDatabaseTable = HasIdTable | SingleValueTable
 T = TypeVar("T", bound=IsDatabaseTable)
 U = TypeVar("U", bound=IsDatabaseTable)
 
-def is_nullable(tp) -> bool:
+def is_nullable(tp: Any) -> bool:
     # Directly NoneType
     if tp is type(None):
         return True
@@ -79,7 +79,7 @@ def assert_field_exists(model: Type[Any], name: str) -> None:
         valid = ", ".join(f.name for f in fields(model))
         raise ValueError(f"{name!r} not in {model.__name__} fields: {valid}")
 
-def foreign_key(model: Type[Any], column: str = "id", **extra):
+def foreign_key(model: Type[Any], column: str = "id", **extra: Any) -> Any:
     assert_field_exists(model, column)
     return field(metadata={
         "fk": {
@@ -136,17 +136,20 @@ class Gift:
 @single_value_table
 @dataclass
 class Timestamps:
+    __single_value_table__: ClassVar[Literal[True]] = True
     last_roll: datetime.datetime
     last_market_update: datetime.datetime
+
 
 @single_value_table
 @dataclass
 class DatabaseVersion:
+    __single_value_table__: ClassVar[Literal[True]] = True
     version: Version
 
 @dataclass
 class Stock:
-    id: int
+    id: int | None
     name: str
     code: str
     value: float
@@ -158,7 +161,7 @@ class Stock:
 
 @dataclass
 class Trade:
-    id: int
+    id: int | None
     count: int
     bought_at: float
     sold_at: Optional[float]

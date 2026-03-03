@@ -3,7 +3,7 @@ import os
 import zipfile
 
 
-def zip_directory(path: str):
+def zip_directory(path: str) -> io.BytesIO:
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -11,7 +11,7 @@ def zip_directory(path: str):
             for file in files:
                 file_path = os.path.join(root, file)
 
-                if os.path.isfile(file_path) and os.access(file_path):
+                if os.path.isfile(file_path) and os.access(file_path, os.R_OK):
                     arcname = os.path.relpath(file_path, start=path)
                     zipf.write(file_path, arcname)
 

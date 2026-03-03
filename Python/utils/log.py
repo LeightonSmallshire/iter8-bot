@@ -1,17 +1,24 @@
-from .database import *
-import logging
+from __future__ import annotations
+
 import asyncio
-    
+import datetime
+import logging
+from typing import Optional, cast
+
+from .database import Database, DATABASE_NAME, WhereParam, OrderParam
+from .model import Log
+
 
 async def write_log(level: str, message: str) -> None:
     async with Database(DATABASE_NAME) as db:
-        log = Log(None, datetime.datetime.now(datetime.timezone.utc), level, message)
+        log = Log(0, datetime.datetime.now(datetime.timezone.utc), level, message)
         await db.insert(log)
 
-async def read_logs(limit: int=100, level: Optional[str]=None):
+async def read_logs(limit: int = 100, level: Optional[str] = None) -> list[Log]:
     async with Database(DATABASE_NAME) as db:
-        where = [WhereParam("level", level)] if level is not None else []
-        logs = await db.select(Log, where=where, order=[OrderParam("id", True)], limit=limit)
+        where: list[WhereParam] = [WhereParam("level", level)] if level is not None else []
+        logs_any = await db.select(Log, where=where, order=[OrderParam("id", True)], limit=limit)
+        logs = cast(list[Log], logs_any)
         logs.reverse()
         return logs
     
@@ -27,7 +34,7 @@ class DatabaseHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-    async def _run_log(self, record: logging.LogRecord):
+    async def _run_log(self, record: logging.LogRecord) -> None:
         try:
             await write_log(record.levelname, record.getMessage())
         except Exception:

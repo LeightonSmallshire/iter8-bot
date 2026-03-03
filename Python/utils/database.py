@@ -1,19 +1,27 @@
-import aiosqlite
-import sqlite3
+from __future__ import annotations
+
 import datetime
-from packaging.version import Version
-from .model import *
+import sqlite3
 from dataclasses import dataclass, fields, asdict
-from typing import Optional, Any, get_type_hints, Type, Union
+from typing import Any, Iterable, Optional, Sequence, Type, TypeVar, Union, get_type_hints
+
+import aiosqlite
+from packaging.version import Version
+
+from .model import (AdminBet, DatabaseVersion, GambleWin, Gift,
+                    Log, Purchase, Stock, Timestamps, Trade, User,
+                    is_nullable, python_to_sql_type, python_to_table_name)
 
 @dataclass
 class WhereParam:
     field: str
     value: Any
-    cmp: str = '=' # '=', 'IS', 'IS NOT'
-    
-WhereNode = Union[WhereParam, list[WhereParam]]
-WhereClause = list[WhereNode]
+    cmp: str = "="  # '=', 'IS', 'IS NOT'
+
+
+# Keep the runtime structure, but relax static typing to avoid
+# invariance and deep generics issues.
+WhereClause = list[Any]
 
 def build_where_clause(where: WhereClause) -> tuple[str, list[object]]:
     """
@@ -62,13 +70,13 @@ class OrderParam:
     field: str
     descending: bool
 
-def _alias_cols(cls: type, alias: str) -> list[str]:
+
+def _alias_cols(cls: type[Any], alias: str) -> list[str]:
     return [f'{alias}.{f.name} AS "{alias}.{f.name}"' for f in fields(cls)]
 
-def _row_to(cls: type[T], row: aiosqlite.Row, alias: str) -> T:
-    hints = get_type_hints(cls, include_extras=True)
+def _row_to(cls: type[Any], row: aiosqlite.Row, alias: str) -> Any:
     data = {f.name: row[f"{alias}.{f.name}"] for f in fields(cls)}
-    return cls(**data)  # type: ignore[arg-type]
+    return cls(**data)
 
 def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
     """
@@ -94,7 +102,7 @@ def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
 
 # --- core ORM ---
 class Database:
-    def __init__(self, path: str, defer_commit: bool = False):
+    def __init__(self, path: str, defer_commit: bool = False) -> None:
         self.path = path
         self.defer_commit = defer_commit
 
@@ -109,7 +117,7 @@ class Database:
             "BOOLEAN", lambda b: b.strip().lower() in (b"1", b"t", b"true", b"y", b"yes")
 )
 
-    async def connect(self):
+    async def connect(self) -> "Database":
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.con.row_factory = aiosqlite.Row
         return self
@@ -122,12 +130,17 @@ class Database:
         await self.con.rollback()
         await self.con.close()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "Database":
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.con.row_factory = aiosqlite.Row
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: Any | None,
+    ) -> None:
         if self.defer_commit:
             return
 
@@ -149,7 +162,7 @@ class Database:
         sql = f"DROP TABLE IF EXISTS {table}"
         await self.con.execute(sql)
 
-    async def drop_table(self, model: Type[T]) -> None:
+    async def drop_table(self, model: type[Any]) -> None:
         await self.drop_table_with_name(python_to_table_name(model))
 
     async def table_exists(self, table_name: str) -> bool:
@@ -159,7 +172,7 @@ class Database:
         )
         return (await cur.fetchone()) is not None
 
-    async def create_single_value_table(self, model: Type[T]):
+    async def create_single_value_table(self, model: type[Any]) -> None:
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
@@ -176,7 +189,7 @@ class Database:
         await self.con.execute(sql)
         return
     
-    async def create_id_table(self, model: Type[T]):
+    async def create_id_table(self, model: type[Any]) -> None:
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
@@ -197,7 +210,7 @@ class Database:
         sql = f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} ({', '.join(cols)})"
         await self.con.execute(sql)
 
-    async def create_table(self, model: Type[T]) -> bool:
+    async def create_table(self, model: type[Any]) -> bool:
         exists = await self.table_exists(python_to_table_name(model))
         if exists:
             return False
@@ -210,7 +223,7 @@ class Database:
 
         return True
 
-    async def insert(self, obj: T) -> int:
+    async def insert(self, obj: Any) -> int:
         is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
         
@@ -250,9 +263,18 @@ class Database:
         return int(getattr(obj, "id")) if hasattr(obj, "id") else 1
 
 
-    async def select(self, model: Type[T], where: Optional[WhereClause] = None, order: list[OrderParam] = [], limit: Optional[int] = None) -> Union[T, list[T]]:
+    async def select(
+        self,
+        model: type[Any],
+        where: Optional[WhereClause] = None,
+        order: list[OrderParam] | None = None,
+        limit: Optional[int] = None,
+    ) -> Any:
         if where is None:
             where = []
+
+        if order is None:
+            order = []
 
         is_single = getattr(model, "__single_value_table__", False)
 
@@ -269,17 +291,17 @@ class Database:
             sql += f"{param.field} {'DESC' if param.descending else ''}"
 
         cur = await self.con.execute(sql, params)
-        results = await cur.fetchmany(limit) if limit else await cur.fetchall()
-        results = [dict(row) for row in results]
+        raw_rows = await cur.fetchmany(limit) if limit else await cur.fetchall()
+        rows: list[dict[str, Any]] = [dict(row) for row in raw_rows]
 
         if is_single:
-            for row in results:
-                row.pop("guard")
+            for row in rows:
+                row.pop("guard", None)
 
-        results = [model(**row) for row in results]
-        return results[0] if is_single else results
+        objs = [model(**row) for row in rows]
+        return objs[0] if is_single and objs else objs
 
-    async def update(self, obj: T, where: Optional[WhereClause] = None) -> None:
+    async def update(self, obj: Any, where: Optional[WhereClause] = None) -> None:
         if where is None:
             where = []
 
@@ -298,7 +320,11 @@ class Database:
 
         await self.con.execute(sql, list(data.values()) + where_params)
 
-    async def delete(self, model: Type[T], where: Optional[WhereClause] = None) -> None:
+    async def delete(
+        self,
+        model: type[Any],
+        where: Optional[WhereClause] = None,
+    ) -> None:
         if where is None:
             where = []
 
@@ -309,7 +335,11 @@ class Database:
 
         await self.con.execute(sql, where_params)
 
-    async def insert_or_update(self, obj: T, where: Optional[WhereClause] = None) -> int:
+    async def insert_or_update(
+        self,
+        obj: Any,
+        where: Optional[WhereClause] = None,
+    ) -> int:
         """
         Insert a row. If a row with the same primary key exists, update it instead.
         Returns the object's id.
@@ -354,14 +384,16 @@ class Database:
 
     async def join_select(
         self,
-        left: Type[T],
-        right: Type[U],
+        left: type[Any],
+        right: type[Any],
         where: Optional[WhereClause] = None,
-        order: list[OrderParam] = [],
+        order: list[OrderParam] | None = None,
         limit: int | None = None,
-    ) -> list[tuple[T, U]]:
+    ) -> list[tuple[Any, Any]]:
         if where is None:
             where = []
+        if order is None:
+            order = []
 
         la, ra = "l", "r"
         lt, rt = python_to_table_name(left), python_to_table_name(right)
@@ -416,7 +448,7 @@ class Database:
         cur = await self.con.execute(query, params)
         rows = await cur.fetchall()
 
-        out: list[tuple[T, U]] = []
+        out: list[tuple[Any, Any]] = []
         for row in rows:
             left_obj = _row_to(left, row, la)
             right_obj = _row_to(right, row, ra)
@@ -431,7 +463,7 @@ DATABASE_NAME = "data/storage.db"
 #-----------------------------------------------------------------
 #   Initialisation
 
-async def init_database(timeout_data: list[User], stock_list: list[Stock]):
+async def init_database(timeout_data: list[User], stock_list: list[Stock]) -> None:
     async with Database(DATABASE_NAME) as db:
         await db.drop_table(User)
         await db.create_table(User)
@@ -465,7 +497,7 @@ async def init_database(timeout_data: list[User], stock_list: list[Stock]):
 #-----------------------------------------------------------------
 #   Utility
 
-async def execute_raw_query(query: str):
+async def execute_raw_query(query: str) -> tuple[list[str] | None, Iterable[aiosqlite.Row] | None]:
     async with Database(DATABASE_NAME) as db:
         cur = await db.execute(query)
         if cur.description is None:
@@ -475,7 +507,7 @@ async def execute_raw_query(query: str):
         return headers, rows
 
 
-async def execute_raw_script(script: str):
+async def execute_raw_script(script: str) -> tuple[list[str] | None, Iterable[aiosqlite.Row] | None]:
     async with Database(DATABASE_NAME) as db:
         cur = await db.executescript(script)
         if cur.description is None:

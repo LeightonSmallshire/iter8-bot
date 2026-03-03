@@ -18,3 +18,5 @@ aiohttp~=3.13
 wcwidth~=0.2
 huggingface_hub~=1.1.5
 ctransformers[cpu,gpu]~=0.2
+ruff~=0.15.4
+mypy~=1.19.1
