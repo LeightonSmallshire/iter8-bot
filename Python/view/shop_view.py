@@ -37,7 +37,7 @@ class ShopOptionsView(discord.ui.View):
             view: ShopOptionsView = self.view
             if interaction.user.id != view.buyer_id:
                 await interaction.response.send_message(
-                    "You can’t confirm someone else’s purchase.", ephemeral=True
+                    "You can't confirm someone else's purchase.", ephemeral=True
                 )
                 return
 
@@ -78,13 +78,13 @@ class ShopOptionsView(discord.ui.View):
                 except BaseException as e:
                     await db.rollback()
                     await interaction.edit_original_response(
-                        view=None, content=f"❌ Purchase failed to process."
+                        view=None, content="❌ Purchase failed to process."
                     )
                     traceback.print_exception(e)
 
             else:
                 await interaction.edit_original_response(
-                    view=None, content=f"❌ You can't afford this purchase."
+                    view=None, content="❌ You can't afford this purchase."
                 )
 
 

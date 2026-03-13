@@ -1,12 +1,7 @@
 .vs/
 out/
 cmake-*/
-Dockerfile
 build/
-.dockerignore
-
-.git
-.gitignore
 
 .env
 *.pem
@@ -17,4 +12,3 @@ __pycache__/
 *.log
 
 build_scripts/
-

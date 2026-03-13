@@ -127,7 +127,7 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
     prev_users = role.members if role.members else []
 
     list_embed = discord.Embed(title=embed_title, color=discord.Color.yellow())
-    for idx, user_id in enumerate(roll_table, 1):
+    for idx, user_id in enumerate[int](roll_table, 1):
         list_embed.add_field(
             name=make_emoji_number(idx),
             value=f"<@{user_id}>",
