@@ -4,134 +4,36 @@ project(DiscordBot LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+cmake_policy(SET CMP0135 NEW) # DOWNLOAD_EXTRACT_TIMESTAMP behaviour
+
 include(FetchContent)
+
+# set(CMAKE_FIND_LIBRARY_SUFFIXES ".so;.a")
 
 # ----------------------------------------
 
 # Force static linking for standard libraries
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(DPP_BUILD_STATIC ON CACHE BOOL "" FORCE)
-set(OPENSSL_USE_STATIC_LIBS TRUE)
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+# set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+# set(DPP_BUILD_STATIC ON CACHE BOOL "" FORCE)
+# set(OPENSSL_USE_STATIC_LIBS TRUE)
 
-# ----------------------------------------
-# SQLite
-# ----------------------------------------
-
-add_library(sqlite3 STATIC
-    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite/sqlite3.c
-)
-
-target_include_directories(sqlite3 PUBLIC
-    ${CMAKE_SOURCE_DIR}/thirdparty/sqlite
-)
 
 # ---------------------------------------
-# Fetch spdlog
-# ---------------------------------------
 
-FetchContent_Declare(
-    spdlog
-    GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG        v1.16.0      
-)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-FetchContent_MakeAvailable(spdlog)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/sqlite3.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/spdlog.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/nlohmann_json.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/magic_enum.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/libarchive.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/stb.cmake")
 
-# ---------------------------------------
-# Fetch nlohmann json
-# ---------------------------------------
+# WIP
+# include("dpp.cmake")
+find_package(DPP REQUIRED)
 
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG        v3.11.3
-)
-
-FetchContent_MakeAvailable(nlohmann_json)
-
-# ---------------------------------------
-# Fetch magic_enum
-# ---------------------------------------
-
-FetchContent_Declare(
-    magic_enum
-    GIT_REPOSITORY https://github.com/Neargye/magic_enum
-    GIT_TAG        v0.9.7   
-)
-
-FetchContent_MakeAvailable(magic_enum)
-
-# ---------------------------------------
-# Fetch libarchive
-# ---------------------------------------
-set(ENABLE_NETTLE OFF CACHE BOOL "" FORCE)
-set(ENABLE_OPENSSL ON CACHE BOOL "" FORCE)
-set(ENABLE_LIBXML2 ON CACHE BOOL "" FORCE)
-set(ENABLE_LZMA ON CACHE BOOL "" FORCE)
-set(ENABLE_ZLIB ON CACHE BOOL "" FORCE)
-
-# This stops libarchive from building bsdcat, bsdtar, etc., 
-# which are causing your current linker errors.
-set(ENABLE_TAR OFF CACHE BOOL "" FORCE)
-set(ENABLE_CPIO OFF CACHE BOOL "" FORCE)
-set(ENABLE_CAT OFF CACHE BOOL "" FORCE)
-set(ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
-set(ENABLE_TEST OFF CACHE BOOL "" FORCE)
-set(ENABLE_MBEDTLS OFF CACHE BOOL "" FORCE)
-set(ENABLE_NETTLE OFF CACHE BOOL "" FORCE)
-set(ENABLE_UNZIP OFF CACHE BOOL "" FORCE)
-
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CACHE INTERNAL "")
-
-FetchContent_Declare(libarchive
-    GIT_REPOSITORY https://github.com/libarchive/libarchive.git
-    GIT_TAG        v3.7.4     # or whatever version you want
-)
-
-FetchContent_MakeAvailable(libarchive)
-
-# -------------------------
-# stb
-# -------------------------
-
-FetchContent_Declare(
-    stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        master
-)
-FetchContent_MakeAvailable(stb)
-
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
-
-# ---------------------------------------
-# Fetch DPP
-# ---------------------------------------
-
-set(DPP_BUILD_TEST OFF CACHE BOOL "Don't build DPP test programs" FORCE)
-set(DPP_NO_VCPKG ON CACHE BOOL "Don't use DPP's internal vcpkg" FORCE)
-set(BUILD_VOICE_SUPPORT OFF CACHE BOOL "Don't use VOIP" FORCE)
-set(DPP_GENERIC ON CACHE BOOL "Disable hardware-specific optimizations" FORCE)
-
-FetchContent_Declare(
-    dpp
-    GIT_REPOSITORY https://github.com/brainboxdotcc/DPP
-    GIT_TAG        bef3e2be44f0cb11f7756da541a9e25df766a06b
-)
-
-FetchContent_MakeAvailable(dpp)
-
-if(NOT MSVC)
-    set_target_properties(dpp PROPERTIES COMPILE_OPTIONS "")
-    target_compile_options(dpp PRIVATE -O3)
-endif()
-
-# remove platform-specific flags
-string(REPLACE "-mavx2" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-string(REPLACE "-msse4.2" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-string(REPLACE "-msse4.1" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "" FORCE)
 
 # -------------------------------
 # Add your Discord bot executable
@@ -141,7 +43,7 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(discord_bot ${SOURCES})
 
 target_include_directories(discord_bot PRIVATE src)
-target_include_directories(discord_bot PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty )
+target_include_directories(discord_bot PUBLIC ${CMAKE_SOURCE_DIR}/thirdparty ${DPP_INCLUDE_DIR} )
 
 target_link_libraries(discord_bot PRIVATE
     sqlite3
@@ -149,8 +51,8 @@ target_link_libraries(discord_bot PRIVATE
     nlohmann_json::nlohmann_json
     magic_enum::magic_enum
     stb
-    archive_static
-    dpp
+    archive
+    dpp::dpp
     # System libs - order matters!
     ssl
     crypto
@@ -159,37 +61,58 @@ target_link_libraries(discord_bot PRIVATE
     z
 )
 
-target_compile_definitions(discord_bot PRIVATE LIBARCHIVE_STATIC)
 
-if (WIN32)
-    set(THIRDPARTY_DLLS
-        "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libcrypto-1_1-x64.dll"
-        "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libssl-1_1-x64.dll"
-        "${CMAKE_SOURCE_DIR}/thirdparty/opus/opus.dll"
-        "${CMAKE_SOURCE_DIR}/thirdparty/zlib/zlib1.dll"
-    )
+# This tells the executable to look in its own directory for libraries
+set(CMAKE_INSTALL_RPATH "$ORIGIN")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
-    add_custom_command(TARGET discord_bot POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${THIRDPARTY_DLLS}
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:discord_bot>
-                $<TARGET_FILE_DIR:discord_bot>
-        COMMAND_EXPAND_LISTS
-    )
-endif()
+
+
+
+# target_compile_definitions(discord_bot PRIVATE LIBARCHIVE_STATIC)
+
+# if (WIN32)
+#     set(THIRDPARTY_DLLS
+#         "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libcrypto-1_1-x64.dll"
+#         "${CMAKE_SOURCE_DIR}/thirdparty/openssl/libssl-1_1-x64.dll"
+#         "${CMAKE_SOURCE_DIR}/thirdparty/opus/opus.dll"
+#         "${CMAKE_SOURCE_DIR}/thirdparty/zlib/zlib1.dll"
+#     )
+
+#     add_custom_command(TARGET discord_bot POST_BUILD
+#         COMMAND ${CMAKE_COMMAND} -E make_directory
+#                 $<TARGET_FILE_DIR:discord_bot>
+#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#                 ${THIRDPARTY_DLLS}
+#                 $<TARGET_FILE_DIR:discord_bot>
+#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#                 $<TARGET_RUNTIME_DLLS:discord_bot>
+#                 $<TARGET_FILE_DIR:discord_bot>
+#         COMMAND_EXPAND_LISTS
+#     )
+# endif()
+
 
 add_custom_command(
     TARGET discord_bot
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/data"
-            "$<TARGET_FILE_DIR:discord_bot>/data"
+            ${CMAKE_CURRENT_SOURCE_DIR}/data
+            $<TARGET_FILE_DIR:discord_bot>/data
     COMMENT "Copying data directory to output folder"
 )
+
+
+add_custom_command(TARGET discord_bot POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:dpp::dpp>
+    $<TARGET_FILE_DIR:discord_bot>
+    COMMENT "Copying shared libraries to output folder"
+)
+
+
+# Runtime Path: Since you are using dynamic libraries (.so), you'll need to tell the OS where to find them at runtime. Add this to your CMakeLists.txt to bake the path into the executable:
+# set_target_properties(discord_bot PROPERTIES INSTALL_RPATH "$ORIGIN/../thirdparty/dpp/lib")
 
 # 1. Install the bot binary
 install(TARGETS discord_bot DESTINATION .)
@@ -199,7 +122,8 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data" DESTINATION .)
 
 # 3. If DPP or libarchive are built as shared libraries, install them too
 # This ensures any .so files needed are bundled in the output
-install(TARGETS dpp spdlog archive_static DESTINATION .)
+# install(TARGETS spdlog archive_static DESTINATION .)
+# TODO  ${DPP_LIBRARIES} 
 
 # install(CODE [[
 #     file(GET_RUNTIME_DEPENDENCIES

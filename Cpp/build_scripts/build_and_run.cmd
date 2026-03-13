@@ -4,7 +4,11 @@ pushd "%~dp0.."
 docker run --privileged --rm tonistiigi/binfmt --install all || exit /b %errorlevel%
 
 :: build for both ARM and AMD 64-bit
-docker buildx build --platform linux/arm64,linux/amd64 -f Dockerfile2 -t bot . || exit /b %errorlevel%
+@REM default builder
+@REM docker build -f Dockerfile2 -t bot . || exit /b %errorlevel%
+@REM docker buildx build --platform linux/amd64 -f Dockerfile2 -t bot . || exit /b %errorlevel%
+docker buildx build --platform linux/arm64 -f Dockerfile2 -t bot . || exit /b %errorlevel%
+@REM docker buildx build --platform linux/arm64,linux/amd64 -f Dockerfile2 -t bot . || exit /b %errorlevel%
 
 :: run locally, use .env from this folder
 docker run -it --rm --env-file "%~dp0.env" bot || exit /b %errorlevel%
