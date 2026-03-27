@@ -1,16 +1,8 @@
-import asyncio
-import operator
-
 import discord
 from discord.ext import commands
 from discord import app_commands
-import traceback
 import logging
-import sys
 import datetime
-import subprocess
-import os
-import io
 
 import utils.bot as bot_utils
 import utils.gifts as gift_utils
@@ -38,12 +30,30 @@ class GiftingCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.user_id == self.bot_.user.id:
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        if self.bot_.user is None or payload.user_id == self.bot_.user.id:
             return
 
-        guild = self.bot_.get_guild(payload.guild_id) or await self.bot_.fetch_guild(payload.guild_id)
-        channel = guild.get_channel(payload.channel_id) or await guild.fetch_channel(payload.channel_id)
+        if payload.guild_id is None:
+            return
+
+        guild = self.bot_.get_guild(payload.guild_id)
+        if guild is None:
+            return
+
+        if payload.channel_id is None:
+            return
+
+        channel = guild.get_channel(payload.channel_id)
+        if channel is None:
+            return
+
+        if not isinstance(channel, discord.TextChannel):
+            return
+
+        if payload.message_id is None:
+            return
+
         message = await channel.fetch_message(payload.message_id)
 
         if (message.author.bot or message.author.id == guild.owner_id):
@@ -67,12 +77,30 @@ class GiftingCog(commands.Cog):
         
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        if payload.user_id == self.bot_.user.id:
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        if self.bot_.user is None or payload.user_id == self.bot_.user.id:
             return
 
-        guild = self.bot_.get_guild(payload.guild_id) or await self.bot_.fetch_guild(payload.guild_id)
-        channel = guild.get_channel(payload.channel_id) or await guild.fetch_channel(payload.channel_id)
+        if payload.guild_id is None:
+            return
+
+        guild = self.bot_.get_guild(payload.guild_id)
+        if guild is None:
+            return
+
+        if payload.channel_id is None:
+            return
+
+        channel = guild.get_channel(payload.channel_id)
+        if channel is None:
+            return
+
+        if not isinstance(channel, discord.TextChannel):
+            return
+
+        if payload.message_id is None:
+            return
+
         message = await channel.fetch_message(payload.message_id)
 
         emoji_str = str(payload.emoji)
@@ -98,7 +126,7 @@ class GiftingCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -114,5 +142,5 @@ class GiftingCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GiftingCog(bot))

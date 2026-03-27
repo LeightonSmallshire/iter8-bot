@@ -1,13 +1,11 @@
-import operator
-
 import discord
 from discord.ext import commands
 from discord import app_commands
 from wcwidth import wcswidth
-import traceback
 import logging
 import re
 import datetime
+from typing import Any, cast
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.gamble as gamble_utils
@@ -28,7 +26,7 @@ class GamblingCog(commands.Cog):
     # --- Slash Command ---
     @app_commands.command(name='bookies', description='iter8 does not condone gambling. BUT HAVE FUN!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bookies(self, interaction: discord.Interaction):
+    async def command_bookies(self, interaction: discord.Interaction) -> None:
         """Generates and displays the gambling info."""
 
         def disp_width(s: str) -> int:
@@ -36,16 +34,20 @@ class GamblingCog(commands.Cog):
         
         await interaction.response.defer(thinking=True)
 
+        guild = interaction.guild
+        if guild is None:
+            return
+
         users = bot_utils.get_non_bot_users(interaction)
 
         counts = Counter(users)
 
         embed = discord.Embed(title="🎰 Welcome to the Bookies 🎰", color=discord.Color.blue())
 
-        member_by_id = {m.id: m for m in interaction.guild.members}
+        member_by_id = {m.id: m for m in guild.members}
 
         async def get_member(user_id: int) -> discord.Member:
-            return member_by_id.get(user_id) or await interaction.guild.fetch_member(user_id)
+            return member_by_id.get(user_id) or await guild.fetch_member(user_id)
 
         # Compute max display width for alignment
         max_name_w = 0
@@ -53,8 +55,9 @@ class GamblingCog(commands.Cog):
             name = await get_member(uid)
             max_name_w = max(max_name_w, disp_width(name.display_name))
 
-        odds = await gamble_utils.get_gamble_odds(consume_bets=False)
-        prize = sum([data["total"] for (_, data)  in odds.items()])
+        odds_any: Any = await gamble_utils.get_gamble_odds(consume_bets=False)
+        odds = cast(dict[int, dict[str, Any]], odds_any)
+        prize = sum([data["total"] for (_, data) in odds.items()])
 
         def fmt_duration(seconds: float) -> str:
             return str(datetime.timedelta(seconds=round(seconds)))
@@ -93,7 +96,7 @@ class GamblingCog(commands.Cog):
                 )
 
             block = f"\n```{line}```\n"
-            subblock = f"```\n" + "\n".join(bettor_lines) + "\n```"
+            subblock = "```\n" + "\n".join(bettor_lines) + "\n```"
 
             embed.add_field(
                 name=block,
@@ -101,7 +104,7 @@ class GamblingCog(commands.Cog):
                 inline=False,
             )
 
-        embed.set_footer(text=f"Place your bets with /bet <user> <duration>")
+        embed.set_footer(text="Place your bets with /bet <user> <duration>")
 
         await interaction.followup.send(embed=embed)
     
@@ -128,17 +131,21 @@ class GamblingCog(commands.Cog):
     
     @app_commands.command(name='bet', description='iter8 does not condone gambling. BUT HAVE FUN!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bet(self, interaction: discord.Interaction, user: discord.Member, duration: app_commands.Transform[datetime.timedelta, DurationTransformer]):
+    async def command_bet(self, interaction: discord.Interaction, user: discord.Member, duration: app_commands.Transform[datetime.timedelta, DurationTransformer]) -> None:
         """Bet on someone to be the next admin!"""
         
         await interaction.response.defer(thinking=True)
 
-        if (user.bot or interaction.guild.owner_id == user.id):
-            await interaction.followup.send(f"❌ You can't bet on bots.")
+        guild = interaction.guild
+        if guild is None:
+            return
+
+        if (user.bot or guild.owner_id == user.id):
+            await interaction.followup.send("❌ You can't bet on bots.")
             return
 
         if not await shop_utils.can_afford_purchase(interaction.user.id, round(duration.total_seconds())):
-            await interaction.followup.send(f"❌ You can't afford to bet for that duration.")
+            await interaction.followup.send("❌ You can't afford to bet for that duration.")
             return
         
         await gamble_utils.record_gamble(interaction.user.id, user.id, round(duration.total_seconds()))
@@ -153,7 +160,7 @@ class GamblingCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -168,7 +175,7 @@ class GamblingCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GamblingCog(bot))
 
 

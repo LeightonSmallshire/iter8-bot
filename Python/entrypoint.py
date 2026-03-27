@@ -9,7 +9,7 @@ DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
 DISCORD_WEBOOK_TOKEN = os.environ['DISCORD_WEBOOK_TOKEN']
 
 
-def do_hook(message: str):
+def do_hook(message: str) -> None:
     suppress_notifications = 1 << 12
     payload = json.dumps({'content': '```' + message + '```', 'flags': suppress_notifications})
     conn = http.client.HTTPSConnection('discord.com')
@@ -22,7 +22,7 @@ def do_hook(message: str):
 
 
 try:
-    import main
+    pass
 except BaseException as e:
     traceback.print_exception(e)
     lines = traceback.format_exception(e)

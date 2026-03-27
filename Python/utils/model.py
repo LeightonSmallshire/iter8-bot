@@ -1,8 +1,8 @@
 import datetime
 import re
 from packaging.version import Version
-from dataclasses import dataclass, field, fields, asdict, Field
-from typing import Optional, Any, Type, TypeVar, Protocol, TypeVar, Type, Mapping, Protocol, ClassVar, Literal, get_origin, get_args
+from dataclasses import dataclass, field, fields
+from typing import Optional, Any, TypeVar, Type, Protocol, ClassVar, Literal, get_origin, get_args
 
 
 # --- type mapping ---
@@ -17,7 +17,7 @@ TYPE_MAP = {
     Version: "VERSION"
 }
 
-def single_value_table(cls):
+def single_value_table(cls: Any) -> Any:
     setattr(cls, "__single_value_table__", True)
     return cls
 
@@ -37,7 +37,7 @@ IsDatabaseTable = HasIdTable | SingleValueTable
 T = TypeVar("T", bound=IsDatabaseTable)
 U = TypeVar("U", bound=IsDatabaseTable)
 
-def is_nullable(tp) -> bool:
+def is_nullable(tp: Any) -> bool:
     # Directly NoneType
     if tp is type(None):
         return True
@@ -79,7 +79,7 @@ def assert_field_exists(model: Type[Any], name: str) -> None:
         valid = ", ".join(f.name for f in fields(model))
         raise ValueError(f"{name!r} not in {model.__name__} fields: {valid}")
 
-def foreign_key(model: Type[Any], column: str = "id", **extra):
+def foreign_key(model: Type[Any], column: str = "id", **extra: Any) -> Any:
     assert_field_exists(model, column)
     return field(metadata={
         "fk": {

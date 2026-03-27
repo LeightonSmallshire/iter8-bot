@@ -4,16 +4,12 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from itertools import groupby
-import traceback
 import logging
-import sys
 import datetime
 import utils.bot as bot_utils
 import utils.log as log_utils
-import utils.database as shop_utils
 import utils.shop as shop_utils
 from view.shop_view import ShopView
-from typing import Optional
 import utils.misc
 
 _log = logging.getLogger(__name__)
@@ -31,7 +27,7 @@ class ShopCog(commands.Cog):
 
     @app_commands.command(name='shop', description='Let\'s see what the lovely shop has to offer')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_display_shop(self, interaction: discord.Interaction):
+    async def command_display_shop(self, interaction: discord.Interaction) -> None:
         """Generates and displays the timeout shop."""
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -64,16 +60,20 @@ class ShopCog(commands.Cog):
 
     @app_commands.command(name='credit', description='Find out how much shop credit everyone has')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_display_credit(self, interaction: discord.Interaction):
+    async def command_display_credit(self, interaction: discord.Interaction) -> None:
         """Calculates and displays available shop credit."""
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        users = { user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
-        users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
+        guild = interaction.guild
+        if guild is None:
+            return
+
+        users_list: list[tuple[discord.Member, float]] = [(user, await shop_utils.get_shop_credit(user.id)) for user in guild.members if not user.bot and user.id != guild.owner_id]
+        users_list = sorted(users_list, key=operator.itemgetter(1), reverse=True)
 
         embed = discord.Embed(title="💵 How much is everyone worth? 💵", color=discord.Color.blue())
-        for (user, credit) in users:
+        for (user, credit) in users_list:
             embed.add_field(
                 name=user.display_name,
                 value=utils.misc.format_timedelta(datetime.timedelta(seconds=round(credit))),
@@ -91,7 +91,7 @@ class ShopCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -106,7 +106,7 @@ class ShopCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ShopCog(bot))
 
 

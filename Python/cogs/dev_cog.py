@@ -1,4 +1,3 @@
-import asyncio
 import glob
 import discord
 from discord import app_commands
@@ -12,7 +11,6 @@ import os
 import inspect
 import logging
 import contextlib
-import subprocess
 import traceback
 import sys
 
@@ -29,21 +27,22 @@ class DevCog(commands.Cog):
         _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     @app_commands.command(name='stdout')
-    async def get_stdout(self, interaction: discord.Interaction):
-        msg = sys.stdout.buf_
+    async def get_stdout(self, interaction: discord.Interaction) -> None:
+        msg = sys.stdout.buffer.read()
 
         if len(msg) > 1950:
-            file = discord.file.File(io.StringIO(msg), 'stdout.log')
+            file = discord.File(io.BytesIO(msg), 'stdout.log')
             await interaction.response.send_message(file=file, ephemeral=True)
         else:
-            await interaction.response.send_message(content=msg, ephemeral=True)
+            await interaction.response.send_message(content=msg.decode('utf-8'), ephemeral=True)
 
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
-    async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None):
+    async def get_logs(self, interaction: discord.Interaction, level: Optional[str] = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No logs 4 U")
+            await interaction.response.send_message("No logs 4 U")
+            return
 
         rows = await log_utils.read_logs(level=level)
         if not rows:
@@ -56,7 +55,7 @@ class DevCog(commands.Cog):
 
         msg = "```\n" + "\n".join(formatted) + "\n```"
         if len(msg) > 1950:
-            file = discord.file.File(io.StringIO(msg), 'database.log')
+            file = discord.File(io.BytesIO(msg.encode('utf-8')), 'database.log')
             await interaction.response.send_message(file=file, ephemeral=True)
         else:
             await interaction.response.send_message(content=msg, ephemeral=True)
@@ -77,34 +76,40 @@ class DevCog(commands.Cog):
     @app_commands.command(name='download')
     @app_commands.autocomplete(path=autocomplete_path)
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_download(self, interaction: discord.Interaction, path: str):
+    async def do_download(self, interaction: discord.Interaction, path: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No files 4 U")
+            await interaction.response.send_message("No files 4 U")
+            return
 
         if os.path.isdir(path):
             zip_dir = utils.files.zip_directory(path)
             file = discord.File(zip_dir, f'{path}.zip')
-            return await interaction.response.send_message(file=file, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
+            return
 
         elif os.path.isfile(path):
             file = discord.File(path)
-            return await interaction.response.send_message(file=file, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
+            return
         
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_crash(self, interaction: discord.Interaction):
+    async def do_crash(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'Stop it {interaction.user.mention}')
+            await interaction.response.send_message(f'Stop it {interaction.user.mention}')
+            return
 
         os.abort()
         interaction.response.send_message('past abort somehow - very impressive')
 
     @app_commands.command(name='show_perms', description="Shows all permissions for all roles and users")
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_show_perms(self, interaction: discord.Interaction):
+    async def do_show_perms(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         
         guild = interaction.guild
+        if guild is None:
+            return
         report = f"Permissions Report for {guild.name}\n"
         report += "="*30 + "\n\n"
 
@@ -134,7 +139,7 @@ class DevCog(commands.Cog):
         # Send the file
         await interaction.followup.send(content="Permissions report:", file=file, ephemeral=True)
         
-    def get_env(self, uid: int):
+    def get_env(self, uid: int) -> dict[str, object]:
         env = self.envs.get(uid)
         if env is None:
             env = {
@@ -143,8 +148,7 @@ class DevCog(commands.Cog):
             self.envs[uid] = env
         return env
     
-    async def eval_code(self, src: str, env: dict[str, object]):
-        buf = io.StringIO()
+    async def eval_code(self, src: str, env: dict[str, object]) -> str:
         compiled = compile(src, "<expr>", "eval")
         value = eval(compiled, env)
         if inspect.isawaitable(value):
@@ -152,7 +156,7 @@ class DevCog(commands.Cog):
         env["_"] = value
         return repr(value)
         
-    async def exec_code(self, src: str, env: dict[str, object]):
+    async def exec_code(self, src: str, env: dict[str, object]) -> str:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             exec(compile(src, "<exec>", "exec"), env)
@@ -181,17 +185,19 @@ class DevCog(commands.Cog):
     @app_commands.command(name="exec", description="Execute Python in your persistent REPL.")
     @commands.check(bot_utils.is_guild_paradise)
     @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
-    async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):
+    async def command_exec(self, interaction: discord.Interaction, code: str | None = None, file: discord.Attachment | None = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'No REPL 4 U')
+            await interaction.response.send_message('No REPL 4 U')
+            return
 
         if not code and not file:
-            return await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
+            await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
+            return
 
         await interaction.response.defer(ephemeral=True)
         env = self.get_env(interaction.user.id)
 
-        src = (await file.read()).decode("utf-8", "ignore") if file else code
+        src: str = (await file.read()).decode("utf-8", "ignore") if file else (code if code else "")
         src = src.strip("` \n")
 
         buf = io.StringIO()
@@ -212,9 +218,10 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name="reset_repl", description="Clear your REPL environment.")
     @commands.check(bot_utils.is_guild_paradise)
-    async def reset_env(self, interaction): 
+    async def reset_env(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'No REPL 4 U')
+            await interaction.response.send_message('No REPL 4 U')
+            return
         
         self.envs.pop(interaction.user.id, None)
         await interaction.response.send_message("Environment cleared.", ephemeral=True)
@@ -228,7 +235,7 @@ class DevCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -241,5 +248,5 @@ class DevCog(commands.Cog):
                 await interaction.response.send_message(msg, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(DevCog(bot))

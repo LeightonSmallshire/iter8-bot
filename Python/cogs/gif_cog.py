@@ -1,5 +1,3 @@
-import operator
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -7,9 +5,9 @@ import aiohttp
 import logging
 import os
 import random
+from typing import Any
 import utils.bot as bot_utils
 import utils.log as log_utils
-from typing import Optional
 
 _log = logging.getLogger(__name__)
 _log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
@@ -25,10 +23,10 @@ class GifCog(commands.Cog):
 
     async def find_best_gif(self, query: str, count: int) -> str | None:
         url = "https://tenor.googleapis.com/v2/search"
-        params = {
+        params: dict[str, str | int] = {
             "q": query,
             "key": TENOR_KEY,
-            "media_filter": "gif,mediumgif",  # keep payload small
+            "media_filter": "gif,mediumgif",
             "limit": count,
         }
         async with aiohttp.ClientSession() as s:
@@ -40,11 +38,15 @@ class GifCog(commands.Cog):
             return None
 
         # Heuristic: prefer "gif", then "mediumgif", then "tinygif"
-        def pick_url(item):
-            mf = item.get("media_formats", {})
+        def pick_url(item: dict[str, Any]) -> str | None:
+            mf: dict[str, Any] = item.get("media_formats", {})
             for key in ("gif", "mediumgif", "tinygif"):
-                if key in mf and "url" in mf[key]:
-                    return mf[key]["url"]
+                if key in mf:
+                    format_obj: Any = mf[key]
+                    if isinstance(format_obj, dict):
+                        url = format_obj.get("url")
+                        if isinstance(url, str):
+                            return url
             return None
 
         # Filter to items that actually have a gif-like URL
@@ -58,7 +60,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='riot', description='RIOT!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_gif_riot(self, interaction: discord.Interaction):
+    async def command_gif_riot(self, interaction: discord.Interaction) -> None:
         url = await self.find_best_gif("rioters", 12)
 
         embed = discord.Embed(title="RIOT!")
@@ -69,7 +71,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='wok', description='Fuiyooooh!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def wok(self, interaction: discord.Interaction):
+    async def wok(self, interaction: discord.Interaction) -> None:
         url = await self.find_best_gif("wok", 10)
 
         embed = discord.Embed(title="Fuiyooh!")
@@ -80,7 +82,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='bin', description='Get in the bin')
     @commands.check(bot_utils.is_guild_paradise)
-    async def bin(self, interaction: discord.Interaction):
+    async def bin(self, interaction: discord.Interaction) -> None:
         embed = discord.Embed(title="Get in the bin")
         embed.set_image(url="https://c.tenor.com/5oer_C4ZVCsAAAAd/tenor.gif")
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
@@ -96,7 +98,7 @@ class GifCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -111,7 +113,7 @@ class GifCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GifCog(bot))
 
 

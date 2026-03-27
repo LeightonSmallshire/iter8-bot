@@ -1,8 +1,7 @@
-import time
 import json
 import os
-import sys
 import logging
+from typing import Any, Optional
 
 import utils.bot as bot_utils
 import utils.database as db_utils
@@ -53,25 +52,26 @@ is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
 
 
 class HotReloadBot(commands.Bot):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
-    async def on_ready(self):
-        logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
+    async def on_ready(self) -> None:
+        user_id = self.user.id if self.user else 0
+        logger.info(f'Discord Bot logged in as {self.user} (ID: {user_id})')
 
         if is_work_hours and IS_LIVE:
             message = f'Bot connected {read_git_head()}'
             bot_utils.defer_message(self, bot_utils.Users.Leighton, message)
             bot_utils.defer_message(self, bot_utils.Users.Nathan, message)
 
-        server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Default)
+        server = discord.utils.get(self.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
         await db_utils.init_database(leaderboard, stock_utils.AVAILABLE_STOCKS)
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
 
-    async def hot_reload_cogs(self):
+    async def hot_reload_cogs(self) -> dict[str, Any]:
         """Unloads, reloads, and reports the status of all cogs."""
 
         logger.info('--- Loading cogs ---')
@@ -126,7 +126,7 @@ class HotReloadBot(commands.Bot):
 
     async def _handle_error(self,
                             interaction: discord.Interaction,
-                            error: discord.app_commands.AppCommandError):
+                            error: discord.app_commands.AppCommandError) -> None:
         logger.error(error)
         try:
             if interaction.response.is_done():
@@ -137,7 +137,7 @@ class HotReloadBot(commands.Bot):
             pass  # Avoid cascade errors
 
 
-def read_git_head():
+def read_git_head() -> tuple[Optional[str], Optional[str]]:
     if not os.path.isfile('.git/HEAD'):
         return None, None
     

@@ -1,5 +1,8 @@
-from .database import *
-from .shop import AdminRerollItem, AdminTicketItem
+from .database import Database, DATABASE_NAME, WhereParam
+from .model import Timestamps, Purchase
+from .shop import AdminRerollItem
+from typing import Optional
+import datetime
 
 
 async def get_extra_admin_rolls(consume: bool) -> list[int]:
@@ -15,16 +18,19 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
 
 async def get_last_admin_roll() -> Optional[Timestamps]:
     async with Database(DATABASE_NAME) as db:
-        return await db.select(Timestamps)
+        result = await db.select(Timestamps)  # type: ignore[type-var]
+        if isinstance(result, list) and result:
+            return result[0]
+        return None
     
-async def update_last_admin_roll():
+async def update_last_admin_roll() -> None:
     async with Database(DATABASE_NAME) as db:
         timestamps = await get_last_admin_roll()
         if timestamps is not None:
             timestamps.last_roll = datetime.datetime.now()
-            await db.update(timestamps)
+            await db.update(timestamps)  # type: ignore[type-var]
         else:
-            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))    
+            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))  # type: ignore[type-var]    
     
 async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
     async with Database(DATABASE_NAME) as db:
@@ -32,8 +38,8 @@ async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
         if not tokens:
             return False, "Naughty naughty, you haven't purchased a reroll token."
         
-        token = tokens[0]
-        # await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
+        if not (isinstance(tokens, list) and tokens):
+            return False, "Naughty naughty, you haven't purchased a reroll token."
 
         return True, None
     

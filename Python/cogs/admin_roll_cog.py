@@ -1,13 +1,12 @@
-import operator
-
 import discord
 from discord.ext import commands
 from discord import app_commands
 import logging
 from zoneinfo import ZoneInfo
 from datetime import time, timedelta
-import random, secrets
+import random
 import asyncio
+from typing import Any, cast
 import utils.bot as bot_utils
 import utils.log as log_utils
 import utils.admin_roll as roll_utils
@@ -46,13 +45,13 @@ class AdminRollCog(commands.Cog):
 
     @app_commands.command(name='roll_admin', description='Commence the weekly admin dice roll.')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_roll_admin(self, interaction: discord.Interaction):
+    async def command_roll_admin(self, interaction: discord.Interaction) -> None:
         if not is_correct_time(interaction):
-            await interaction.response.send_message(f"Wait till you've had your samosa!", ephemeral=True)
+            await interaction.response.send_message("Wait till you've had your samosa!", ephemeral=True)
             return
 
         if not await is_first_roll(interaction):
-            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
+            await interaction.response.send_message("The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
             return
         
         await interaction.response.defer()
@@ -88,13 +87,14 @@ class AdminRollCog(commands.Cog):
 
         await self.do_gamble_payout(interaction, bot_utils.Users.Nathan)
 
-    async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int):
+    async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int) -> None:
         gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
         await asyncio.sleep(2)
 
-        gamble_results = await gamble_utils.get_gamble_odds(consume_bets=True)
-        prize = sum([data["total"] for (_, data)  in gamble_results.items()])
+        gamble_results_any: Any = await gamble_utils.get_gamble_odds(consume_bets=True)
+        gamble_results = cast(dict[int, dict[str, Any]], gamble_results_any)
+        prize = sum([data["total"] for (_, data) in gamble_results.items()])
 
         target_ids = list(gamble_results.keys())
         weights = [gamble_results[uid]["odds"] for uid in target_ids]
@@ -130,7 +130,7 @@ class AdminRollCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -144,7 +144,7 @@ class AdminRollCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(AdminRollCog(bot))
 
 
