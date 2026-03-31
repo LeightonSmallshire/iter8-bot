@@ -53,6 +53,7 @@ class Channels:
 
 class Roles:
     Admin = 1416037888847511646
+    SuperOfficer = 1485638740901892211
     Officer = 1463483465990406287
     DiceRoller = 1430187659678187581
     BullyTarget = 1432752493670170624
@@ -135,6 +136,10 @@ async def on_new_admin(interaction: discord.Interaction, new_admin: int):
             await user_role.edit(permissions=interaction.guild.default_role.permissions)
 
     officers = interaction.guild.get_role(Roles.Officer) or await interaction.guild.fetch_role(Roles.Officer)
+    for officer in officers.members:
+        await officer.remove_roles(officers)
+
+    officers = interaction.guild.get_role(Roles.SuperOfficer) or await interaction.guild.fetch_role(Roles.SuperOfficer)
     for officer in officers.members:
         await officer.remove_roles(officers)
 
