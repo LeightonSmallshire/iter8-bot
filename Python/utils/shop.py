@@ -364,8 +364,6 @@ class BlackFridaySaleItem(ShopItem):
     @classmethod
     async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
         event_name = "Black Friday Sale!"
-        now = discord.utils.utcnow()
-        event_duration = datetime.timedelta(minutes=30)
         
         # Check if the event already exists
         existing_event = discord.utils.get(ctx.guild.scheduled_events, name=event_name)
@@ -373,8 +371,11 @@ class BlackFridaySaleItem(ShopItem):
         if existing_event:
             await existing_event.delete()
 
-        start_time = now
-        end_time = now + event_duration
+        now = discord.utils.utcnow()
+        event_duration = datetime.timedelta(minutes=30)
+
+        start_time = now + datetime.timedelta(seconds=10)
+        end_time = start_time + event_duration
 
         event = await ctx.guild.create_scheduled_event(
             name=event_name,
@@ -387,7 +388,7 @@ class BlackFridaySaleItem(ShopItem):
         )
 
         await ctx.followup.send(
-        f"<@{ctx.user.id}> started a sale! Get 50% off for the next 30 minutes!"
+        f"<@{ctx.user.id}> is starting a sale in 10 seconds! Get 50% off for the next 30 minutes!"
         )
 
 
