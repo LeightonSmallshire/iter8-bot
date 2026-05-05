@@ -8,6 +8,7 @@ services:
     env_file:
       - ../.env # Actually in AutoDeploy... weird inside-out repo
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - iter8-bot-data:/app/data:rw
       - /home/nonroot/.cache # anonymous
 
