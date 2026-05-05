@@ -82,32 +82,61 @@ class HotReloadBot(commands.Bot):
                     logger.info(f'Successfully loaded NEW cog: {cog_name}')
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                logger.error(f'Failed to reload/load cog {cog_name}: {e}')
-                failed_cogs.append(f"{cog_name} ({e.__class__.__name__})")
+                error_detail = f"{cog_name} ({e.__class__.__name__})"
+                logger.error(f'Failed to reload/load cog {error_detail}: {e}')
+                failed_cogs.append(error_detail)
 
         # 3. Check for removed cogs
+        unloaded_cogs = []
         for ext_name in list(self.extensions.keys()):
             if ext_name.startswith(f'{COGS_DIR}.') and ext_name not in current_cogs:
                 try:
                     await self.unload_extension(ext_name)
+                    unloaded_cogs.append(ext_name)
                     logger.info(f'Successfully unloaded REMOVED cog: {ext_name}')
                 except Exception as e:
                     logger.error(f'Failed to unload removed cog {ext_name}: {e}')
 
+        # 4. Syncing
         logger.info('Syncing...')
         self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Default))
         synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Default))
-        synced_msg = '[' + "\n\t".join(str(s) for s in synced) + ']'
-        logger.info(f'Synced: {synced_msg}')
+        logger.info(f'Synced {len(synced)} commands.')
 
+        # 5. Build Discord-formatted message
+        lines = ["## 🔄 Cog Reload Report"]
+
+        if failed_cogs:
+            lines.append(f"### ❌ Failures ({len(failed_cogs)})")
+            lines.append("```python")
+            lines.extend(failed_cogs)
+            lines.append("```")
+
+        if reloaded_cogs:
+            lines.append(f"### ✅ Success ({len(reloaded_cogs)})")
+            # Format as a compact list
+            reloaded_names = ", ".join([c.split('.')[-1] for c in reloaded_cogs])
+            lines.append(f"**Cogs:** {reloaded_names}")
+
+        if unloaded_cogs:
+            lines.append(f"### 🗑️ Unloaded ({len(unloaded_cogs)})")
+            lines.append(f"Cleanup: {', '.join([u.split('.')[-1] for u in unloaded_cogs])}")
+
+        lines.append(f"\n⚡ **Commands Synced:** `{len(synced)}`")
+
+        formatted_report = "\n".join(lines)
+
+        # 6. Final reporting
         status = {
-            'status': 'Cogs reloaded successfully',
+            'status': 'Cogs reloaded' if not failed_cogs else 'Reloaded with errors',
             'reloaded': reloaded_cogs,
             'failed': failed_cogs,
             'synced': [str(c) for c in synced]
         }
+
         if is_work_hours and IS_LIVE:
-            bot_utils.defer_message(self, bot_utils.Users.Leighton, json.dumps(status))
+            bot_utils.defer_message(self, bot_utils.Users.Leighton, formatted_report)
+
         return status
 
     async def _handle_error(self,
