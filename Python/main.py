@@ -2,16 +2,21 @@ import time
 import json
 import os
 import sys
-import logging
+import dotenv
 
+import logfire
 import utils.bot as bot_utils
 import utils.database as db_utils
-import utils.log as log_utils
 import utils.stocks.stock_db as stock_utils
 import discord
 import datetime
 from discord.ext import commands
 
+
+dotenv.load_dotenv()
+
+# CD to here always
+os.chdir(os.path.dirname(__file__))
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
@@ -23,29 +28,9 @@ IS_TESTING = not IS_LIVE
 
 os.makedirs('data', exist_ok=True)
 
-# --- Logging Setup ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# file_handler.setLevel(logging.DEBUG)
-# file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-logger.addHandler(log_utils.DatabaseHandler())
-
-
-# class IoTee:
-#     def __init__(self):
-#         self.buf_ = ''
-#
-#     def write(self, s: str):
-#         self.buf_ += s
-#         self.buf_ = self.buf_[:200000]
-#
-#     def flush(self):
-#         pass
-#
-# sys.stdout = IoTee()
-# sys.stderr = sys.stdout
+# --- Logfire Setup ---
+logfire.configure()
+logger = logfire
 
 
 now = datetime.datetime.now().time()
@@ -64,7 +49,7 @@ class HotReloadBot(commands.Bot):
             bot_utils.defer_message(self, bot_utils.Users.Leighton, message)
             bot_utils.defer_message(self, bot_utils.Users.Nathan, message)
 
-        server = discord.utils.get(bot.guilds, id=bot_utils.Guilds.Default)
+        server = discord.utils.get(self.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
         await db_utils.init_database(leaderboard, stock_utils.AVAILABLE_STOCKS)
 
@@ -90,13 +75,13 @@ class HotReloadBot(commands.Bot):
             try:
                 if cog_name in self.extensions:
                     await self.reload_extension(cog_name)
-                    logger.info(f"Successfully reloaded cog: {cog_name}")
+                    logger.info(f'Successfully reloaded cog: {cog_name}')
                 else:
                     await self.load_extension(cog_name)
-                    logger.info(f"Successfully loaded NEW cog: {cog_name}")
+                    logger.info(f'Successfully loaded NEW cog: {cog_name}')
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                logger.error(f"Failed to reload/load cog {cog_name}: {e}")
+                logger.error(f'Failed to reload/load cog {cog_name}: {e}')
                 failed_cogs.append(f"{cog_name} ({e.__class__.__name__})")
 
         # 3. Check for removed cogs
@@ -104,9 +89,9 @@ class HotReloadBot(commands.Bot):
             if ext_name.startswith(f'{COGS_DIR}.') and ext_name not in current_cogs:
                 try:
                     await self.unload_extension(ext_name)
-                    logger.info(f"Successfully unloaded REMOVED cog: {ext_name}")
+                    logger.info(f'Successfully unloaded REMOVED cog: {ext_name}')
                 except Exception as e:
-                    logger.error(f"Failed to unload removed cog {ext_name}: {e}")
+                    logger.error(f'Failed to unload removed cog {ext_name}: {e}')
 
         logger.info('Syncing...')
         self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Default))
@@ -140,7 +125,7 @@ class HotReloadBot(commands.Bot):
 def read_git_head():
     if not os.path.isfile('.git/HEAD'):
         return None, None
-    
+
     head = open('.git/HEAD').read().strip()
 
     if head.startswith('ref:'):
@@ -152,8 +137,7 @@ def read_git_head():
 
 
 # --- Main Execution ---
-logger.setLevel(logging.DEBUG)
-logger.info(f"Starting Discord Bot... {read_git_head()}")
+logger.info(f'Starting Discord Bot... {read_git_head()}')
 
 bot = HotReloadBot()
 bot.run(DISCORD_TOKEN)

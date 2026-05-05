@@ -4,17 +4,14 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import traceback
-import logging
 import io
 import datetime
 import utils.bot as bot_utils
-import utils.log as log_utils
 import utils.database as db_utils
 from typing import Iterable
+import logfire
 
-_log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-_log.addHandler(log_utils.DatabaseHandler())
+_log = logfire
 
 def _format_rows(headers: list[str], rows: Iterable[tuple]) -> str:
     cols = [headers] + [list(map(lambda x: "" if x is None else str(x), r)) for r in rows]

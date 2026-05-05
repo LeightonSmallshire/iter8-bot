@@ -18,3 +18,4 @@ aiohttp~=3.13
 wcwidth~=0.2
 huggingface_hub~=1.1.5
 ctransformers[cpu,gpu]~=0.2
+logfire~=3.16

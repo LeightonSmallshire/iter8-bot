@@ -3,19 +3,16 @@ import operator
 import discord
 from discord.ext import commands
 from discord import app_commands
-import logging
 from zoneinfo import ZoneInfo
 from datetime import time, timedelta
 import random, secrets
 import asyncio
 import utils.bot as bot_utils
-import utils.log as log_utils
 import utils.admin_roll as roll_utils
 import utils.gamble as gamble_utils
+import logfire
 
-_log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-_log.addHandler(log_utils.DatabaseHandler())
+_log = logfire
 
 
 
