@@ -5,7 +5,6 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import traceback
-import logging
 import sys
 import datetime
 import subprocess
@@ -14,11 +13,9 @@ import io
 
 import utils.bot as bot_utils
 import utils.timeout as timeout_utils
-import utils.log as log_utils
+import logfire
 
-_log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-_log.addHandler(log_utils.DatabaseHandler())
+_log = logfire
 
 
 class TimeoutsCog(commands.Cog):

@@ -4,21 +4,18 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import utils.bot as bot_utils
-import utils.log as log_utils
 import utils.files
 from typing import Optional
 import io
 import os
 import inspect
-import logging
 import contextlib
 import subprocess
 import traceback
 import sys
+import logfire
 
-_log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-_log.addHandler(log_utils.DatabaseHandler())
+_log = logfire
 
 
 class DevCog(commands.Cog):
@@ -45,7 +42,8 @@ class DevCog(commands.Cog):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No logs 4 U")
 
-        rows = await log_utils.read_logs(level=level)
+        from utils.log import read_logs
+        rows = await read_logs(level=level)
         if not rows:
             await interaction.response.send_message("No logs found.", ephemeral=True)
             return

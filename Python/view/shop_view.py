@@ -2,17 +2,14 @@ import discord
 from discord import app_commands
 import discord.ui
 from typing import Callable
-import logging
 import datetime
 import utils.database as db_utils
-import utils.log as log_utils
 from utils.model import Purchase
 import utils.shop as shop_utils
 import traceback
+import logfire
 
-_log = logging.getLogger(__name__)
-_log.addHandler(logging.FileHandler('data/logs.log', encoding='utf-8'))
-_log.addHandler(log_utils.DatabaseHandler())
+_log = logfire
 
 
 class ShopOptionsView(discord.ui.View):
