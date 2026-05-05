@@ -5,7 +5,7 @@ ENV PIP_ROOT_USER_ACTION=ignore
 
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install -r requirements.txt \
+    python -m pip install -r requirements.txt
 
 FROM gcr.io/distroless/python3-debian12:debug-nonroot AS runner
 WORKDIR /app
