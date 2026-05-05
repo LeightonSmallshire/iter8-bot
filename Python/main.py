@@ -13,6 +13,7 @@ import datetime
 from discord.ext import commands
 
 
+dotenv.load_dotenv('data/.env')
 dotenv.load_dotenv()
 
 # CD to here always
