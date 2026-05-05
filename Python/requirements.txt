@@ -1,21 +1,22 @@
-uvicorn~=0.38
+uvicorn~=0.46
 discord~=2.3
-fastapi~=0.122
-fastapi[standard]~=0.122
-json5~=0.12
-scipy~=1.16
-numpy~=2.3
+fastapi~=0.136
+fastapi[standard]~=0.136
+json5~=0.14
+scipy~=1.17
+numpy~=2.4
 tqdm~=4.67
 # opencv
 # selenium
 # pandas
 # matplotlib
-pillow~=12.0
+pillow~=12.2
 # beautifulsoup4
 # numba
-aiosqlite~=0.21
+aiosqlite~=0.22
 aiohttp~=3.13
-wcwidth~=0.2
-huggingface_hub~=1.1.5
+wcwidth~=0.7
+huggingface_hub~=1.13
 ctransformers[cpu,gpu]~=0.2
-logfire~=3.16
+logfire~=4.32
+pydantic_ai~=1.90

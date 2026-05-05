@@ -1,7 +1,4 @@
-import time
-import json
 import os
-import sys
 import dotenv
 
 import logfire
@@ -10,6 +7,8 @@ import utils.database as db_utils
 import utils.stocks.stock_db as stock_utils
 import discord
 import datetime
+import traceback
+
 from discord.ext import commands
 
 
@@ -82,8 +81,8 @@ class HotReloadBot(commands.Bot):
                     logger.info(f'Successfully loaded NEW cog: {cog_name}')
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                error_detail = f"{cog_name} ({e.__class__.__name__})"
-                logger.error(f'Failed to reload/load cog {error_detail}: {e}')
+                error_detail = f"{cog_name}: {e}"
+                logger.error(f'Failed to reload/load cog {error_detail}')
                 failed_cogs.append(error_detail)
 
         # 3. Check for removed cogs
