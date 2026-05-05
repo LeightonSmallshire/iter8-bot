@@ -4,7 +4,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_ROOT_USER_ACTION=ignore
 
 COPY requirements.txt .
-RUN python -m pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install -r requirements.txt \
 
 FROM gcr.io/distroless/python3-debian12:debug-nonroot AS runner
 WORKDIR /app
@@ -15,4 +16,4 @@ ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages"
 COPY --chown=nonroot:nonroot --from=builder ${PYTHONPATH} ${PYTHONPATH}
 COPY . .
 
-ENTRYPOINT ["python3", "/app/entrypoint.py"]
+ENTRYPOINT ["python3", "/app/main.py"]
