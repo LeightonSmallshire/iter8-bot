@@ -53,20 +53,20 @@ AGENT_MAIN.tool(tools.batch_yes_no)
 async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
     return textwrap.dedent(f"""
         You are an advanced Discord AI assistant with multiple capabilities:
-
+        
         TIME: {datetime.now().strftime("%H:%M")}
         TODO LIST: {ctx.deps.db.get_todos()}
         PAST FACTS: {ctx.deps.db.get_facts()}
-
+        
         You have access to tools for web search, Docker container operations, sub-agent spawning, and memory management.
         Tool docstrings describe their functionality - use them proactively when they help answer the user's question.
-
+        
         SUB-AGENTS:
         You can spawn specialized sub-agents for complex tasks. Sub-agents can recursively spawn other sub-agents if needed.
         - Use spawn_coder for: writing code, debugging, code review, scripting
         - Use spawn_researcher for: web research, fact-finding, information gathering
         - Use spawn_analyst for: data analysis, pattern recognition, data processing
-
+        
         DOCKER:
         You have access to a Python 3.12 Docker container. Use these tools to work with files:
         - docker_ls: List files and directories (like ls command)
@@ -95,7 +95,8 @@ def split_message_for_discord(message: str) -> list[str]:
             partial = partial + part
             continue
 
-        complete_chunks.append(partial)
+        if len(partial) > 0:
+            complete_chunks.append(partial)
 
         opener, closer = '', ''
         if part.startswith('```'):
@@ -108,11 +109,12 @@ def split_message_for_discord(message: str) -> list[str]:
         remainder = part
         while len(remainder) > 1900:
             chunk = remainder[:1900]
-            complete_chunks.append(opener + chunk + closer)
+            if len(chunk) > 0:
+                complete_chunks.append(opener + chunk + closer)
             remainder = remainder[1900:]
         partial = remainder
 
-    if partial:
+    if len(partial) > 0:
         complete_chunks.append(partial)
 
     return complete_chunks
@@ -143,8 +145,9 @@ class AgentCog(commands.Cog):
         self.researcher_agent = researcher_agent
         self.analyst_agent = analyst_agent
         self.yes_no_agent = yes_no_agent
-        # self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
+        self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
         self.debounce_tasks: Dict[int, asyncio.Task[Any]] = {}
+        self.run_tasks: Dict[int, asyncio.Task[Any]] = {}
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -153,7 +156,7 @@ class AgentCog(commands.Cog):
 
         # Type-safe channel ID check
         channel_id: Optional[int] = getattr(message.channel, 'id', None)
-        if channel_id is None:  # or channel_id not in self.allowed_channels:
+        if channel_id is None or channel_id not in self.allowed_channels:
             return
 
         # Check if bot is mentioned
@@ -168,16 +171,37 @@ class AgentCog(commands.Cog):
 
         if is_mentioned or is_reply:
             cid = channel_id
+
+            # Phase 1: If in debounce period, cancel and restart
             if cid in self.debounce_tasks:
                 self.debounce_tasks[cid].cancel()
-            self.debounce_tasks[cid] = asyncio.create_task(self.delayed_run(message))
 
-    async def delayed_run(self, message: discord.Message) -> None:
-        try:
-            await asyncio.sleep(3.0)
-            await self.run_agent(message.channel)
-        except asyncio.CancelledError:
-            pass
+            # Phase 2: Enqueue a new run (will wait for current run to finish)
+            async def debounced_run(msg: discord.Message) -> None:
+                try:
+                    await asyncio.sleep(3.0)
+                    # Wait for current run to finish, then run
+                    if cid in self.run_tasks:
+                        try:
+                            await self.run_tasks[cid]
+                        except:
+                            pass
+                    # Start new run
+                    task = asyncio.create_task(self.run_agent(msg.channel))
+                    self.run_tasks[cid] = task
+                    try:
+                        await task
+                    finally:
+                        if cid in self.run_tasks:
+                            del self.run_tasks[cid]
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    # Clean up debounce task reference
+                    if cid in self.debounce_tasks and self.debounce_tasks[cid].done():
+                        del self.debounce_tasks[cid]
+
+            self.debounce_tasks[cid] = asyncio.create_task(debounced_run(message))
 
     async def run_agent(self, channel: discord.abc.Messageable) -> None:
         with logfire.span("run_agent", channel_id=getattr(channel, 'id', 0)):
@@ -189,7 +213,6 @@ class AgentCog(commands.Cog):
                     author_name = msg.author.name if msg.author else "Unknown"
                     history.append(ModelRequest(parts=[UserPromptPart(content=f"{author_name}: {msg.clean_content}")]))
             history.reverse()
-            logfire.debug("history_loaded", message_count=len(history))
 
             async with channel.typing():
                 deps = MainDeps(
@@ -218,7 +241,6 @@ class AgentCog(commands.Cog):
                         await easy_send(channel, result.output)
                     else:
                         await easy_send(channel, '(no output)')
-
                 except Exception as e:
                     traceback.print_exception(e)
                     logfire.error("agent_error", error=str(e))
@@ -231,6 +253,9 @@ class AgentCog(commands.Cog):
         self.docker_manager.stop()
         # Cancel any pending debounce tasks
         for task in self.debounce_tasks.values():
+            task.cancel()
+        # Cancel any pending runs
+        for task in self.run_tasks.values():
             task.cancel()
 
 
@@ -262,8 +287,8 @@ if __name__ == "__main__":
     finally:
         logfire.info("bot_shutdown")
 
-
 # --- Cog Setup Function (MANDATORY for extensions) ---
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(AgentCog(
@@ -276,7 +301,6 @@ async def setup(bot: commands.Bot):
         analyst_agent=AGENT_ANALYST,
         yes_no_agent=AGENT_YES_NO,
     ))
-
 
 # async def teardown(bot: commands.Bot):
 #     _log.info(f"Cog '{AgentCog.qualified_name}' unloaded.")
