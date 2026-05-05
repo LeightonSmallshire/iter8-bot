@@ -6,6 +6,8 @@
 **__pycache__**
 **secret**
 
+!stack.env
+
 __pycache__/
 out/
 data/
