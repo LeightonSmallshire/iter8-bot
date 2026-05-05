@@ -143,7 +143,7 @@ class AgentCog(commands.Cog):
         self.researcher_agent = researcher_agent
         self.analyst_agent = analyst_agent
         self.yes_no_agent = yes_no_agent
-        self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
+        # self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
         self.debounce_tasks: Dict[int, asyncio.Task[Any]] = {}
 
     @commands.Cog.listener()
@@ -153,25 +153,24 @@ class AgentCog(commands.Cog):
 
         # Type-safe channel ID check
         channel_id: Optional[int] = getattr(message.channel, 'id', None)
-        if channel_id is None or channel_id not in self.allowed_channels:
+        if channel_id is None:  # or channel_id not in self.allowed_channels:
             return
 
-        with logfire.span("message_received", channel_id=channel_id, author=message.author.name):
-            # Check if bot is mentioned
-            is_mentioned = self.bot.user is not None and self.bot.user.mentioned_in(message)
+        # Check if bot is mentioned
+        is_mentioned = self.bot.user is not None and self.bot.user.mentioned_in(message)
 
-            # Check if this is a reply to the bot
-            is_reply = False
-            if message.reference and message.reference.resolved:
-                resolved = message.reference.resolved
-                if isinstance(resolved, discord.Message) and self.bot.user:
-                    is_reply = resolved.author.id == self.bot.user.id
+        # Check if this is a reply to the bot
+        is_reply = False
+        if message.reference and message.reference.resolved:
+            resolved = message.reference.resolved
+            if isinstance(resolved, discord.Message) and self.bot.user:
+                is_reply = resolved.author.id == self.bot.user.id
 
-            if is_mentioned or is_reply:
-                cid = channel_id
-                if cid in self.debounce_tasks:
-                    self.debounce_tasks[cid].cancel()
-                self.debounce_tasks[cid] = asyncio.create_task(self.delayed_run(message))
+        if is_mentioned or is_reply:
+            cid = channel_id
+            if cid in self.debounce_tasks:
+                self.debounce_tasks[cid].cancel()
+            self.debounce_tasks[cid] = asyncio.create_task(self.delayed_run(message))
 
     async def delayed_run(self, message: discord.Message) -> None:
         try:
