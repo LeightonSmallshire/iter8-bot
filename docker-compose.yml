@@ -7,7 +7,7 @@ services:
     restart: always
     env_file: stack.env
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+#      - /var/run/docker.sock:/var/run/docker.sock
       - iter8-bot-data:/app/data:rw
       - /home/nonroot/.cache # anonymous
 
