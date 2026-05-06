@@ -21,15 +21,15 @@ services:
   #     - iter8-bot-data:/app/data:rw
   #     - /home/nonroot/.cache # anonymous
 
-#  bot-web-server:
-#    build: Web
-#    restart: always
-#    read_only: true
-#    expose:
-#      - "80" # internal only
-#    tmpfs:
-#      - /var/cache/nginx
-#      - /run
+  bot-web-server:
+    build: Web
+    restart: always
+    read_only: true
+    expose:
+      - "80" # internal only
+    tmpfs:
+      - /var/cache/nginx
+      - /run
 
 volumes:
   iter8-bot-data:
