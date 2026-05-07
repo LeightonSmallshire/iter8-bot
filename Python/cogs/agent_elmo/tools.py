@@ -358,11 +358,33 @@ async def manage_todo(ctx: RunContext[MainDeps], task: str) -> str:
 
 
 @logfire.instrument(None, record_return=True)
-async def record_fact(ctx: RunContext[MainDeps], fact: str) -> str:
-    """Save information into long-term memory."""
-    ctx.deps.db.add_fact(fact)
-    logfire.info("fact_recorded", fact_length=len(fact))
-    return f"Fact saved: {fact}"
+async def remember(ctx: RunContext[MainDeps], content: str) -> str:
+    """Explicitly save information to memory using mem0."""
+    if not ctx.deps.mem0_client:
+        return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
+    try:
+        ctx.deps.mem0_client.add(content, user_id=str(ctx.deps.channel_id))
+        return f"Remembered: {content}"
+    except Exception as e:
+        return f"Error saving to memory: {str(e)}"
+
+
+@logfire.instrument(None, record_return=True)
+async def recall(ctx: RunContext[MainDeps], query: str) -> str:
+    """Search memories using mem0 semantic search."""
+    if not ctx.deps.mem0_client:
+        return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
+    try:
+        results = ctx.deps.mem0_client.search(query, user_id=str(ctx.deps.channel_id))
+        if not results:
+            return f"No memories found for: {query}"
+        formatted = []
+        for r in results:
+            memory_text = r.get('memory', r.get('content', str(r)))
+            formatted.append(f"- {memory_text}")
+        return f"Memories for '{query}':\n" + "\n".join(formatted)
+    except Exception as e:
+        return f"Error searching memories: {str(e)}"
 
 
 @logfire.instrument(None, record_return=True)
@@ -556,7 +578,8 @@ spawn_toolset: FunctionToolset[MainDeps] = FunctionToolset(
 memory_toolset: FunctionToolset[MainDeps] = FunctionToolset(
     [
         manage_todo,
-        record_fact,
+        remember,
+        recall,
     ]
 )
 
