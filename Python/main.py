@@ -133,8 +133,8 @@ class HotReloadBot(commands.Bot):
             'synced': [str(c) for c in synced]
         }
 
-        if is_work_hours and IS_LIVE:
-            bot_utils.defer_message(self, bot_utils.Users.Leighton, formatted_report)
+        # if is_work_hours and IS_LIVE:
+        bot_utils.defer_message(self, bot_utils.Users.Leighton, formatted_report)
 
         return status
 

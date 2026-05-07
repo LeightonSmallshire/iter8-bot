@@ -23,3 +23,5 @@ ddgs~=9.14
 docker~=7.1
 python-dotenv~=1.2
 duckdb~=1.5
+pydantic-monty
+mem0ai
