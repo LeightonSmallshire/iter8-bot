@@ -266,9 +266,10 @@ class AgentCog(commands.Cog):
                                     role = 'user' if 'request' in str(type(msg)).lower() else 'assistant'
                                     messages_for_mem0.append({'role': role, 'content': content})
                             if messages_for_mem0:
-                                # user_id must be inside filters dict for v3 API
-                                filters = {'user_id': str(getattr(channel, 'id', 0))}
-                                self.mem0_client.add(messages_for_mem0, filters=filters)
+                                # user_id must be inside filters dict in AddMemoryOptions
+                                from mem0.client.types import AddMemoryOptions
+                                options = AddMemoryOptions(filters={'user_id': str(getattr(channel, 'id', 0))})
+                                self.mem0_client.add(messages_for_mem0, options=options)
                         except Exception as e:
                             logfire.error('mem0_auto_save_error', error=str(e))
                 except Exception as e:
