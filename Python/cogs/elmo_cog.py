@@ -257,27 +257,27 @@ class AgentCog(commands.Cog):
                         await easy_send(channel, '(no output)')
 
                     # Auto-save conversation to mem0
-                    if self.mem0_client and hasattr(result, 'all_messages'):
+                    if self.mem0_client and user_prompt:
                         try:
-                            messages_for_mem0 = []
-                            for msg in result.all_messages():
-                                if hasattr(msg, 'parts') and msg.parts:
-                                    content = str(msg.parts[0].content) if hasattr(msg.parts[0], 'content') else str(msg.parts[0])
-                                    role = 'user' if 'request' in str(type(msg)).lower() else 'assistant'
-                                    messages_for_mem0.append({'role': role, 'content': content})
-                            if messages_for_mem0:
-                                # user_id must be inside filters dict in AddMemoryOptions
-                                from mem0.client.types import AddMemoryOptions
-                                options = AddMemoryOptions(filters={'user_id': str(getattr(channel, 'id', 0))})
-                                self.mem0_client.add(messages_for_mem0, options=options)
+                            # Save just the user's message and agent's response
+                            messages_to_save = [
+                                {'role': 'user', 'content': user_prompt},
+                                {'role': 'assistant', 'content': result.output if result.output else '(no output)'}
+                            ]
+                            from mem0.client.types import AddMemoryOptions
+                            options = AddMemoryOptions(filters={'user_id': str(getattr(channel, 'id', 0))})
+                            self.mem0_client.add(messages_to_save, options=options)
                         except Exception as e:
                             logfire.error('mem0_auto_save_error', error=str(e))
+                            logfire.error('mem0_auto_save_error', error=e)
                 except Exception as e:
                     traceback.print_exception(e)
-                    logfire.error('agent_error', error=str(e))
+                    logfire.error('agent_error', error=e)
                     await easy_send(channel, ''.join(traceback.format_exception(e)))
 
                 logfire.debug('agent_complete')
+
+
 if __name__ == "__main__":
     # Create bot with command prefix (even if not using commands, needed for Cog)
     intents = discord.Intents.all()
