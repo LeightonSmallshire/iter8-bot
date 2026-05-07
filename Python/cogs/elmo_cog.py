@@ -30,8 +30,6 @@ logfire.instrument_pydantic_ai()
 # Initialize components
 db = Persistence()
 docker_manager = DockerManager()
-mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
-logfire.info("mem0_initialized")
 
 toolsets = [
     tools.spawn_toolset,
@@ -60,8 +58,10 @@ async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
         You are an advanced Discord AI assistant with multiple capabilities:
         
         TIME: {datetime.now().strftime("%H:%M")}
+        TODO LIST: {ctx.deps.db.get_todos()}
+        PAST FACTS: {ctx.deps.db.get_facts()}
         
-        You have access to tools for web search, Docker container operations, sub-agent spawning, and memory management via mem0.
+        You have access to tools for web search, Docker container operations, sub-agent spawning, and memory management.
         Tool docstrings describe their functionality - use them proactively when they help answer the user's question.
         
         SUB-AGENTS:
@@ -81,13 +81,7 @@ async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
         - docker_find: Find files by name pattern
         - docker_mkdir: Create directories
         - docker_rm: Delete files or directories
-        - docker_exec: Run commands in the container
-        
-        MEMORY:
-        You have access to mem0 for semantic memory. Use these tools:
-        - remember: Explicitly save information to memory
-        - recall: Search memories using semantic search
-        - manage_todo: Add tasks to the TODO list""").strip()
+        - docker_exec: Run commands in the container""").strip()
 
 
 def split_message_for_discord(message: str) -> list[str]:
@@ -139,13 +133,11 @@ class AgentCog(commands.Cog):
         self,
         bot: commands.Bot,
         db: Persistence,
-        docker_manager: DockerManager,
-        mem0_client: Any
+        docker_manager: DockerManager
     ) -> None:
         self.bot = bot
         self.db = db
         self.docker_manager = docker_manager
-        self.mem0_client = mem0_client
         self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
         # Wait-for-silence state per channel
         self.silence_tasks: Dict[int, asyncio.Task[Any]] = {}
@@ -214,34 +206,26 @@ class AgentCog(commands.Cog):
             self.silence_tasks[cid] = asyncio.create_task(wait_for_silence())
 
     async def run_agent(self, channel: discord.abc.Messageable) -> None:
-        with logfire.span('run_agent', channel_id=getattr(channel, 'id', 0)):
+        with logfire.span("run_agent", channel_id=getattr(channel, 'id', 0)):
             history: List[ModelMessage] = []
             async for msg in channel.history(limit=20):
                 if self.bot.user and msg.author.id == self.bot.user.id:
                     history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
                 else:
-                    author_name = msg.author.name if msg.author else 'Unknown'
-                    history.append(ModelRequest(parts=[UserPromptPart(content=f'{author_name}: {msg.clean_content}')]))
+                    author_name = msg.author.name if msg.author else "Unknown"
+                    history.append(ModelRequest(parts=[UserPromptPart(content=f"{author_name}: {msg.clean_content}")]))
             history.reverse()
-
-            # Inject TODO list as a message in history (not system prompt)
-            todos = self.db.get_todos()
-            if todos and 'No active tasks' not in todos:
-                todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
-                history.insert(0, todo_msg)
 
             async with channel.typing():
                 deps = MainDeps(
                     channel_id=getattr(channel, 'id', 0),
                     db=self.db,
                     docker_manager=self.docker_manager,
-                    bot=self.bot,
-                    mem0_client=self.mem0_client,
                 )
 
                 # Get the last message content safely
                 last_message = history[-1] if history else None
-                user_prompt: str = ''
+                user_prompt: str = ""
                 if last_message and isinstance(last_message, ModelRequest):
                     parts = last_message.parts
                     if parts and isinstance(parts[0], UserPromptPart):
@@ -255,26 +239,24 @@ class AgentCog(commands.Cog):
                         await easy_send(channel, result.output)
                     else:
                         await easy_send(channel, '(no output)')
-
-                    # Auto-save conversation to mem0
-                    if self.mem0_client and hasattr(result, 'all_messages'):
-                        try:
-                            messages_for_mem0 = []
-                            for msg in result.all_messages():
-                                if hasattr(msg, 'parts') and msg.parts:
-                                    content = str(msg.parts[0].content) if hasattr(msg.parts[0], 'content') else str(msg.parts[0])
-                                    role = 'user' if 'request' in str(type(msg)).lower() else 'assistant'
-                                    messages_for_mem0.append({'role': role, 'content': content})
-                            if messages_for_mem0:
-                                self.mem0_client.add(messages_for_mem0, user_id=str(getattr(channel, 'id', 0)))
-                        except Exception as e:
-                            logfire.error('mem0_auto_save_error', error=str(e))
                 except Exception as e:
                     traceback.print_exception(e)
-                    logfire.error('agent_error', error=str(e))
+                    logfire.error("agent_error", error=str(e))
                     await easy_send(channel, ''.join(traceback.format_exception(e)))
 
-                logfire.debug('agent_complete')
+                logfire.debug("agent_complete")
+
+    async def cog_unload(self) -> None:
+        """Clean up resources when cog is unloaded."""
+        self.docker_manager.stop()
+        # Cancel any pending silence tasks
+        for task in self.silence_tasks.values():
+            task.cancel()
+        # Cancel any pending runs
+        for task in self.run_tasks.values():
+            task.cancel()
+
+
 if __name__ == "__main__":
     # Create bot with command prefix (even if not using commands, needed for Cog)
     intents = discord.Intents.all()
@@ -288,7 +270,7 @@ if __name__ == "__main__":
             bot=bot,
             db=db,
             docker_manager=docker_manager,
-            mem0_client=mem0_client,
+            agent_main=AGENT_MAIN,
         ))
         logfire.info("bot_ready", bot_id=bot.user.id if bot.user else None)
 
@@ -307,7 +289,7 @@ async def setup(bot: commands.Bot):
         bot=bot,
         db=db,
         docker_manager=docker_manager,
-        mem0_client=mem0_client,
+        agent_main=AGENT_MAIN,
     ))
 
 # async def teardown(bot: commands.Bot):

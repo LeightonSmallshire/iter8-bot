@@ -23,7 +23,6 @@ class BaseDeps:
 class MainDeps(BaseDeps):
     db: Persistence
     bot: commands.Bot
-    mem0_client: Any  # mem0.MemoryClient - will crash if MEM0_API_KEY missing
     # coder_agent: 'CoderAgent'
     # researcher_agent: 'ResearcherAgent'
     # analyst_agent: 'AnalystAgent'
