@@ -23,7 +23,9 @@ from mem0 import MemoryClient
 TRUSTED_USERS: Set[int] = {1416017385596653649, 1326156803108503566}
 
 # --- Initialization ---
+load_dotenv('data/.env')
 load_dotenv()
+
 logfire.configure(console=logfire.ConsoleOptions(min_log_level='debug'))
 logfire.instrument_pydantic_ai()
 # logfire.instrument_system_metrics()
