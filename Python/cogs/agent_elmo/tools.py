@@ -363,7 +363,9 @@ async def remember(ctx: RunContext[MainDeps], content: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        ctx.deps.mem0_client.add(content, user_id=str(ctx.deps.channel_id))
+        # user_id must be inside filters dict for v3 API
+        filters = {'user_id': str(ctx.deps.channel_id)}
+        ctx.deps.mem0_client.add(content, filters=filters)
         return f"Remembered: {content}"
     except Exception as e:
         return f"Error saving to memory: {str(e)}"
@@ -375,7 +377,9 @@ async def recall(ctx: RunContext[MainDeps], query: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        results = ctx.deps.mem0_client.search(query, user_id=str(ctx.deps.channel_id))
+        # user_id must be inside filters dict for v3 API
+        filters = {'user_id': str(ctx.deps.channel_id)}
+        results = ctx.deps.mem0_client.search(query, filters=filters)
         if not results:
             return f"No memories found for: {query}"
         formatted = []

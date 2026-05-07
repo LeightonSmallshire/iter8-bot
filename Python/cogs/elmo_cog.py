@@ -146,7 +146,7 @@ class AgentCog(commands.Cog):
         self.db = db
         self.docker_manager = docker_manager
         self.mem0_client = mem0_client
-        self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
+        self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680, 1439936991096737804}
         # Wait-for-silence state per channel
         self.silence_tasks: Dict[int, asyncio.Task[Any]] = {}
         self.run_tasks: Dict[int, asyncio.Task[Any]] = {}
@@ -266,7 +266,9 @@ class AgentCog(commands.Cog):
                                     role = 'user' if 'request' in str(type(msg)).lower() else 'assistant'
                                     messages_for_mem0.append({'role': role, 'content': content})
                             if messages_for_mem0:
-                                self.mem0_client.add(messages_for_mem0, user_id=str(getattr(channel, 'id', 0)))
+                                # user_id must be inside filters dict for v3 API
+                                filters = {'user_id': str(getattr(channel, 'id', 0))}
+                                self.mem0_client.add(messages_for_mem0, filters=filters)
                         except Exception as e:
                             logfire.error('mem0_auto_save_error', error=str(e))
                 except Exception as e:
