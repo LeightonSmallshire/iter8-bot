@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pydantic_ai import Agent
 from pydantic import BaseModel
 
+import discord
+from discord.ext import commands
 from .persistence import Persistence
 from .docker_manager import DockerManager
 
@@ -20,10 +22,11 @@ class BaseDeps:
 @dataclass
 class MainDeps(BaseDeps):
     db: Persistence
-    coder_agent: 'CoderAgent'
-    researcher_agent: 'ResearcherAgent'
-    analyst_agent: 'AnalystAgent'
-    yes_no_agent: 'YesNoAgent'
+    bot: commands.Bot
+    # coder_agent: 'CoderAgent'
+    # researcher_agent: 'ResearcherAgent'
+    # analyst_agent: 'AnalystAgent'
+    # yes_no_agent: 'YesNoAgent'
 
 
 @dataclass

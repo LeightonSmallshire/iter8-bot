@@ -17,7 +17,7 @@ from .agent_elmo import tools
 from .agent_elmo.persistence import Persistence
 from .agent_elmo.docker_manager import DockerManager
 from .agent_elmo.deps import MainDeps
-from .agent_elmo import sub_agents
+from mem0 import MemoryClient
 
 # --- Configuration ---
 TRUSTED_USERS: Set[int] = {1416017385596653649, 1326156803108503566}
@@ -31,22 +31,25 @@ logfire.instrument_pydantic_ai()
 db = Persistence()
 docker_manager = DockerManager()
 
+toolsets = [
+    tools.spawn_toolset,
+    tools.memory_toolset
+]
+if docker_manager.client is not None:
+    toolsets.append(tools.docker_toolset)
+
+
 # --- Main Agent ---
 AGENT_MAIN: Agent[MainDeps] = Agent(
     "openrouter:openrouter/free",
     deps_type=MainDeps,
-    toolsets=[tools.docker_toolset, tools.spawn_toolset, tools.memory_toolset],
+    toolsets=toolsets
 )
-
-# Create sub-agents
-AGENT_CODER = sub_agents.create_coder_agent()
-AGENT_RESEARCHER = sub_agents.create_researcher_agent()
-AGENT_ANALYST = sub_agents.create_analyst_agent()
-AGENT_YES_NO = sub_agents.create_yes_no_agent()
 
 # Register individual tools (web_search, batch_yes_no)
 AGENT_MAIN.tool(tools.web_search)
 AGENT_MAIN.tool(tools.batch_yes_no)
+AGENT_MAIN.tool(tools.run_python_code)
 
 
 @AGENT_MAIN.system_prompt
@@ -130,24 +133,17 @@ class AgentCog(commands.Cog):
         self,
         bot: commands.Bot,
         db: Persistence,
-        docker_manager: DockerManager,
-        agent_main: Agent[MainDeps],
-        coder_agent: Agent[Any],
-        researcher_agent: Agent[Any],
-        analyst_agent: Agent[Any],
-        yes_no_agent: Agent[Any],
+        docker_manager: DockerManager
     ) -> None:
         self.bot = bot
         self.db = db
         self.docker_manager = docker_manager
-        self.agent_main = agent_main
-        self.coder_agent = coder_agent
-        self.researcher_agent = researcher_agent
-        self.analyst_agent = analyst_agent
-        self.yes_no_agent = yes_no_agent
         self.allowed_channels: Set[int] = {1498977340821209198, 1432698704191815680}
-        self.debounce_tasks: Dict[int, asyncio.Task[Any]] = {}
+        # Wait-for-silence state per channel
+        self.silence_tasks: Dict[int, asyncio.Task[Any]] = {}
         self.run_tasks: Dict[int, asyncio.Task[Any]] = {}
+        self.pending_messages: Dict[int, discord.Message] = {}
+        self.SILENCE_DELAY: float = 3.0  # Wait 3 seconds for silence
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -172,36 +168,42 @@ class AgentCog(commands.Cog):
         if is_mentioned or is_reply:
             cid = channel_id
 
-            # Phase 1: If in debounce period, cancel and restart
-            if cid in self.debounce_tasks:
-                self.debounce_tasks[cid].cancel()
+            # Store the latest message
+            self.pending_messages[cid] = message
 
-            # Phase 2: Enqueue a new run (will wait for current run to finish)
-            async def debounced_run(msg: discord.Message) -> None:
+            # Cancel any existing silence task (re-trigger)
+            if cid in self.silence_tasks:
+                self.silence_tasks[cid].cancel()
+
+            # Start a new silence task
+            async def wait_for_silence() -> None:
                 try:
-                    await asyncio.sleep(3.0)
-                    # Wait for current run to finish, then run
-                    if cid in self.run_tasks:
-                        try:
-                            await self.run_tasks[cid]
-                        except:
-                            pass
-                    # Start new run
-                    task = asyncio.create_task(self.run_agent(msg.channel))
-                    self.run_tasks[cid] = task
-                    try:
-                        await task
-                    finally:
+                    await asyncio.sleep(self.SILENCE_DELAY)
+                    # Silence achieved - get the pending message
+                    if cid in self.pending_messages:
+                        msg = self.pending_messages.pop(cid)
+                        # Wait for current run to finish if any
                         if cid in self.run_tasks:
-                            del self.run_tasks[cid]
+                            try:
+                                await self.run_tasks[cid]
+                            except BaseException:
+                                pass
+                        # Start new run
+                        task = asyncio.create_task(self.run_agent(msg.channel))
+                        self.run_tasks[cid] = task
+                        try:
+                            await task
+                        finally:
+                            if cid in self.run_tasks:
+                                del self.run_tasks[cid]
                 except asyncio.CancelledError:
-                    pass
+                    pass  # Re-triggered by new message
                 finally:
-                    # Clean up debounce task reference
-                    if cid in self.debounce_tasks and self.debounce_tasks[cid].done():
-                        del self.debounce_tasks[cid]
+                    # Clean up silence task reference
+                    if cid in self.silence_tasks and self.silence_tasks[cid].done():
+                        del self.silence_tasks[cid]
 
-            self.debounce_tasks[cid] = asyncio.create_task(debounced_run(message))
+            self.silence_tasks[cid] = asyncio.create_task(wait_for_silence())
 
     async def run_agent(self, channel: discord.abc.Messageable) -> None:
         with logfire.span("run_agent", channel_id=getattr(channel, 'id', 0)):
@@ -219,10 +221,6 @@ class AgentCog(commands.Cog):
                     channel_id=getattr(channel, 'id', 0),
                     db=self.db,
                     docker_manager=self.docker_manager,
-                    coder_agent=self.coder_agent,
-                    researcher_agent=self.researcher_agent,
-                    analyst_agent=self.analyst_agent,
-                    yes_no_agent=self.yes_no_agent,
                 )
 
                 # Get the last message content safely
@@ -236,7 +234,7 @@ class AgentCog(commands.Cog):
                 message_history = history[:-1] if len(history) > 1 else []
 
                 try:
-                    result = await self.agent_main.run(user_prompt, deps=deps, message_history=message_history)
+                    result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
                     if result.output:
                         await easy_send(channel, result.output)
                     else:
@@ -251,8 +249,8 @@ class AgentCog(commands.Cog):
     async def cog_unload(self) -> None:
         """Clean up resources when cog is unloaded."""
         self.docker_manager.stop()
-        # Cancel any pending debounce tasks
-        for task in self.debounce_tasks.values():
+        # Cancel any pending silence tasks
+        for task in self.silence_tasks.values():
             task.cancel()
         # Cancel any pending runs
         for task in self.run_tasks.values():
@@ -273,10 +271,6 @@ if __name__ == "__main__":
             db=db,
             docker_manager=docker_manager,
             agent_main=AGENT_MAIN,
-            coder_agent=AGENT_CODER,
-            researcher_agent=AGENT_RESEARCHER,
-            analyst_agent=AGENT_ANALYST,
-            yes_no_agent=AGENT_YES_NO,
         ))
         logfire.info("bot_ready", bot_id=bot.user.id if bot.user else None)
 
@@ -296,10 +290,6 @@ async def setup(bot: commands.Bot):
         db=db,
         docker_manager=docker_manager,
         agent_main=AGENT_MAIN,
-        coder_agent=AGENT_CODER,
-        researcher_agent=AGENT_RESEARCHER,
-        analyst_agent=AGENT_ANALYST,
-        yes_no_agent=AGENT_YES_NO,
     ))
 
 # async def teardown(bot: commands.Bot):
