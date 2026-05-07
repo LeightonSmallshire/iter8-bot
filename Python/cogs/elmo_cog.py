@@ -26,12 +26,12 @@ TRUSTED_USERS: Set[int] = {1416017385596653649, 1326156803108503566}
 load_dotenv()
 logfire.configure(console=logfire.ConsoleOptions(min_log_level='debug'))
 logfire.instrument_pydantic_ai()
+# logfire.instrument_system_metrics()
 
 # Initialize components
 db = Persistence()
 docker_manager = DockerManager()
 mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
-logfire.info("mem0_initialized")
 
 toolsets = [
     tools.spawn_toolset,
@@ -140,7 +140,7 @@ class AgentCog(commands.Cog):
         bot: commands.Bot,
         db: Persistence,
         docker_manager: DockerManager,
-        mem0_client: Any
+        mem0_client: MemoryClient
     ) -> None:
         self.bot = bot
         self.db = db
@@ -213,69 +213,60 @@ class AgentCog(commands.Cog):
 
             self.silence_tasks[cid] = asyncio.create_task(wait_for_silence())
 
+    @logfire.instrument
     async def run_agent(self, channel: discord.abc.Messageable) -> None:
-        with logfire.span('run_agent', channel_id=getattr(channel, 'id', 0)):
-            history: List[ModelMessage] = []
-            async for msg in channel.history(limit=20):
-                if self.bot.user and msg.author.id == self.bot.user.id:
-                    history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
+        history: List[ModelMessage] = []
+        async for msg in channel.history(limit=20):
+            if self.bot.user and msg.author.id == self.bot.user.id:
+                history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
+            else:
+                author_name = msg.author.name if msg.author else 'Unknown'
+                history.append(ModelRequest(parts=[UserPromptPart(content=f'{author_name}: {msg.clean_content}')]))
+        history.reverse()
+
+        # Inject TODO list as a message in history (not system prompt)
+        todos = self.db.get_todos()
+        if todos and 'No active tasks' not in todos:
+            todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
+            history.insert(0, todo_msg)
+
+        async with channel.typing():
+            deps = MainDeps(
+                channel_id=getattr(channel, 'id', 0),
+                db=self.db,
+                docker_manager=self.docker_manager,
+                bot=self.bot,
+                mem0_client=self.mem0_client,
+            )
+
+            # Get the last message content safely
+            last_message = history[-1] if history else None
+            user_prompt: str = ''
+            if last_message and isinstance(last_message, ModelRequest):
+                parts = last_message.parts
+                if parts and isinstance(parts[0], UserPromptPart):
+                    user_prompt = str(parts[0].content)
+
+            message_history = history[:-1] if len(history) > 1 else []
+
+            try:
+                result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
+                if result.output:
+                    await easy_send(channel, result.output)
                 else:
-                    author_name = msg.author.name if msg.author else 'Unknown'
-                    history.append(ModelRequest(parts=[UserPromptPart(content=f'{author_name}: {msg.clean_content}')]))
-            history.reverse()
+                    await easy_send(channel, '(no output)')
 
-            # Inject TODO list as a message in history (not system prompt)
-            todos = self.db.get_todos()
-            if todos and 'No active tasks' not in todos:
-                todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
-                history.insert(0, todo_msg)
-
-            async with channel.typing():
-                deps = MainDeps(
-                    channel_id=getattr(channel, 'id', 0),
-                    db=self.db,
-                    docker_manager=self.docker_manager,
-                    bot=self.bot,
-                    mem0_client=self.mem0_client,
-                )
-
-                # Get the last message content safely
-                last_message = history[-1] if history else None
-                user_prompt: str = ''
-                if last_message and isinstance(last_message, ModelRequest):
-                    parts = last_message.parts
-                    if parts and isinstance(parts[0], UserPromptPart):
-                        user_prompt = str(parts[0].content)
-
-                message_history = history[:-1] if len(history) > 1 else []
-
-                try:
-                    result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
-                    if result.output:
-                        await easy_send(channel, result.output)
-                    else:
-                        await easy_send(channel, '(no output)')
-
-                    # Auto-save conversation to mem0
-                    if self.mem0_client and user_prompt:
-                        try:
-                            # Save just the user's message and agent's response
-                            messages_to_save = [
-                                {'role': 'user', 'content': user_prompt},
-                                {'role': 'assistant', 'content': result.output if result.output else '(no output)'}
-                            ]
-                            from mem0.client.types import AddMemoryOptions
-                            options = AddMemoryOptions(filters={'user_id': str(getattr(channel, 'id', 0))})
-                            self.mem0_client.add(messages_to_save, options=options)
-                        except Exception as e:
-                            logfire.error('mem0_auto_save_error', error=str(e))
-                            logfire.error('mem0_auto_save_error', error=e)
-                except Exception as e:
-                    traceback.print_exception(e)
-                    logfire.error('agent_error', error=e)
-                    await easy_send(channel, ''.join(traceback.format_exception(e)))
-
-                logfire.debug('agent_complete')
+                    # Save just the user's message and agent's response
+                    messages_to_save = [
+                        {'role': 'user', 'content': user_prompt},
+                        {'role': 'assistant', 'content': result.output if result.output else '(no output)'}
+                    ]
+                    # Pass user_id as kwarg (not in filters)
+                    mem0_client.add(messages_to_save, user_id=str(getattr(channel, 'id', 0)))
+            except Exception as e:
+                traceback.print_exception(e)
+                logfire.error('agent_error', error=e)
+                await easy_send(channel, ''.join(traceback.format_exception(e)))
 
 
 if __name__ == "__main__":

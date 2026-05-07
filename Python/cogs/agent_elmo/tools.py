@@ -363,10 +363,8 @@ async def remember(ctx: RunContext[MainDeps], content: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        # user_id must be inside filters dict in AddMemoryOptions
-        from mem0.client.types import AddMemoryOptions
-        options = AddMemoryOptions(filters={'user_id': str(ctx.deps.channel_id)})
-        ctx.deps.mem0_client.add(content, options=options)
+        # Pass user_id as kwarg (not in filters)
+        ctx.deps.mem0_client.add(content, user_id=str(ctx.deps.channel_id))
         return f"Remembered: {content}"
     except Exception as e:
         return f"Error saving to memory: {str(e)}"
@@ -378,16 +376,13 @@ async def recall(ctx: RunContext[MainDeps], query: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        # user_id must be inside filters dict in AddMemoryOptions for v3 API
-        from mem0.client.types import AddMemoryOptions
-        options = AddMemoryOptions(filters={'user_id': str(ctx.deps.channel_id)})
-        results = ctx.deps.mem0_client.search(query, options=options)
+        # search() requires user_id inside filters dict
+        results = ctx.deps.mem0_client.search(query, filters={"user_id": str(ctx.deps.channel_id)})
         if not results:
             return f"No memories found for: {query}"
         formatted = []
         for r in results:
-            memory_text = r.get('memory', r.get('content', str(r)))
-            formatted.append(f"- {memory_text}")
+            formatted.append(f"- {r}")
         return f"Memories for '{query}':\n" + "\n".join(formatted)
     except Exception as e:
         return f"Error searching memories: {str(e)}"
