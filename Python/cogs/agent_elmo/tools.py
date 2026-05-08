@@ -1,49 +1,40 @@
 import asyncio
 import os
-from typing import List, Optional
+from datetime import UTC
+
+import aiohttp
+import logfire
+import pydantic_monty
+from ddgs import DDGS
 from pydantic_ai import RunContext
 from pydantic_ai.toolsets import FunctionToolset
-import pydantic_monty
-import logfire
-from ddgs import DDGS
-import aiohttp
+
 from .deps import BaseDeps, MainDeps
 
 # Lazy import for sub_agents to avoid circular imports
 _sub_agents = None
 
+
 def _get_sub_agents():
     global _sub_agents
     if _sub_agents is None:
         from . import sub_agents
+
         _sub_agents = sub_agents
     return _sub_agents
 
-# Create sub-agents lazily
-def _get_agent_coder():
-    return _get_sub_agents().create_coder_agent()
 
-def _get_agent_researcher():
-    return _get_sub_agents().create_researcher_agent()
-
-def _get_agent_analyst():
-    return _get_sub_agents().create_analyst_agent()
-
+# Create yes/no agent lazily (still used by batch_yes_no)
 def _get_agent_yes_no():
     return _get_sub_agents().create_yes_no_agent()
 
-# Sub-agent instances (created on first use)
-AGENT_CODER = None
-AGENT_RESEARCHER = None
-AGENT_ANALYST = None
+
 AGENT_YES_NO = None
 
+
 def _ensure_agents():
-    global AGENT_CODER, AGENT_RESEARCHER, AGENT_ANALYST, AGENT_YES_NO
-    if AGENT_CODER is None:
-        AGENT_CODER = _get_agent_coder()
-        AGENT_RESEARCHER = _get_agent_researcher()
-        AGENT_ANALYST = _get_agent_analyst()
+    global AGENT_YES_NO
+    if AGENT_YES_NO is None:
         AGENT_YES_NO = _get_agent_yes_no()
 
 
@@ -75,8 +66,7 @@ async def docker_exec(ctx: RunContext[BaseDeps], command: str, timeout: int = 30
     try:
         # Run blocking Docker operation in thread pool with timeout
         result = await asyncio.wait_for(
-            asyncio.to_thread(docker_manager.exec_command, command, ctx.deps.channel_id, timeout),
-            timeout=timeout
+            asyncio.to_thread(docker_manager.exec_command, command, ctx.deps.channel_id, timeout), timeout=timeout
         )
         output: str = result.output
         if len(output) > 2000:
@@ -183,8 +173,14 @@ async def docker_glob(ctx: RunContext[BaseDeps], pattern: str, path: str = "/wor
 
 
 @logfire.instrument(None, record_return=True)
-async def docker_grep(ctx: RunContext[BaseDeps], pattern: str, path: str = "/workspace",
-                      file_glob: str = "**/*", case_sensitive: bool = False, max_results: int = 50) -> str:
+async def docker_grep(
+    ctx: RunContext[BaseDeps],
+    pattern: str,
+    path: str = "/workspace",
+    file_glob: str = "**/*",
+    case_sensitive: bool = False,
+    max_results: int = 50,
+) -> str:
     """Search for regex pattern in files.
 
     Args:
@@ -198,8 +194,14 @@ async def docker_grep(ctx: RunContext[BaseDeps], pattern: str, path: str = "/wor
     if not docker_manager.client:
         return "Docker is not available. Please ensure Docker is running."
     try:
-        result = docker_manager.grep(pattern, ctx.deps.channel_id, path=path, file_glob=file_glob,
-                                     case_sensitive=case_sensitive, max_results=max_results)
+        result = docker_manager.grep(
+            pattern,
+            ctx.deps.channel_id,
+            path=path,
+            file_glob=file_glob,
+            case_sensitive=case_sensitive,
+            max_results=max_results,
+        )
         logfire.debug("docker_grep_result", pattern=pattern, output_length=len(result))
         return result
     except Exception as e:
@@ -265,74 +267,48 @@ async def docker_rm(ctx: RunContext[BaseDeps], path: str) -> str:
         return f"Error deleting: {str(e)}"
 
 
-# --- Spawn Sub-Agent Tools, only usable by the main agent ---
+# --- Task Tool ---
 @logfire.instrument(None, record_return=True)
-async def spawn_coder(ctx: RunContext[MainDeps], task: str, use_docker: bool = True) -> str:
-    """Spawn a specialized coding agent to handle coding tasks."""
+async def task(ctx: RunContext[MainDeps], system_prompt: str, initial_message: str) -> str:
+    """Spawn a sub-agent with a custom system prompt and initial message.
+
+    Args:
+        system_prompt: The system prompt to configure the agent's behavior and capabilities.
+        initial_message: The first message to send to the agent (the task/query to process).
+    """
     _ensure_agents()
     docker_manager = ctx.deps.docker_manager
-    from deps import CoderDeps
-    coder_deps = CoderDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
+
+    deps = BaseDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
     try:
-        logfire.info("spawning_coder_agent", task=task)
-        result = await AGENT_CODER.run(
-            f"Task: {task}\n\n{'Use Docker tools to test and run code.' if use_docker else 'Do not use Docker.'}",
-            deps=coder_deps
-        )
-        logfire.debug("coder_agent_result", output_length=len(result.output))
-        return f"[Coder Agent Result]\n{result.output}"
+        # Create a generic agent with the provided system prompt
+        from pydantic_ai import Agent
+
+        agent = Agent("openrouter:openrouter/free", deps_type=BaseDeps, system_prompt=system_prompt)
+        # Register available tools based on system prompt hints
+        if "Docker" in system_prompt or "docker" in system_prompt:
+            agent.tool(docker_exec)
+            agent.tool(docker_read)
+            agent.tool(docker_write)
+        if "web search" in system_prompt.lower() or "research" in system_prompt.lower():
+            agent.tool(web_search)
+        logfire.info("spawning_task_agent", system_prompt_length=len(system_prompt))
+        result = await agent.run(initial_message, deps=deps)
+        logfire.debug("task_agent_result", output_length=len(result.output))
+        return f"[Task Agent Result]\n{result.output}"
     except Exception as e:
-        logfire.error("spawn_coder_error", error=str(e))
-        return f"Error spawning coder agent: {str(e)}"
-
-
-@logfire.instrument(None, record_return=True)
-async def spawn_researcher(ctx: RunContext[MainDeps], query: str, max_results: int = 5) -> str:
-    """Spawn a specialized research agent to gather information."""
-    _ensure_agents()
-    docker_manager = ctx.deps.docker_manager
-    from deps import ResearcherDeps
-    researcher_deps = ResearcherDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
-    try:
-        logfire.info("spawning_researcher_agent", query=query)
-        result = await AGENT_RESEARCHER.run(
-            f"Research Query: {query}\n\nPlease search the web and provide a comprehensive answer with sources. Max search results: {max_results}",
-            deps=researcher_deps
-        )
-        logfire.debug("researcher_agent_result", output_length=len(result.output))
-        return f"[Researcher Agent Result]\n{result.output}"
-    except Exception as e:
-        logfire.error("spawn_researcher_error", error=str(e))
-        return f"Error spawning researcher agent: {str(e)}"
-
-
-@logfire.instrument(None, record_return=True)
-async def spawn_analyst(ctx: RunContext[MainDeps], data_description: str, analysis_task: str) -> str:
-    """Spawn a specialized data analyst agent to analyze data."""
-    _ensure_agents()
-    docker_manager = ctx.deps.docker_manager
-    from deps import AnalystDeps
-    analyst_deps = AnalystDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
-    try:
-        logfire.info("spawning_analyst_agent", task=analysis_task)
-        result = await AGENT_ANALYST.run(
-            f"Data: {data_description}\n\nTask: {analysis_task}\n\nUse Docker to process data if needed.",
-            deps=analyst_deps
-        )
-        logfire.debug("analyst_agent_result", output_length=len(result.output))
-        return f"[Analyst Agent Result]\n{result.output}"
-    except Exception as e:
-        logfire.error("spawn_analyst_error", error=str(e))
-        return f"Error spawning analyst agent: {str(e)}"
+        logfire.error("task_agent_error", error=str(e))
+        return f"Error spawning task agent: {str(e)}"
 
 
 # --- Batch Yes/No Tool ---
 @logfire.instrument(None, record_return=True)
-async def batch_yes_no(ctx: RunContext[MainDeps], question: str, items: List[str]) -> str:
+async def batch_yes_no(ctx: RunContext[MainDeps], question: str, items: list[str]) -> str:
     """Answer yes/no question for each item using a tiny agent."""
     _ensure_agents()
     docker_manager = ctx.deps.docker_manager
-    from deps import YesNoDeps
+    from .deps import YesNoDeps
+
     yes_no_deps = YesNoDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
     results = []
     for item in items:
@@ -397,14 +373,17 @@ async def run_python_code(ctx: RunContext[BaseDeps], code: str) -> str:
         m.type_check()
 
         output = pydantic_monty.CollectStreams()
-        result = m.run(external_functions={
-            # whatever external functions we want to give the agent's code
-        }, print_callback=output)
+        result = m.run(
+            external_functions={
+                # whatever external functions we want to give the agent's code
+            },
+            print_callback=output,
+        )
 
-        return f'stdout:\n{output.output}\n\nFinal result:{result}'
+        return f"stdout:\n{output.output}\n\nFinal result:{result}"
 
     except pydantic_monty.MontyTypingError as e:
-        return f'The code failed type checking, fix the errors and retry:\n{e.display('concise')}'
+        return f"The code failed type checking, fix the errors and retry:\n{e.display('concise')}"
 
     except pydantic_monty.MontyError as e:
         return f"Execution Failed: {e}"
@@ -416,30 +395,31 @@ async def run_python_code(ctx: RunContext[BaseDeps], code: str) -> str:
 # --- Discord Tools ---
 TENOR_KEY = os.environ.get("TENOR_TOKEN", "")
 
+
 @logfire.instrument(None, record_return=True)
 async def read_history(ctx: RunContext[MainDeps], limit: int = 20) -> str:
     """Read message history from the current Discord channel.
-    
+
     Args:
         limit: Number of messages to retrieve (default: 20, max: 50)
     """
     bot = ctx.deps.bot
     channel_id = ctx.deps.channel_id
-    
+
     # Cap the limit
     limit = min(limit, 50)
-    
+
     try:
         channel = bot.get_channel(channel_id)
         if not channel:
             return f"Error: Could not find channel with ID {channel_id}"
-        
+
         messages = []
         async for msg in channel.history(limit=limit):
             author = msg.author.name if msg.author else "Unknown"
             content = msg.clean_content or "(no text)"
             messages.append(f"[{msg.created_at.strftime('%H:%M')}] {author}: {content}")
-        
+
         messages.reverse()  # Oldest first
         return "\n".join(messages) if messages else "No messages found."
     except Exception as e:
@@ -450,18 +430,18 @@ async def read_history(ctx: RunContext[MainDeps], limit: int = 20) -> str:
 @logfire.instrument(None, record_return=True)
 async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
     """Send a GIF to the channel using Tenor.
-    
+
     Args:
         query: Search query for the GIF (e.g., "happy", "dance", "thumbs up")
     """
     import discord
-    
+
     if not TENOR_KEY:
         return "Error: Tenor API key not configured. Please set TENOR_TOKEN environment variable."
-    
+
     bot = ctx.deps.bot
     channel_id = ctx.deps.channel_id
-    
+
     try:
         url = "https://tenor.googleapis.com/v2/search"
         params = {
@@ -470,16 +450,16 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
             "media_filter": "gif,mediumgif",
             "limit": 10,
         }
-        
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, params=params) as r:
-                data = await r.json()
-        
+
+        async with aiohttp.ClientSession() as s, s.get(url, params=params) as r:
+            data = await r.json()
+
         results = data.get("results", [])
         if not results:
             return f"No GIF found for query: {query}"
-        
+
         import random
+
         # Pick a random result
         item = random.choice(results)
         mf = item.get("media_formats", {})
@@ -488,21 +468,21 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
             if key in mf and "url" in mf[key]:
                 gif_url = mf[key]["url"]
                 break
-        
+
         if not gif_url:
             return f"Error: Could not extract GIF URL for query: {query}"
-        
+
         # Send the GIF
         channel = bot.get_channel(channel_id)
         if not channel:
             return f"Error: Could not find channel with ID {channel_id}"
-        
+
         embed = discord.Embed()
         embed.set_image(url=gif_url)
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await channel.send(embed=embed)
         return f"Sent GIF for: {query}"
-        
+
     except Exception as e:
         logfire.error("send_gif_error", error=str(e))
         return f"Error sending GIF: {str(e)}"
@@ -511,38 +491,40 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
 @logfire.instrument(None, record_return=True)
 async def timeout_user(ctx: RunContext[MainDeps], user_id: int, duration_seconds: int = 60) -> str:
     """Timeout (mute) a user in the guild for a specified duration.
-    
+
     Args:
         user_id: The Discord user ID to timeout
         duration_seconds: Duration in seconds (max 300 seconds = 5 minutes)
     """
     import discord
+
     bot = ctx.deps.bot
     channel_id = ctx.deps.channel_id
-    
+
     # Cap duration at 5 minutes (300 seconds) as per Discord limits for bots
     duration_seconds = min(duration_seconds, 300)
-    
+
     try:
         # Get the guild from the channel
         channel = bot.get_channel(channel_id)
         if not channel or not isinstance(channel, discord.TextChannel):
             return "Error: Could not find text channel or invalid channel type."
-        
+
         guild = channel.guild
         member = guild.get_member(user_id)
-        
+
         if not member:
             return f"Error: Could not find user with ID {user_id} in this guild."
-        
+
         # Calculate timeout duration
-        from datetime import timedelta, datetime, timezone
-        until = datetime.now(timezone.utc) + timedelta(seconds=duration_seconds)
-        
+        from datetime import datetime, timedelta
+
+        until = datetime.now(UTC) + timedelta(seconds=duration_seconds)
+
         # Apply timeout
         await member.timeout(until, reason=f"Timeout requested by bot agent (user_id: {user_id})")
         return f"User {member.name} (ID: {user_id}) timed out for {duration_seconds} seconds."
-        
+
     except discord.Forbidden:
         return "Error: Bot doesn't have permission to timeout users. Need 'Moderate Members' permission."
     except discord.HTTPException as e:
@@ -570,9 +552,7 @@ docker_toolset: FunctionToolset[MainDeps] = FunctionToolset(
 
 spawn_toolset: FunctionToolset[MainDeps] = FunctionToolset(
     [
-        spawn_coder,
-        spawn_researcher,
-        spawn_analyst,
+        task,
     ]
 )
 

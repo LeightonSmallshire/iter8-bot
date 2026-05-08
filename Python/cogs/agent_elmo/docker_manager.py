@@ -1,17 +1,20 @@
+import contextlib
+import fnmatch
+import glob as glob_module
 import os
 import re
-import glob as glob_module
-import fnmatch
-import docker
-from docker.models.containers import Container
-import logfire
-from typing import Dict, Optional, List, Any
 from dataclasses import dataclass
+from typing import Any
+
+import docker
+import logfire
+from docker.models.containers import Container
 
 
 @dataclass
 class ExecResult:
     """Result of a Docker command execution."""
+
     exit_code: int
     output: str
 
@@ -19,26 +22,48 @@ class ExecResult:
 @dataclass
 class FileMatch:
     """Result of a file search."""
+
     path: str
-    line_number: Optional[int] = None
-    content: Optional[str] = None
+    line_number: int | None = None
+    content: str | None = None
 
 
 class DockerManager:
     def __init__(self, image: str = "python:3.12", base_workspace: str = "./data/workspaces"):
         self.image: str = image
         self.base_workspace: str = os.path.abspath(base_workspace)
-        self.containers: Dict[int, Container] = {} # channel_id -> container
-        self.client: Optional[docker.DockerClient] = None
+        self.containers: dict[int, Container] = {}  # channel_id -> container
+        self.client: docker.DockerClient | None = None
 
         # Security: Command denylist - dangerous commands that should never execute
-        self.denied_commands: frozenset = frozenset({
-            "rm", "rmdir", "docker", "ssh", "scp", "rsync",
-            "sudo", "su", "chmod", "chown", "chgrp",
-            "mkfs", "fdisk", "parted", "dd",
-            "iptables", "ip6tables", "ufw", "firewall",
-            "systemctl", "service", "init", "shutdown", "reboot",
-        })
+        self.denied_commands: frozenset = frozenset(
+            {
+                "rm",
+                "rmdir",
+                "docker",
+                "ssh",
+                "scp",
+                "rsync",
+                "sudo",
+                "su",
+                "chmod",
+                "chown",
+                "chgrp",
+                "mkfs",
+                "fdisk",
+                "parted",
+                "dd",
+                "iptables",
+                "ip6tables",
+                "ufw",
+                "firewall",
+                "systemctl",
+                "service",
+                "init",
+                "shutdown",
+                "reboot",
+            }
+        )
 
         # Ensure base workspace directory exists
         os.makedirs(base_workspace, exist_ok=True)
@@ -60,16 +85,14 @@ class DockerManager:
             container = self.containers[channel_id]
             try:
                 container.reload()
-                if container.status == 'running':
+                if container.status == "running":
                     return container
             except Exception:
                 # Container might have been removed
                 pass
             # Container exists but not running or can't reload, remove it
-            try:
+            with contextlib.suppress(Exception):
                 container.remove()
-            except Exception:
-                pass
             del self.containers[channel_id]
 
         with logfire.span("docker_ensure_container", image=self.image, channel_id=channel_id):
@@ -122,17 +145,22 @@ class DockerManager:
             cmd_lower = cmd.lower().strip()
             cmd_parts = cmd_lower.split()
             if cmd_parts:
-                base_cmd = cmd_parts[0].split('/')[-1]  # Handle /usr/bin/rm style
+                base_cmd = cmd_parts[0].split("/")[-1]  # Handle /usr/bin/rm style
                 if base_cmd in self.denied_commands:
                     logfire.warn("docker_exec_denied", command=cmd[:100], reason="denied_command")
-                    return ExecResult(exit_code=-1, output=f"Error: Command '{base_cmd}' is not allowed for security reasons.")
+                    return ExecResult(
+                        exit_code=-1, output=f"Error: Command '{base_cmd}' is not allowed for security reasons."
+                    )
 
             container = self.ensure_container(channel_id)
             try:
                 exit_code, output = container.exec_run(cmd, workdir="/workspace", timeout=timeout)
-                decoded_output: str = output.decode('utf-8', errors='ignore') if isinstance(output, bytes) else str(output)
-                logfire.debug("docker_exec_result",
-                              exit_code=exit_code, output=decoded_output, output_length=len(decoded_output))
+                decoded_output: str = (
+                    output.decode("utf-8", errors="ignore") if isinstance(output, bytes) else str(output)
+                )
+                logfire.debug(
+                    "docker_exec_result", exit_code=exit_code, output=decoded_output, output_length=len(decoded_output)
+                )
                 exit_code_int = int(exit_code) if exit_code is not None else -1
                 return ExecResult(exit_code=exit_code_int, output=decoded_output)
             except Exception as e:
@@ -145,10 +173,7 @@ class DockerManager:
         # Handle /workspace with or without trailing slash
         if path == "/workspace" or path == "/workspace/":
             return workspace_path
-        if path.startswith("/workspace/"):
-            relative_path = path[len("/workspace/"):]
-        else:
-            relative_path = path.lstrip("/")
+        relative_path = path[len("/workspace/") :] if path.startswith("/workspace/") else path.lstrip("/")
         return os.path.join(workspace_path, relative_path)
 
     def read_file(self, path: str, channel_id: int = 0) -> str:
@@ -156,7 +181,7 @@ class DockerManager:
         with logfire.span("docker_read_file", path=path, channel_id=channel_id):
             host_path = self._get_host_path(path, channel_id)
             try:
-                with open(host_path, 'r', encoding='utf-8') as f:
+                with open(host_path, encoding="utf-8") as f:
                     content = f.read()
                 logfire.debug("docker_read_file_success", path=path, content_length=len(content))
                 return content
@@ -183,7 +208,7 @@ class DockerManager:
         with logfire.span("docker_edit_file", path=path, channel_id=channel_id, occurrence=occurrence):
             host_path = self._get_host_path(path, channel_id)
             try:
-                with open(host_path, 'r', encoding='utf-8') as f:
+                with open(host_path, encoding="utf-8") as f:
                     content = f.read()
 
                 if occurrence == -1:
@@ -194,11 +219,11 @@ class DockerManager:
                     # Replace specific occurrence
                     parts = content.split(old_text)
                     if len(parts) <= occurrence:
-                        return f"Error: Only {len(parts)-1} occurrence(s) found, requested {occurrence}"
+                        return f"Error: Only {len(parts) - 1} occurrence(s) found, requested {occurrence}"
                     new_content = old_text.join(parts[:occurrence]) + new_text + old_text.join(parts[occurrence:])
                     count = 1
 
-                with open(host_path, 'w', encoding='utf-8') as f:
+                with open(host_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
 
                 logfire.info("docker_edit_file_success", path=path, replacements=count)
@@ -215,7 +240,7 @@ class DockerManager:
             host_path = self._get_host_path(path, channel_id)
             os.makedirs(os.path.dirname(host_path), exist_ok=True)
             try:
-                with open(host_path, 'w', encoding='utf-8') as f:
+                with open(host_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 logfire.info("docker_write_file_success", path=path)
                 return f"File written to {path}"
@@ -244,8 +269,8 @@ class DockerManager:
                 if recursive:
                     for root, dirs, files in os.walk(host_path):
                         rel_root = os.path.relpath(root, host_path)
-                        if rel_root == '.':
-                            rel_root = ''
+                        if rel_root == ".":
+                            rel_root = ""
                         for d in sorted(dirs):
                             result_lines.append(f"d {os.path.join(rel_root, d)}/")
                         for f in sorted(files):
@@ -262,8 +287,8 @@ class DockerManager:
                 if not result_lines:
                     return f"Directory {path} is empty"
 
-                prefix = path.rstrip('/')
-                return '\n'.join(f"{prefix}/{line}" if not line.startswith(prefix) else line for line in result_lines)
+                prefix = path.rstrip("/")
+                return "\n".join(f"{prefix}/{line}" if not line.startswith(prefix) else line for line in result_lines)
             except Exception as e:
                 logfire.error("docker_list_dir_error", path=path, error=str(e))
                 return f"Error listing directory: {str(e)}"
@@ -290,13 +315,20 @@ class DockerManager:
 
                 # Convert to relative paths
                 rel_matches = [os.path.relpath(m, host_path) for m in sorted(matches)]
-                return '\n'.join(rel_matches)
+                return "\n".join(rel_matches)
             except Exception as e:
                 logfire.error("docker_glob_error", pattern=pattern, error=str(e))
                 return f"Error in glob search: {str(e)}"
 
-    def grep(self, pattern: str, channel_id: int = 0, path: str = "/workspace",
-             file_glob: str = "**/*", case_sensitive: bool = False, max_results: int = 50) -> str:
+    def grep(
+        self,
+        pattern: str,
+        channel_id: int = 0,
+        path: str = "/workspace",
+        file_glob: str = "**/*",
+        case_sensitive: bool = False,
+        max_results: int = 50,
+    ) -> str:
         """Search for pattern in files.
 
         Args:
@@ -321,18 +353,16 @@ class DockerManager:
                 files = glob_module.glob(search_path, recursive=True)
                 files = [f for f in files if os.path.isfile(f)]
 
-                results: List[FileMatch] = []
+                results: list[FileMatch] = []
                 for file_path in files:
                     try:
-                        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        with open(file_path, encoding="utf-8", errors="ignore") as f:
                             for line_num, line in enumerate(f, 1):
                                 if regex.search(line):
                                     rel_path = os.path.relpath(file_path, host_path)
-                                    results.append(FileMatch(
-                                        path=rel_path,
-                                        line_number=line_num,
-                                        content=line.rstrip()
-                                    ))
+                                    results.append(
+                                        FileMatch(path=rel_path, line_number=line_num, content=line.rstrip())
+                                    )
                                     if len(results) >= max_results:
                                         break
                     except Exception:
@@ -350,7 +380,7 @@ class DockerManager:
                     content = f" - {match.content}" if match.content else ""
                     output_lines.append(f"  {loc}{content}")
 
-                return '\n'.join(output_lines)
+                return "\n".join(output_lines)
             except Exception as e:
                 logfire.error("docker_grep_error", pattern=pattern, error=str(e))
                 return f"Error in grep search: {str(e)}"
@@ -383,7 +413,7 @@ class DockerManager:
                 if not matches:
                     return f"No files matching '{name_pattern}' in {path}"
 
-                return '\n'.join(sorted(matches))
+                return "\n".join(sorted(matches))
             except Exception as e:
                 logfire.error("docker_find_error", name_pattern=name_pattern, error=str(e))
                 return f"Error in find: {str(e)}"
@@ -423,6 +453,7 @@ class DockerManager:
             try:
                 if os.path.isdir(host_path):
                     import shutil
+
                     shutil.rmtree(host_path)
                     logfire.info("docker_delete_dir_success", path=path)
                     return f"Directory deleted: {path}"
@@ -436,7 +467,7 @@ class DockerManager:
                 logfire.error("docker_delete_error", path=path, error=str(e))
                 return f"Error deleting: {str(e)}"
 
-    def stop(self, channel_id: Optional[int] = None) -> None:
+    def stop(self, channel_id: int | None = None) -> None:
         """Stop and remove containers. If channel_id is provided, only stop that channel's container."""
         if channel_id is not None:
             # Stop specific channel container
