@@ -1,8 +1,8 @@
-import sqlite3
-import logfire
 import os
-from typing import List, Optional
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, ModelMessagesTypeAdapter
+import sqlite3
+
+import logfire
+from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
 
 class Persistence:
@@ -10,7 +10,7 @@ class Persistence:
     def __init__(self, db_path: str = "data/agent_storage.db"):
         # Ensure data directory exists
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        
+
         self.db_path = db_path
         self._migrate()
         logfire.info("persistence_initialized", db_path=db_path)
@@ -22,7 +22,7 @@ class Persistence:
     def _migrate(self) -> None:
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Create tables with SQLite syntax
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS facts (
@@ -46,7 +46,7 @@ class Persistence:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         conn.commit()
         conn.close()
         logfire.debug("database_migrated")
@@ -92,40 +92,37 @@ class Persistence:
         return result
 
     @logfire.instrument("save_message_history")
-    def save_message_history(self, channel_id: int, messages: List[ModelMessage]) -> None:
+    def save_message_history(self, channel_id: int, messages: list[ModelMessage]) -> None:
         """Save message history for a channel."""
         # Serialize messages to JSON using ModelMessagesTypeAdapter
         data_json = ModelMessagesTypeAdapter.dump_json(messages)
-        
+
         conn = self._get_connection()
         cursor = conn.cursor()
-        
+
         # Delete old history and insert new
         cursor.execute("DELETE FROM message_history WHERE channel_id = ?", [channel_id])
-        cursor.execute(
-            "INSERT INTO message_history (channel_id, message_data) VALUES (?, ?)",
-            [channel_id, data_json]
-        )
-        
+        cursor.execute("INSERT INTO message_history (channel_id, message_data) VALUES (?, ?)", [channel_id, data_json])
+
         conn.commit()
         conn.close()
         logfire.info("message_history_saved", channel_id=channel_id, count=len(messages))
 
     @logfire.instrument("load_message_history")
-    def load_message_history(self, channel_id: int) -> List[ModelMessage]:
+    def load_message_history(self, channel_id: int) -> list[ModelMessage]:
         """Load message history for a channel."""
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(
             "SELECT message_data FROM message_history WHERE channel_id = ? ORDER BY created_at DESC LIMIT 1",
-            [channel_id]
+            [channel_id],
         )
         rows = cursor.fetchall()
         conn.close()
-        
+
         if not rows:
             return []
-        
+
         try:
             # Deserialize messages using ModelMessagesTypeAdapter
             messages = ModelMessagesTypeAdapter.validate_json(rows[0][0])
@@ -136,15 +133,14 @@ class Persistence:
             return []
 
     @logfire.instrument("compact_history")
-    def compact_history(self, channel_id: int, max_messages: int = 10) -> List[ModelMessage]:
+    def compact_history(self, channel_id: int, max_messages: int = 10) -> list[ModelMessage]:
         """Compact message history by keeping only the most recent messages."""
         messages = self.load_message_history(channel_id)
         if len(messages) <= max_messages:
             return messages
-        
+
         # Keep only the most recent messages
         compacted = messages[-max_messages:]
         self.save_message_history(channel_id, compacted)
-        logfire.info("history_compacted", channel_id=channel_id, 
-                    original_count=len(messages), new_count=len(compacted))
+        logfire.info("history_compacted", channel_id=channel_id, original_count=len(messages), new_count=len(compacted))
         return compacted

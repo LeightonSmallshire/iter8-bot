@@ -1,5 +1,6 @@
 from pydantic_ai import Agent
-from .deps import YesNoDeps, YesNoResponse, YesNoAgent
+
+from .deps import YesNoAgent, YesNoDeps, YesNoResponse
 
 
 # --- Yes/No Agent ---

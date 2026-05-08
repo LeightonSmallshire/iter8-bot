@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 from typing import Any
-from pydantic_ai import Agent
-from pydantic import BaseModel
 
-import discord
 from discord.ext import commands
-from .persistence import Persistence
+from pydantic import BaseModel
+from pydantic_ai import Agent
+
 from .docker_manager import DockerManager
+from .persistence import Persistence
 
 
 class YesNoResponse(BaseModel):
     """Structured response for yes/no questions."""
+
     answer: bool  # True for yes, False for no
 
 
