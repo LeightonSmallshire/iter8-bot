@@ -81,9 +81,8 @@ class HotReloadBot(commands.Bot):
                     logger.info(f'Successfully loaded NEW cog: {cog_name}')
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                error_detail = f"{cog_name}: {e}"
-                logger.error(f'Failed to reload/load cog {error_detail}')
-                failed_cogs.append(error_detail)
+                logger.error(f'Failed to reload/load cog {cog_name} {e}')
+                failed_cogs.append(f'{cog_name} {e}')
 
         # 3. Check for removed cogs
         unloaded_cogs = []
