@@ -25,3 +25,4 @@ python-dotenv~=1.2
 duckdb~=1.5
 pydantic-monty
 mem0ai
+modal
