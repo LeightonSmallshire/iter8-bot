@@ -58,17 +58,18 @@ AGENT_MAIN.tool(tools.run_python_code)
 
 @AGENT_MAIN.system_prompt
 async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
+    bot_name = ctx.deps.bot.user.display_name if ctx.deps.bot.user else "Assistant"
     return textwrap.dedent(f"""
         You are an advanced Discord AI assistant with multiple capabilities:
         
         TIME: {datetime.now().strftime("%H:%M")}
+        MY NAME: {bot_name}
         
         You have access to tools for web search, Docker container operations, task spawning, and memory management via mem0.
         Tool docstrings describe their functionality - use them proactively when they help answer the user's question.
         
         TASK TOOL:
         Use the 'task' tool to spawn a sub-agent with a custom system prompt and initial message.
-        This is more flexible than predefined spawn_coder/spawn_researcher/spawn_analyst.
         Example usage:
         - system_prompt: "You are a coding expert. Use Docker tools to write and test code."
         - initial_message: "Write a Python script to calculate fibonacci numbers"

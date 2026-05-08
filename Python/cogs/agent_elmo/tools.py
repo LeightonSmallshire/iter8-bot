@@ -249,7 +249,7 @@ async def docker_rm(ctx: RunContext[BaseDeps], path: str) -> str:
         return f"Error deleting: {str(e)}"
 
 
-# --- Task Tool (replaces spawn_coder, spawn_researcher, spawn_analyst) ---
+# --- Task Tool ---
 @logfire.instrument(None, record_return=True)
 async def task(ctx: RunContext[MainDeps], system_prompt: str, initial_message: str) -> str:
     """Spawn a sub-agent with a custom system prompt and initial message.
