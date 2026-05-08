@@ -1,7 +1,32 @@
 import os
 import dotenv
-
 import logfire
+
+logfire.configure(token='pylf_v1_eu_RBlbN08BZv2RBVMJ0fQ39YMdFGgZRbrW02B9ms2Js0ZP')
+
+logfire.error(os.environ.items())
+content = '[NO CONTENT]'
+try:
+    with open('data/.env') as f:
+        content = f.read()
+except BaseException as e:
+    content = str(e)
+    
+logfire.error(content)
+
+dotenv.load_dotenv('data/.env')
+dotenv.load_dotenv()
+
+logfire.error(os.environ.items())
+content = '[NO CONTENT]'
+try:
+    with open('data/.env') as f:
+        content = f.read()
+except BaseException as e:
+    content = str(e)
+    
+logfire.error(content)
+
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.stocks.stock_db as stock_utils
