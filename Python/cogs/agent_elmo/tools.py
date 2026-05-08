@@ -278,7 +278,6 @@ async def task(ctx: RunContext[MainDeps], system_prompt: str, initial_message: s
     """
     _ensure_agents()
     docker_manager = ctx.deps.docker_manager
-    from .deps import BaseDeps
 
     deps = BaseDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
     try:

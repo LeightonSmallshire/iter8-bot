@@ -5,7 +5,7 @@ from discord.ext import commands
 from pydantic import BaseModel
 from pydantic_ai import Agent
 
-from .docker_manager import DockerManager
+from .modal_manager import ModalManager
 from .persistence import Persistence
 
 
@@ -17,7 +17,7 @@ class YesNoResponse(BaseModel):
 
 @dataclass
 class BaseDeps:
-    docker_manager: DockerManager
+    docker_manager: ModalManager  # Using ModalManager (interface-compatible with DockerManager)
     channel_id: int
 
 
