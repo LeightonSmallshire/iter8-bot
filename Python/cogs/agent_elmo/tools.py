@@ -19,31 +19,15 @@ def _get_sub_agents():
         _sub_agents = sub_agents
     return _sub_agents
 
-# Create sub-agents lazily
-def _get_agent_coder():
-    return _get_sub_agents().create_coder_agent()
-
-def _get_agent_researcher():
-    return _get_sub_agents().create_researcher_agent()
-
-def _get_agent_analyst():
-    return _get_sub_agents().create_analyst_agent()
-
+# Create yes/no agent lazily (still used by batch_yes_no)
 def _get_agent_yes_no():
     return _get_sub_agents().create_yes_no_agent()
 
-# Sub-agent instances (created on first use)
-AGENT_CODER = None
-AGENT_RESEARCHER = None
-AGENT_ANALYST = None
 AGENT_YES_NO = None
 
 def _ensure_agents():
-    global AGENT_CODER, AGENT_RESEARCHER, AGENT_ANALYST, AGENT_YES_NO
-    if AGENT_CODER is None:
-        AGENT_CODER = _get_agent_coder()
-        AGENT_RESEARCHER = _get_agent_researcher()
-        AGENT_ANALYST = _get_agent_analyst()
+    global AGENT_YES_NO
+    if AGENT_YES_NO is None:
         AGENT_YES_NO = _get_agent_yes_no()
 
 
@@ -265,65 +249,37 @@ async def docker_rm(ctx: RunContext[BaseDeps], path: str) -> str:
         return f"Error deleting: {str(e)}"
 
 
-# --- Spawn Sub-Agent Tools, only usable by the main agent ---
+# --- Task Tool (replaces spawn_coder, spawn_researcher, spawn_analyst) ---
 @logfire.instrument(None, record_return=True)
-async def spawn_coder(ctx: RunContext[MainDeps], task: str, use_docker: bool = True) -> str:
-    """Spawn a specialized coding agent to handle coding tasks."""
+async def task(ctx: RunContext[MainDeps], system_prompt: str, initial_message: str) -> str:
+    """Spawn a sub-agent with a custom system prompt and initial message.
+
+    Args:
+        system_prompt: The system prompt to configure the agent's behavior and capabilities.
+        initial_message: The first message to send to the agent (the task/query to process).
+    """
     _ensure_agents()
     docker_manager = ctx.deps.docker_manager
-    from deps import CoderDeps
-    coder_deps = CoderDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
+    from .deps import BaseDeps
+    deps = BaseDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
     try:
-        logfire.info("spawning_coder_agent", task=task)
-        result = await AGENT_CODER.run(
-            f"Task: {task}\n\n{'Use Docker tools to test and run code.' if use_docker else 'Do not use Docker.'}",
-            deps=coder_deps
-        )
-        logfire.debug("coder_agent_result", output_length=len(result.output))
-        return f"[Coder Agent Result]\n{result.output}"
+        # Create a generic agent with the provided system prompt
+        from pydantic_ai import Agent
+        agent = Agent("openrouter:openrouter/free", deps_type=BaseDeps, system_prompt=system_prompt)
+        # Register available tools based on system prompt hints
+        if "Docker" in system_prompt or "docker" in system_prompt:
+            agent.tool(docker_exec)
+            agent.tool(docker_read)
+            agent.tool(docker_write)
+        if "web search" in system_prompt.lower() or "research" in system_prompt.lower():
+            agent.tool(web_search)
+        logfire.info("spawning_task_agent", system_prompt_length=len(system_prompt))
+        result = await agent.run(initial_message, deps=deps)
+        logfire.debug("task_agent_result", output_length=len(result.output))
+        return f"[Task Agent Result]\n{result.output}"
     except Exception as e:
-        logfire.error("spawn_coder_error", error=str(e))
-        return f"Error spawning coder agent: {str(e)}"
-
-
-@logfire.instrument(None, record_return=True)
-async def spawn_researcher(ctx: RunContext[MainDeps], query: str, max_results: int = 5) -> str:
-    """Spawn a specialized research agent to gather information."""
-    _ensure_agents()
-    docker_manager = ctx.deps.docker_manager
-    from deps import ResearcherDeps
-    researcher_deps = ResearcherDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
-    try:
-        logfire.info("spawning_researcher_agent", query=query)
-        result = await AGENT_RESEARCHER.run(
-            f"Research Query: {query}\n\nPlease search the web and provide a comprehensive answer with sources. Max search results: {max_results}",
-            deps=researcher_deps
-        )
-        logfire.debug("researcher_agent_result", output_length=len(result.output))
-        return f"[Researcher Agent Result]\n{result.output}"
-    except Exception as e:
-        logfire.error("spawn_researcher_error", error=str(e))
-        return f"Error spawning researcher agent: {str(e)}"
-
-
-@logfire.instrument(None, record_return=True)
-async def spawn_analyst(ctx: RunContext[MainDeps], data_description: str, analysis_task: str) -> str:
-    """Spawn a specialized data analyst agent to analyze data."""
-    _ensure_agents()
-    docker_manager = ctx.deps.docker_manager
-    from deps import AnalystDeps
-    analyst_deps = AnalystDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
-    try:
-        logfire.info("spawning_analyst_agent", task=analysis_task)
-        result = await AGENT_ANALYST.run(
-            f"Data: {data_description}\n\nTask: {analysis_task}\n\nUse Docker to process data if needed.",
-            deps=analyst_deps
-        )
-        logfire.debug("analyst_agent_result", output_length=len(result.output))
-        return f"[Analyst Agent Result]\n{result.output}"
-    except Exception as e:
-        logfire.error("spawn_analyst_error", error=str(e))
-        return f"Error spawning analyst agent: {str(e)}"
+        logfire.error("task_agent_error", error=str(e))
+        return f"Error spawning task agent: {str(e)}"
 
 
 # --- Batch Yes/No Tool ---
@@ -332,7 +288,7 @@ async def batch_yes_no(ctx: RunContext[MainDeps], question: str, items: List[str
     """Answer yes/no question for each item using a tiny agent."""
     _ensure_agents()
     docker_manager = ctx.deps.docker_manager
-    from deps import YesNoDeps
+    from .deps import YesNoDeps
     yes_no_deps = YesNoDeps(docker_manager=docker_manager, channel_id=ctx.deps.channel_id)
     results = []
     for item in items:
@@ -570,9 +526,7 @@ docker_toolset: FunctionToolset[MainDeps] = FunctionToolset(
 
 spawn_toolset: FunctionToolset[MainDeps] = FunctionToolset(
     [
-        spawn_coder,
-        spawn_researcher,
-        spawn_analyst,
+        task,
     ]
 )
 

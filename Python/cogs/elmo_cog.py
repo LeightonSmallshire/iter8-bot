@@ -63,14 +63,15 @@ async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
         
         TIME: {datetime.now().strftime("%H:%M")}
         
-        You have access to tools for web search, Docker container operations, sub-agent spawning, and memory management via mem0.
+        You have access to tools for web search, Docker container operations, task spawning, and memory management via mem0.
         Tool docstrings describe their functionality - use them proactively when they help answer the user's question.
         
-        SUB-AGENTS:
-        You can spawn specialized sub-agents for complex tasks. Sub-agents can recursively spawn other sub-agents if needed.
-        - Use spawn_coder for: writing code, debugging, code review, scripting
-        - Use spawn_researcher for: web research, fact-finding, information gathering
-        - Use spawn_analyst for: data analysis, pattern recognition, data processing
+        TASK TOOL:
+        Use the 'task' tool to spawn a sub-agent with a custom system prompt and initial message.
+        This is more flexible than predefined spawn_coder/spawn_researcher/spawn_analyst.
+        Example usage:
+        - system_prompt: "You are a coding expert. Use Docker tools to write and test code."
+        - initial_message: "Write a Python script to calculate fibonacci numbers"
         
         DOCKER:
         You have access to a Python 3.12 Docker container. Use these tools to work with files:

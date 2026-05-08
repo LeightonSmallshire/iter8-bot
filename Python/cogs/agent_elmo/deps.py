@@ -25,25 +25,6 @@ class MainDeps(BaseDeps):
     db: Persistence
     bot: commands.Bot
     mem0_client: Any  # mem0.MemoryClient - will crash if MEM0_API_KEY missing
-    # coder_agent: 'CoderAgent'
-    # researcher_agent: 'ResearcherAgent'
-    # analyst_agent: 'AnalystAgent'
-    # yes_no_agent: 'YesNoAgent'
-
-
-@dataclass
-class CoderDeps(BaseDeps):
-    pass
-
-
-@dataclass
-class AnalystDeps(BaseDeps):
-    pass
-
-
-@dataclass
-class ResearcherDeps(BaseDeps):
-    pass
 
 
 @dataclass
@@ -52,8 +33,5 @@ class YesNoDeps(BaseDeps):
 
 
 # fmt: off
-CoderAgent      = Agent[ CoderDeps     , str           ]
-ResearcherAgent = Agent[ ResearcherDeps, str           ]
-AnalystAgent    = Agent[ AnalystDeps   , str           ]
-YesNoAgent      = Agent[ YesNoDeps     , YesNoResponse ]
+YesNoAgent = Agent[ YesNoDeps, YesNoResponse ]
 # fmt: on
