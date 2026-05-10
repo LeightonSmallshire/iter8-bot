@@ -10,5 +10,6 @@ services:
       - /root/.docker    # anonymous
       - /app/repo        # anonymous
       - /tmp             # anonymous
+      - iter8-bot-data:/app/data:rw # allow read-write into the bot's volume
 #    ports:
 #      - "8080:8080"

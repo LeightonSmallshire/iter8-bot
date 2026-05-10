@@ -8,7 +8,7 @@ import secrets
 from .model import User
 
 
-IS_LIVE = os.path.exists('/.dockerenv')
+IS_LIVE = os.environ['MODE'] == 'Live'
 IS_TESTING = not IS_LIVE
 
 
