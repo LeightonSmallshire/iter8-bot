@@ -36,7 +36,9 @@ db = Persistence()
 docker_manager = ModalManager()  # Using Modal instead of Docker (crashes if Modal not available)
 mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
 
-toolsets = [tools.spawn_toolset, tools.memory_toolset, tools.docker_toolset]
+toolsets = [tools.spawn_toolset, tools.memory_toolset,
+            # tools.docker_toolset
+            ]
 
 
 # --- Main Agent ---

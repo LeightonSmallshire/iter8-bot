@@ -1,61 +1,18 @@
 import os
 import dotenv
 import logfire
-
-logfire.configure(token='pylf_v1_eu_RBlbN08BZv2RBVMJ0fQ39YMdFGgZRbrW02B9ms2Js0ZP')
-
-logfire.error(os.environ.items())
-content = '[NO CONTENT]'
-try:
-    with open('data/.env') as f:
-        content = f.read()
-except BaseException as e:
-    content = str(e)
-    
-logfire.error(content)
-
-dotenv.load_dotenv('data/.env')
-dotenv.load_dotenv()
-
-logfire.error(os.environ.items())
-content = '[NO CONTENT]'
-try:
-    with open('data/.env') as f:
-        content = f.read()
-except BaseException as e:
-    content = str(e)
-    
-logfire.error(content)
-
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.stocks.stock_db as stock_utils
 import discord
 import datetime
-import traceback
 
 from discord.ext import commands
 
-
-
-logfire.configure(token='pylf_v1_eu_RBlbN08BZv2RBVMJ0fQ39YMdFGgZRbrW02B9ms2Js0ZP')
-
-logfire.error(os.environ.items())
-content = '[NO CONTENT]'
-try:
-    with open('data/.env') as f:
-        content = f.read()
-except BaseException as e:
-    content = str(e)
-    
-logfire.error(content)
-
-
 dotenv.load_dotenv('data/.env')
+dotenv.load_dotenv('../AutoDeploy/.env')
 dotenv.load_dotenv()
 
-
-logfire.error(os.environ.items())
 
 # CD to here always
 os.chdir(os.path.dirname(__file__))
@@ -65,15 +22,13 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 
 COGS_DIR = "cogs"
 
-IS_LIVE = os.path.exists('/.dockerenv')
-IS_TESTING = not IS_LIVE
+IS_LIVE = bot_utils.IS_LIVE
+IS_TESTING = bot_utils.IS_TESTING
 
 os.makedirs('data', exist_ok=True)
 
 # --- Logfire Setup ---
-logfire.configure()
-logger = logfire
-
+logfire.configure(environment='Live' if IS_LIVE else 'Testing')
 
 now = datetime.datetime.now().time()
 is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
@@ -84,7 +39,7 @@ class HotReloadBot(commands.Bot):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
     async def on_ready(self):
-        logger.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
+        logfire.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
         if is_work_hours and IS_LIVE:
             message = f'Bot connected {read_git_head()}'
@@ -101,7 +56,7 @@ class HotReloadBot(commands.Bot):
     async def hot_reload_cogs(self):
         """Unloads, reloads, and reports the status of all cogs."""
 
-        logger.info('--- Loading cogs ---')
+        logfire.info('--- Loading cogs ---')
 
         reloaded_cogs = []
         failed_cogs = []
@@ -117,13 +72,13 @@ class HotReloadBot(commands.Bot):
             try:
                 if cog_name in self.extensions:
                     await self.reload_extension(cog_name)
-                    logger.info(f'Successfully reloaded cog: {cog_name}')
+                    logfire.info(f'Successfully reloaded cog: {cog_name}')
                 else:
                     await self.load_extension(cog_name)
-                    logger.info(f'Successfully loaded NEW cog: {cog_name}')
+                    logfire.info(f'Successfully loaded NEW cog: {cog_name}')
                 reloaded_cogs.append(cog_name)
             except Exception as e:
-                logger.error(f'Failed to reload/load cog {cog_name} {e}')
+                logfire.error(f'Failed to reload/load cog {cog_name} {e}')
                 failed_cogs.append(f'{cog_name} {e}')
 
         # 3. Check for removed cogs
@@ -133,15 +88,15 @@ class HotReloadBot(commands.Bot):
                 try:
                     await self.unload_extension(ext_name)
                     unloaded_cogs.append(ext_name)
-                    logger.info(f'Successfully unloaded REMOVED cog: {ext_name}')
+                    logfire.info(f'Successfully unloaded REMOVED cog: {ext_name}')
                 except Exception as e:
-                    logger.error(f'Failed to unload removed cog {ext_name}: {e}')
+                    logfire.error(f'Failed to unload removed cog {ext_name}: {e}')
 
         # 4. Syncing
-        logger.info('Syncing...')
+        logfire.info('Syncing...')
         self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Default))
         synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Default))
-        logger.info(f'Synced {len(synced)} commands.')
+        logfire.info(f'Synced {len(synced)} commands.')
 
         # 5. Build Discord-formatted message
         lines = ["## 🔄 Cog Reload Report"]
@@ -182,7 +137,7 @@ class HotReloadBot(commands.Bot):
     async def _handle_error(self,
                             interaction: discord.Interaction,
                             error: discord.app_commands.AppCommandError):
-        logger.error(error)
+        logfire.error(error)
         try:
             if interaction.response.is_done():
                 await interaction.followup.send(str(error), ephemeral=True)
@@ -207,7 +162,7 @@ def read_git_head():
 
 
 # --- Main Execution ---
-logger.info(f'Starting Discord Bot... {read_git_head()}')
+logfire.info(f'Starting Discord Bot... {read_git_head()}')
 
 bot = HotReloadBot()
 bot.run(DISCORD_TOKEN)
