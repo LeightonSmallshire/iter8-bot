@@ -36,9 +36,12 @@ db = Persistence()
 docker_manager = ModalManager()  # Using Modal instead of Docker (crashes if Modal not available)
 mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
 
-toolsets = [tools.spawn_toolset, tools.memory_toolset,
-            # tools.docker_toolset
-            ]
+toolsets = [
+    tools.spawn_toolset,
+    tools.memory_toolset,
+    # tools.docker_toolset,
+    tools.discord_toolset,
+]
 
 
 # --- Main Agent ---
@@ -68,24 +71,11 @@ async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
         - system_prompt: "You are a coding expert. Use Docker tools to write and test code."
         - initial_message: "Write a Python script to calculate fibonacci numbers"
 
-        DOCKER:
-        You have access to a Python 3.12 Docker container. Use these tools to work with files:
-        - docker_ls: List files and directories (like ls command)
-        - docker_read: Read file contents
-        - docker_write: Create/overwrite a file
-        - docker_edit: Edit file by replacing text chunks (better than rewrite)
-        - docker_grep: Search for patterns in files (like grep command)
-        - docker_glob: Find files by glob pattern (like glob **/*.py)
-        - docker_find: Find files by name pattern
-        - docker_mkdir: Create directories
-        - docker_rm: Delete files or directories
-        - docker_exec: Run commands in the container
-
         MEMORY:
         You have access to mem0 for semantic memory. Use these tools:
         - remember: Explicitly save information to memory
         - recall: Search memories using semantic search
-        - manage_todo: Add tasks to the TODO list""").strip()
+        """).strip()
 
 
 def split_message_for_discord(message: str) -> list[str]:
@@ -215,10 +205,10 @@ class AgentCog(commands.Cog):
         history.reverse()
 
         # Inject TODO list as a message in history (not system prompt)
-        todos = self.db.get_todos()
-        if todos and "No active tasks" not in todos:
-            todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
-            history.insert(0, todo_msg)
+        # todos = self.db.get_todos()
+        # if todos and "No active tasks" not in todos:
+        #     todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
+        #     history.insert(0, todo_msg)
 
         async with channel.typing():
             deps = MainDeps(

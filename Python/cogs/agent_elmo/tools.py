@@ -325,12 +325,12 @@ async def batch_yes_no(ctx: RunContext[MainDeps], question: str, items: list[str
 
 
 # --- Memory Tools ---
-@logfire.instrument(None, record_return=True)
-async def manage_todo(ctx: RunContext[MainDeps], task: str) -> str:
-    """Add a new task to the todo list."""
-    ctx.deps.db.add_todo(task)
-    logfire.info("todo_added", task=task)
-    return f"Added to todos: {task}"
+# @logfire.instrument(None, record_return=True)
+# async def manage_todo(ctx: RunContext[MainDeps], task: str) -> str:
+#     """Add a new task to the todo list."""
+#     ctx.deps.db.add_todo(task)
+#     logfire.info("todo_added", task=task)
+#     return f"Added to todos: {task}"
 
 
 @logfire.instrument(None, record_return=True)
@@ -396,35 +396,35 @@ async def run_python_code(ctx: RunContext[BaseDeps], code: str) -> str:
 TENOR_KEY = os.environ.get("TENOR_TOKEN", "")
 
 
-@logfire.instrument(None, record_return=True)
-async def read_history(ctx: RunContext[MainDeps], limit: int = 20) -> str:
-    """Read message history from the current Discord channel.
+# @logfire.instrument(None, record_return=True)
+# async def read_history(ctx: RunContext[MainDeps], limit: int = 20) -> str:
+#     """Read message history from the current Discord channel.
 
-    Args:
-        limit: Number of messages to retrieve (default: 20, max: 50)
-    """
-    bot = ctx.deps.bot
-    channel_id = ctx.deps.channel_id
+#     Args:
+#         limit: Number of messages to retrieve (default: 20, max: 50)
+#     """
+#     bot = ctx.deps.bot
+#     channel_id = ctx.deps.channel_id
 
-    # Cap the limit
-    limit = min(limit, 50)
+#     # Cap the limit
+#     limit = min(limit, 50)
 
-    try:
-        channel = bot.get_channel(channel_id)
-        if not channel:
-            return f"Error: Could not find channel with ID {channel_id}"
+#     try:
+#         channel = bot.get_channel(channel_id)
+#         if not channel:
+#             return f"Error: Could not find channel with ID {channel_id}"
 
-        messages = []
-        async for msg in channel.history(limit=limit):
-            author = msg.author.name if msg.author else "Unknown"
-            content = msg.clean_content or "(no text)"
-            messages.append(f"[{msg.created_at.strftime('%H:%M')}] {author}: {content}")
+#         messages = []
+#         async for msg in channel.history(limit=limit):
+#             author = msg.author.name if msg.author else "Unknown"
+#             content = msg.clean_content or "(no text)"
+#             messages.append(f"[{msg.created_at.strftime('%H:%M')}] {author}: {content}")
 
-        messages.reverse()  # Oldest first
-        return "\n".join(messages) if messages else "No messages found."
-    except Exception as e:
-        logfire.error("read_history_error", error=str(e))
-        return f"Error reading history: {str(e)}"
+#         messages.reverse()  # Oldest first
+#         return "\n".join(messages) if messages else "No messages found."
+#     except Exception as e:
+#         logfire.error("read_history_error", error=str(e))
+#         return f"Error reading history: {str(e)}"
 
 
 @logfire.instrument(None, record_return=True)
@@ -558,7 +558,7 @@ spawn_toolset: FunctionToolset[MainDeps] = FunctionToolset(
 
 memory_toolset: FunctionToolset[MainDeps] = FunctionToolset(
     [
-        manage_todo,
+        # manage_todo,
         remember,
         recall,
     ]
@@ -566,7 +566,7 @@ memory_toolset: FunctionToolset[MainDeps] = FunctionToolset(
 
 discord_toolset: FunctionToolset[MainDeps] = FunctionToolset(
     [
-        read_history,
+        # read_history,
         send_gif,
         timeout_user,
     ]

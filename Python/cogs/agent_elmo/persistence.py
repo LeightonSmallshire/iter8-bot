@@ -6,14 +6,13 @@ from pydantic_ai.messages import ModelMessage, ModelMessagesTypeAdapter
 
 
 class Persistence:
-    @logfire.instrument("persistence_init")
+    @logfire.instrument
     def __init__(self, db_path: str = "data/agent_storage.db"):
         # Ensure data directory exists
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
         self.db_path = db_path
         self._migrate()
-        logfire.info("persistence_initialized", db_path=db_path)
 
     def _get_connection(self):
         """Get a new connection for thread safety."""
@@ -49,49 +48,48 @@ class Persistence:
 
         conn.commit()
         conn.close()
-        logfire.debug("database_migrated")
 
-    @logfire.instrument("add_todo")
-    def add_todo(self, task: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO todos (task) VALUES (?)", [task])
-        conn.commit()
-        conn.close()
-        logfire.info("todo_added", task=task)
+    # @logfire.instrument
+    # def add_todo(self, task: str) -> None:
+    #     conn = self._get_connection()
+    #     cursor = conn.cursor()
+    #     cursor.execute("INSERT INTO todos (task) VALUES (?)", [task])
+    #     conn.commit()
+    #     conn.close()
+    #     logfire.info("todo_added", task=task)
 
-    @logfire.instrument("get_todos")
-    def get_todos(self) -> str:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT task FROM todos WHERE status = 'pending'")
-        rows = cursor.fetchall()
-        conn.close()
-        result = "\n".join([f"- {r[0]}" for r in rows]) if rows else "No active tasks."
-        logfire.debug("todos_retrieved", count=len(rows))
-        return result
+    # @logfire.instrument
+    # def get_todos(self) -> str:
+    #     conn = self._get_connection()
+    #     cursor = conn.cursor()
+    #     cursor.execute("SELECT task FROM todos WHERE status = 'pending'")
+    #     rows = cursor.fetchall()
+    #     conn.close()
+    #     result = "\n".join([f"- {r[0]}" for r in rows]) if rows else "No active tasks."
+    #     logfire.debug("todos_retrieved", count=len(rows))
+    #     return result
 
-    @logfire.instrument("add_fact")
-    def add_fact(self, content: str) -> None:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO facts (content) VALUES (?)", [content])
-        conn.commit()
-        conn.close()
-        logfire.info("fact_added", content_length=len(content))
+    # @logfire.instrument
+    # def add_fact(self, content: str) -> None:
+    #     conn = self._get_connection()
+    #     cursor = conn.cursor()
+    #     cursor.execute("INSERT INTO facts (content) VALUES (?)", [content])
+    #     conn.commit()
+    #     conn.close()
+    #     logfire.info("fact_added", content_length=len(content))
 
-    @logfire.instrument("get_facts")
-    def get_facts(self) -> str:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT content FROM facts ORDER BY created_at DESC LIMIT 5")
-        rows = cursor.fetchall()
-        conn.close()
-        result = "\n".join([f"- {r[0]}" for r in rows]) if rows else "No facts recorded yet."
-        logfire.debug("facts_retrieved", count=len(rows))
-        return result
+    # @logfire.instrument
+    # def get_facts(self) -> str:
+    #     conn = self._get_connection()
+    #     cursor = conn.cursor()
+    #     cursor.execute("SELECT content FROM facts ORDER BY created_at DESC LIMIT 5")
+    #     rows = cursor.fetchall()
+    #     conn.close()
+    #     result = "\n".join([f"- {r[0]}" for r in rows]) if rows else "No facts recorded yet."
+    #     logfire.debug("facts_retrieved", count=len(rows))
+    #     return result
 
-    @logfire.instrument("save_message_history")
+    @logfire.instrument
     def save_message_history(self, channel_id: int, messages: list[ModelMessage]) -> None:
         """Save message history for a channel."""
         # Serialize messages to JSON using ModelMessagesTypeAdapter
@@ -108,7 +106,7 @@ class Persistence:
         conn.close()
         logfire.info("message_history_saved", channel_id=channel_id, count=len(messages))
 
-    @logfire.instrument("load_message_history")
+    @logfire.instrument
     def load_message_history(self, channel_id: int) -> list[ModelMessage]:
         """Load message history for a channel."""
         conn = self._get_connection()
@@ -132,7 +130,7 @@ class Persistence:
             logfire.error("message_history_load_error", error=str(e))
             return []
 
-    @logfire.instrument("compact_history")
+    @logfire.instrument
     def compact_history(self, channel_id: int, max_messages: int = 10) -> list[ModelMessage]:
         """Compact message history by keeping only the most recent messages."""
         messages = self.load_message_history(channel_id)
