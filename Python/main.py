@@ -11,8 +11,8 @@ print(os.environ)
 os.chdir(os.path.dirname(__file__))
 
 dotenv.load_dotenv('data/.env')
-# dotenv.load_dotenv('../AutoDeploy/.env')
-# dotenv.load_dotenv()
+dotenv.load_dotenv('../AutoDeploy/.env')
+dotenv.load_dotenv()
 
 import utils.bot as bot_utils
 import utils.database as db_utils
