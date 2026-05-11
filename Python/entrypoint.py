@@ -3,7 +3,11 @@ import os
 import http.client
 import logfire
 import traceback
+import dotenv
 
+dotenv.load_dotenv('data/.env')
+dotenv.load_dotenv('../AutoDeploy/.env')
+dotenv.load_dotenv()
 
 logfire.configure(token='pylf_v1_eu_mNQFSx13Z0SFKvkzMPHpjYGzLcTD2Gf8JNyhzV6ZDqF1',
                   scrubbing=False)
