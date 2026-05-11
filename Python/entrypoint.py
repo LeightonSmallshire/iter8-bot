@@ -6,14 +6,13 @@ import traceback
 
 
 logfire.configure(token='pylf_v1_eu_mNQFSx13Z0SFKvkzMPHpjYGzLcTD2Gf8JNyhzV6ZDqF1')
-logfire.info('Starting 3')
 
-with logfire.span('running'):
+with logfire.span('Running'):
     try:
         assert __name__ == "__main__", 'Must be run directly'
 
-        DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBOOK_ID']
-        DISCORD_WEBOOK_TOKEN = os.environ['DISCORD_WEBOOK_TOKEN']
+        DISCORD_WEBOOK_ID = os.environ['DISCORD_WEBHOOK_ID']
+        DISCORD_WEBOOK_TOKEN = os.environ['DISCORD_WEBHOOK_TOKEN']
 
         def do_hook(message: str):
             for i in range(0, len(message), 1900):
