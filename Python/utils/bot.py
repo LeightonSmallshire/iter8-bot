@@ -6,11 +6,6 @@ import asyncio
 import datetime
 import secrets
 from .model import User
-import dotenv
-
-dotenv.load_dotenv('data/.env')
-dotenv.load_dotenv('../AutoDeploy/.env')
-dotenv.load_dotenv()
 
 
 IS_LIVE = os.environ['MODE'] == 'Live'

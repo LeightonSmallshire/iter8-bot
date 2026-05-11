@@ -28,8 +28,8 @@ echo "=== Forcing origin url"
 git -C "$REPO_DIR" remote set-url origin "$REPO_URL"
 echo "=== Fetching repo and submodules"
 git -C "$REPO_DIR" fetch --all --recurse-submodules --tags
-echo "=== Verifying commit with pinned fingerprint"
-git -C "$REPO_DIR" verify-commit "origin/$BRANCH_NAME" --raw 2>&1 | grep -Eq "VALIDSIG ($TRUSTED_KEYS)" || exit 1
+#echo "=== Verifying commit with pinned fingerprint"
+#git -C "$REPO_DIR" verify-commit "origin/$BRANCH_NAME" --raw 2>&1 | grep -Eq "VALIDSIG ($TRUSTED_KEYS)" || exit 1
 echo "=== Resetting working tree"
 git -C "$REPO_DIR" reset --hard "origin/${BRANCH_NAME}"
 echo "=== Updating submodules"

@@ -1,21 +1,20 @@
 import os
 import dotenv
 import logfire
-import utils.bot as bot_utils
-import utils.database as db_utils
-import utils.stocks.stock_db as stock_utils
 import discord
 import datetime
-
 from discord.ext import commands
 
 dotenv.load_dotenv('data/.env')
 dotenv.load_dotenv('../AutoDeploy/.env')
 dotenv.load_dotenv()
 
-
 # CD to here always
 os.chdir(os.path.dirname(__file__))
+
+import utils.bot as bot_utils
+import utils.database as db_utils
+import utils.stocks.stock_db as stock_utils
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
