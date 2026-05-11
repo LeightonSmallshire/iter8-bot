@@ -16,4 +16,4 @@ ENV PYTHONPATH="/usr/local/lib/python3.11/site-packages"
 COPY --chown=nonroot:nonroot --from=builder ${PYTHONPATH} ${PYTHONPATH}
 COPY . .
 
-ENTRYPOINT ["python3", "/app/main.py"]
+ENTRYPOINT ["python3", "/app/entrypoint.py"]
