@@ -13,3 +13,8 @@ services:
       - iter8-bot-data:/app/data:rw # allow read-write into the bot's volume
 #    ports:
 #      - "8080:8080"
+
+volumes:
+  iter8-bot-data:
+    name: iter8-bot-data
+    external: true
