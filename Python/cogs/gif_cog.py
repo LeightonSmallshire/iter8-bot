@@ -83,6 +83,22 @@ class GifCog(commands.Cog):
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
         await interaction.response.send_message(embed=embed)
 
+        
+
+
+    @app_commands.command(name='pain', description='Pain')
+    @commands.check(bot_utils.is_guild_paradise)
+    async def pain(self, interaction: discord.Interaction):
+        gifs = [
+            "https://c.tenor.com/bn86eRUU0wUAAAAd/tenor.gif",
+            "https://c.tenor.com/yYPwECdUVdwAAAAd/tenor.gif",
+        ] 
+
+        embed = discord.Embed(title="Pain")
+        embed.set_image(url=random.choice(gifs))
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        await interaction.response.send_message(embed=embed)
+
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
