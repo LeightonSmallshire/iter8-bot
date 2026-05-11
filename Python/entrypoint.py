@@ -5,7 +5,8 @@ import logfire
 import traceback
 
 
-logfire.configure(token='pylf_v1_eu_mNQFSx13Z0SFKvkzMPHpjYGzLcTD2Gf8JNyhzV6ZDqF1')
+logfire.configure(token='pylf_v1_eu_mNQFSx13Z0SFKvkzMPHpjYGzLcTD2Gf8JNyhzV6ZDqF1',
+                  scrubbing=False)
 
 with logfire.span('Running'):
     try:
