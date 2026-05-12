@@ -12,7 +12,7 @@ import discord
 import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
-from mem0 import MemoryClient
+# from mem0 import MemoryClient
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
 

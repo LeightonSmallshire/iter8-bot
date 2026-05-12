@@ -1,18 +1,9 @@
-import os
-import dotenv
-import logfire
-import discord
 import datetime
+import os
+
+import discord
+import logfire
 from discord.ext import commands
-
-print(os.environ)
-
-# CD to here always
-os.chdir(os.path.dirname(__file__))
-
-dotenv.load_dotenv('data/.env')
-dotenv.load_dotenv('../AutoDeploy/.env')
-dotenv.load_dotenv()
 
 import utils.bot as bot_utils
 import utils.database as db_utils
@@ -162,8 +153,11 @@ def read_git_head():
         return head, None
 
 
-# --- Main Execution ---
-logfire.info(f'Starting Discord Bot... {read_git_head()}')
+def main():
+    logfire.info(f'Starting Discord Bot... {read_git_head()}')
+    bot = HotReloadBot()
+    bot.run(DISCORD_TOKEN)
 
-bot = HotReloadBot()
-bot.run(DISCORD_TOKEN)
+
+if __name__ == '__main__':
+    main()
