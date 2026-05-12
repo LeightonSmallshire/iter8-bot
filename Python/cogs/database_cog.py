@@ -1,15 +1,14 @@
-import operator
+
+import io
+from collections.abc import Iterable
 
 import discord
-from discord.ext import commands
+import logfire
 from discord import app_commands
-import traceback
-import io
-import datetime
+from discord.ext import commands
+
 import utils.bot as bot_utils
 import utils.database as db_utils
-from typing import Iterable
-import logfire
 
 _log = logfire
 
@@ -23,7 +22,6 @@ def _format_rows(headers: list[str], rows: Iterable[tuple]) -> str:
     lines = [fmt(cols[0]), sep] + [fmt(r) for r in cols[1:]]
     return "```\n" + "\n".join(lines) + "\n```"
 
-    
 
 class DatabaseCog(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -56,9 +54,8 @@ class DatabaseCog(commands.Cog):
         if len(text) <= 1900:
             await interaction.followup.send(text, ephemeral=True)
         else:
-            buf = io.StringIO(text.strip("`"))
-            file = discord.File(fp=io.BytesIO(buf.getvalue().encode("utf-8")), filename="results.txt")
-            await interaction.followup.send(file=file, ephemeral=True)
+            discord_file = discord.File(fp=io.BytesIO(text.strip("`").encode("utf-8")), filename="results.txt")
+            await interaction.followup.send(file=discord_file, ephemeral=True)
 
     @app_commands.command(name="sqlfile", description="SQL database operations")
     async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment):
@@ -85,9 +82,9 @@ class DatabaseCog(commands.Cog):
         if len(text) <= 1900:
             await interaction.followup.send(text, ephemeral=True)
         else:
-            buf = io.StringIO(text.strip("`"))
-            file = discord.File(fp=io.BytesIO(buf.getvalue().encode("utf-8")), filename="results.txt")
-            await interaction.followup.send(file=file, ephemeral=True)
+            discord_file = discord.File(fp=io.BytesIO(text.strip("`").encode("utf-8")), filename="results.txt")
+            await interaction.followup.send(file=discord_file, ephemeral=True)
+
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
@@ -98,7 +95,7 @@ class DatabaseCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

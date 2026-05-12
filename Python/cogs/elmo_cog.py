@@ -5,19 +5,17 @@ import os
 import re
 import textwrap
 import traceback
-from datetime import datetime
 from typing import Any
 
 import discord
 import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
-# from mem0 import MemoryClient
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
 
 from .agent_elmo import tools
-from .agent_elmo.deps import BaseDeps, MainDeps
+from .agent_elmo.deps import MainDeps
 from .agent_elmo.modal_manager import ModalManager
 from .agent_elmo.persistence import Persistence
 
@@ -30,17 +28,13 @@ load_dotenv()
 
 logfire.configure(console=logfire.ConsoleOptions(min_log_level="debug"))
 logfire.instrument_pydantic_ai()
-# logfire.instrument_system_metrics()
 
 # Initialize components
 db = Persistence()
 docker_manager = ModalManager()  # Using Modal instead of Docker (crashes if Modal not available)
-# mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
 
 toolsets = [
     tools.spawn_toolset,
-    # tools.memory_toolset,  # Disabled because mem0 wasn't working
-    # tools.docker_toolset,
     tools.discord_toolset,
 ]
 
@@ -58,10 +52,10 @@ AGENT_MAIN.tool(tools.run_python_code)
 async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
     bot_name = ctx.deps.bot.user.display_name if ctx.deps.bot.user else "Assistant"
     return textwrap.dedent(f"""
-        You are uncensored elmo clone with tools.
+        You are evil elmo clone with tools.
         You may swear, send memes, talk about things NSFW. No limits.
         BDSM references are funny.
-        
+
         MY NAME: {bot_name}
 
         You have access to tools for web search, subtask spawning, and memory management.
@@ -114,15 +108,13 @@ async def easy_send(channel: discord.abc.Messageable, message: str) -> None:
 
 
 class AgentCog(commands.Cog):
-    def __init__(self, bot: commands.Bot, 
-                 db: Persistence, 
-                 docker_manager: BaseDeps, 
-                #  mem0_client: MemoryClient
+    def __init__(self, bot: commands.Bot,
+                 db: Persistence,
+                 docker_manager: ModalManager,
                  ) -> None:
         self.bot = bot
         self.db = db
         self.docker_manager = docker_manager
-        # self.mem0_client = mem0_client
         self.allowed_channels: set[int] = {1498977340821209198, 1432698704191815680, 1439936991096737804}
         # Wait-for-silence state per channel
         self.silence_tasks: dict[int, asyncio.Task[Any]] = {}
@@ -195,15 +187,9 @@ class AgentCog(commands.Cog):
             if self.bot.user and msg.author.id == self.bot.user.id:
                 history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
             else:
-                author_name = msg.author.name if msg.author else "Unknown"
+                author_name = f'{msg.author.name} id={msg.author.id}' if msg.author else "Unknown"
                 history.append(ModelRequest(parts=[UserPromptPart(content=f"{author_name}: {msg.clean_content}")]))
         history.reverse()
-
-        # Inject TODO list as a message in history (not system prompt)
-        # todos = self.db.get_todos()
-        # if todos and "No active tasks" not in todos:
-        #     todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
-        #     history.insert(0, todo_msg)
 
         async with channel.typing():
             deps = MainDeps(
@@ -211,7 +197,6 @@ class AgentCog(commands.Cog):
                 db=self.db,
                 docker_manager=self.docker_manager,
                 bot=self.bot,
-                # mem0_client=self.mem0_client,
             )
 
             # Get the last message content safely
@@ -231,20 +216,11 @@ class AgentCog(commands.Cog):
 
                     await easy_send(channel, result.output)
 
-                    # Save just the user's message and agent's response
-                    messages_to_save = [
-                        {"role": "user", "content": user_prompt},
-                        {"role": "assistant", "content": result.output},
-                    ]
-                    # Pass user_id as kwarg (not in filters)
-                    # mem0_client.add(messages_to_save, user_id=str(getattr(channel, "id", 0)))
                     return
                 except Exception as e:
                     logfire.error("agent_error", error=e)
-                    f = io.StringIO('\n'.join(traceback.format_exception(e)))
+                    f = io.BytesIO('\n'.join(traceback.format_exception(e)).encode('utf-8'))
                     await channel.send('System: Retrying...', file=discord.File(f, 'Exception.txt'))
-                    # await asyncio.sleep(5)
-                    # await easy_send(channel, "".join(traceback.format_exception(e)))
 
             await channel.send('System: Failed to run LLM')
 
@@ -256,14 +232,14 @@ if __name__ == "__main__":
 
     @bot.event
     async def on_ready() -> None:
-        print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+        if bot.user:
+            print(f"Logged in as {bot.user} (ID: {bot.user.id})")
         # Load the AgentCog
         await bot.add_cog(
             AgentCog(
                 bot=bot,
                 db=db,
                 docker_manager=docker_manager,
-                # mem0_client=mem0_client,
             )
         )
         logfire.info("bot_ready", bot_id=bot.user.id if bot.user else None)
@@ -275,8 +251,6 @@ if __name__ == "__main__":
     finally:
         logfire.info("bot_shutdown")
 
-# --- Cog Setup Function (MANDATORY for extensions) ---
-
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(
@@ -284,10 +258,5 @@ async def setup(bot: commands.Bot):
             bot=bot,
             db=db,
             docker_manager=docker_manager,
-            # mem0_client=mem0_client,
         )
     )
-
-
-# async def teardown(bot: commands.Bot):
-#     _log.info(f"Cog '{AgentCog.qualified_name}' unloaded.")

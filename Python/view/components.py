@@ -1,8 +1,11 @@
-import discord
-import discord.ui
 import re
 from io import BytesIO
+from typing import Any
+
+import discord
+import discord.ui
 from PIL import Image
+
 
 class UserSelect(discord.ui.UserSelect):
     def __init__(self):
@@ -10,15 +13,24 @@ class UserSelect(discord.ui.UserSelect):
 
     async def callback(self, interaction: discord.Interaction):
         user = self.values[0]
-        if user.bot or user.id == interaction.guild.owner_id or user.id == interaction.user.id:
+        guild = interaction.guild
+        if guild is None:
+            await interaction.response.send_message("Not available outside a server.", ephemeral=True)
+            return
+        if user.bot or user.id == guild.owner_id or user.id == interaction.user.id:
             await interaction.response.send_message("Invalid selection.", ephemeral=True)
             return
 
-        context = self.view.context
-        context["user"] = self.values[0].id
+        view = self.view
+        if not isinstance(view, discord.ui.View):
+            return
+        ctx: Any = getattr(view, 'context', None)
+        if ctx is None:
+            return
+        ctx["user"] = self.values[0].id
         await interaction.response.defer()
 
-        
+
 class DurationSelect(discord.ui.Select):
     def __init__(self):
         options = [
@@ -28,8 +40,13 @@ class DurationSelect(discord.ui.Select):
         super().__init__(placeholder="Choose duration", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        context = self.view.context
-        context["duration"] = int(self.values[0])
+        view = self.view
+        if not isinstance(view, discord.ui.View):
+            return
+        ctx: Any = getattr(view, 'context', None)
+        if ctx is None:
+            return
+        ctx["duration"] = int(self.values[0])
         await interaction.response.defer()
 
 
@@ -49,7 +66,7 @@ class ColourSelect(discord.ui.Button):
 
             async def make_color_emoji(self, guild: discord.Guild, hex_code: str) -> discord.Emoji:
                 # hex like "#3A7BD5"
-                rgb = tuple(int(hex_code[i:i+2], 16) for i in (1,3,5))
+                rgb = tuple(int(hex_code[i:i+2], 16) for i in (1, 3, 5))
                 im = Image.new("RGB", (128, 128), rgb)
 
                 buf = BytesIO()
@@ -58,7 +75,7 @@ class ColourSelect(discord.ui.Button):
 
                 image = buf.read()
 
-                return await guild.create_custom_emoji(name=f"col_{hex_code.lstrip('#')}", image=image) 
+                return await guild.create_custom_emoji(name=f"col_{hex_code.lstrip('#')}", image=image)
 
             async def on_submit(self, interaction: discord.Interaction):
                 val = self.colour_input.value.strip()
@@ -68,15 +85,25 @@ class ColourSelect(discord.ui.Button):
                         ephemeral=True
                     )
                     return
-                self.parent.view.context["colour"] = self.colour_input.value
+                guild = interaction.guild
+                if guild is None:
+                    await interaction.response.send_message("Not available outside a server.", ephemeral=True)
+                    return
+                parent_view = self.parent.view
+                if not isinstance(parent_view, discord.ui.View):
+                    return
+                ctx: Any = getattr(parent_view, 'context', None)
+                if ctx is None:
+                    return
+                ctx["colour"] = self.colour_input.value
 
-                emoji = await self.make_color_emoji(interaction.guild, self.colour_input.value)
+                emoji = await self.make_color_emoji(guild, self.colour_input.value)
 
                 self.parent.label = self.colour_input.value
                 self.parent.emoji = emoji
 
                 await interaction.response.edit_message(view=self.parent.view)
-                await interaction.guild.delete_emoji(emoji)
+                await guild.delete_emoji(emoji)
 
         await interaction.response.send_modal(ColourModal(self))
 
@@ -93,11 +120,17 @@ class TextSelect(discord.ui.Button):
             def __init__(self, select: TextSelect):
                 self.parent = select
                 super().__init__(title=select.title)
-                self.text_input = discord.ui.TextInput(label=select.label, placeholder=select.placeholder)
+                self.text_input: discord.ui.TextInput = discord.ui.TextInput(label=select.label, placeholder=select.placeholder)
                 self.add_item(self.text_input)
 
             async def on_submit(self, interaction: discord.Interaction):
-                self.parent.view.context["text"] = self.text_input.value
+                parent_view = self.parent.view
+                if not isinstance(parent_view, discord.ui.View):
+                    return
+                ctx: Any = getattr(parent_view, 'context', None)
+                if ctx is None:
+                    return
+                ctx["text"] = self.text_input.value
                 self.parent.label = self.text_input.value
                 await interaction.response.edit_message(view=self.parent.view)
         await interaction.response.send_modal(TextModal(self))

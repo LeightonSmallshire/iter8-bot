@@ -314,6 +314,7 @@ async def batch_yes_no(ctx: RunContext[MainDeps], question: str, items: list[str
     for item in items:
         try:
             formatted_question = question.replace("{item}", item)
+            assert AGENT_YES_NO is not None
             result = await AGENT_YES_NO.run(formatted_question, deps=yes_no_deps)
             answer = "yes" if result.output.answer else "no"
             results.append(f"{item}: {answer}")
@@ -339,7 +340,6 @@ async def remember(ctx: RunContext[MainDeps], content: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        # Pass user_id as kwarg (not in filters)
         ctx.deps.mem0_client.add(content, user_id=str(ctx.deps.channel_id))
         return f"Remembered: {content}"
     except Exception as e:
@@ -352,7 +352,6 @@ async def recall(ctx: RunContext[MainDeps], query: str) -> str:
     if not ctx.deps.mem0_client:
         return "Error: mem0 not configured. Set MEM0_API_KEY environment variable."
     try:
-        # search() requires user_id inside filters dict
         results = ctx.deps.mem0_client.search(query, filters={"user_id": str(ctx.deps.channel_id)})
         if not results:
             return f"No memories found for: {query}"
@@ -444,11 +443,11 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
 
     try:
         url = "https://tenor.googleapis.com/v2/search"
-        params = {
+        params: dict[str, str] = {
             "q": query,
             "key": TENOR_KEY,
             "media_filter": "gif,mediumgif",
-            "limit": 10,
+            "limit": "10",
         }
 
         async with aiohttp.ClientSession() as s, s.get(url, params=params) as r:
@@ -480,7 +479,8 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
         embed = discord.Embed()
         embed.set_image(url=gif_url)
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
-        await channel.send(embed=embed)
+        if isinstance(channel, discord.abc.Messageable):
+            await channel.send(embed=embed)
         return f"Sent GIF for: {query}"
 
     except Exception as e:
@@ -489,7 +489,10 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
 
 
 @logfire.instrument(None, record_return=True)
-async def timeout_user(ctx: RunContext[MainDeps], user_id: int, duration_seconds: int = 60) -> str:
+async def timeout_user(ctx: RunContext[MainDeps],
+                       user_id: int,
+                       reason: str,
+                       duration_seconds: int = 60) -> str:
     """Timeout (mute) a user in the guild for a specified duration.
     You should ask for a reason before doing this.
 
@@ -523,7 +526,7 @@ async def timeout_user(ctx: RunContext[MainDeps], user_id: int, duration_seconds
         until = datetime.now(UTC) + timedelta(seconds=duration_seconds)
 
         # Apply timeout
-        await member.timeout(until, reason=f"Timeout requested by bot agent (user_id: {user_id})")
+        await member.timeout(until, reason=f"[bot] {reason}")
         return f"User {member.name} (ID: {user_id}) timed out for {duration_seconds} seconds."
 
     except discord.Forbidden:

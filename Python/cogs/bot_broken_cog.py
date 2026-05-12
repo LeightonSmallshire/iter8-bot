@@ -1,14 +1,11 @@
-import operator
+
 
 import discord
-from discord.ext import commands
-from discord import app_commands
-import traceback
-import sys
-import datetime
-import utils.bot as bot_utils
-from typing import Optional
 import logfire
+from discord import app_commands
+from discord.ext import commands
+
+import utils.bot as bot_utils
 
 _log = logfire
 
@@ -23,7 +20,7 @@ class BotBrokenCog(commands.Cog):
 
     @app_commands.command(name='broken', description='Bot is broken')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_broken(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+    async def command_bot_broken(self, interaction: discord.Interaction, user: discord.User | None = None):
         user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
@@ -31,12 +28,13 @@ class BotBrokenCog(commands.Cog):
         message = f"<@{user_target}> bot broken"
         channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
         await interaction.response.defer(ephemeral=True, thinking=True)
-        await channel.send(message)
+        if isinstance(channel, discord.abc.Messageable):
+            await channel.send(message)
         await interaction.delete_original_response()
 
     @app_commands.command(name='working', description='Bot is working')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_working(self, interaction: discord.Interaction, user: Optional[discord.User] = None):
+    async def command_bot_working(self, interaction: discord.Interaction, user: discord.User | None = None):
         user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
@@ -44,7 +42,8 @@ class BotBrokenCog(commands.Cog):
         message = f"<@{user_target}> bot working"
         channel = interaction.client.get_channel(bot_utils.Channels.ParadiseBotBrokenSpam)
         await interaction.response.defer(ephemeral=True, thinking=True)
-        await channel.send(message)
+        if isinstance(channel, discord.abc.Messageable):
+            await channel.send(message)
         await interaction.delete_original_response()
 
     @commands.Cog.listener()
@@ -66,7 +65,7 @@ class BotBrokenCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

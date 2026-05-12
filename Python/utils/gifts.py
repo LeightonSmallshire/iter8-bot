@@ -1,12 +1,10 @@
+from .database import DATABASE_NAME, Database, WhereParam
 from .model import Gift
-from .database import * 
 
-#-----------------------------------------------------------------
-#   Gifts
 
-async def add_gift(gifter: int, receiver: int, value: int):
+async def add_gift(gifter: int, receiver: int, value: int) -> None:
     async with Database(DATABASE_NAME) as db:
-        await db.insert(Gift(None, value, gifter, receiver))
+        await db.insert(Gift(amount=value, giver=gifter, receiver=receiver))
 
 
 async def did_gift(gifter: int, receiver: int, value: int) -> bool:

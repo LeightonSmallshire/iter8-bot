@@ -5,12 +5,8 @@ Free tier: $30/mo recurring credits.
 
 Interface matches DockerManager for drop-in replacement.
 """
-import fnmatch
-import os
-import re
 import shlex
 from dataclasses import dataclass
-from typing import Any
 
 import logfire
 
@@ -44,8 +40,9 @@ class ModalManager:
 
     def __init__(self, base_volume_name: str = "iter8-bot-workspaces"):
         self.base_volume_name: str = base_volume_name
-        self.sandboxes: dict[int, modal.Sandbox] = {}  # channel_id -> sandbox
-        self._app = None
+        self.sandboxes: dict[int, modal.Sandbox] = {}
+        self._app: modal.App | None = None
+        self.client: bool = True
 
         # Security: Command denylist - dangerous commands that should never execute
         self.denied_commands: frozenset[str] = frozenset(
@@ -127,7 +124,6 @@ class ModalManager:
             ExecResult with exit_code and output
         """
         # Security: Check for denied commands
-        cmd_lower = cmd.lower().strip()
         cmd_parts = shlex.split(cmd) if cmd else []
         if cmd_parts:
             base_cmd = cmd_parts[0].split("/")[-1]  # Handle /usr/bin/rm style
@@ -254,6 +250,29 @@ class ModalManager:
             return f"Error: Failed to delete: {result.output}"
         logfire.info("modal_delete_success", path=path)
         return f"Path deleted: {path}"
+
+    @logfire.instrument
+    def edit_file(self, path: str, old_text: str, new_text: str, channel_id: int = 0, occurrence: int = 1) -> str:
+        """Edit a file by replacing old_text with new_text. occurrence=1 for first, -1 for all."""
+        import base64
+        path_b64 = base64.b64encode(path.encode()).decode()
+        old_b64 = base64.b64encode(old_text.encode()).decode()
+        new_b64 = base64.b64encode(new_text.encode()).decode()
+        py = (
+            f'import base64,pathlib;'
+            f'p=pathlib.Path(base64.b64decode("{path_b64}").decode());'
+            f'c=p.read_text();'
+            f'o=base64.b64decode("{old_b64}").decode();'
+            f'n=base64.b64decode("{new_b64}").decode();'
+            f'k={occurrence};'
+            f'c=c.replace(o,n,k if k!=-1 else c.count(o));'
+            f'p.write_text(c)'
+        )
+        result = self.exec_command(f"python3 -c '{py}'", channel_id=channel_id, timeout=10)
+        if result.exit_code != 0:
+            return f"Error: Failed to edit file: {result.output}"
+        logfire.info("modal_edit_file_success", path=path)
+        return f"File edited: {path}"
 
     @logfire.instrument
     def stop(self, channel_id: int | None = None) -> None:

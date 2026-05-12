@@ -154,7 +154,7 @@ class DockerManager:
 
             container = self.ensure_container(channel_id)
             try:
-                exit_code, output = container.exec_run(cmd, workdir="/workspace", timeout=timeout)
+                exit_code, output = container.exec_run(cmd, workdir="/workspace")
                 decoded_output: str = (
                     output.decode("utf-8", errors="ignore") if isinstance(output, bytes) else str(output)
                 )

@@ -1,13 +1,16 @@
-from .database import *
+from .database import DATABASE_NAME, Database, OrderParam, WhereParam
+from .model import User
+
 
 async def get_timeout_leaderboard() -> list[User]:
     async with Database(DATABASE_NAME) as db:
         return await db.select(User, order=[OrderParam("count", True), OrderParam("duration", True)])
 
-async def update_timeout_leaderboard(user: int, duration: float):   
+
+async def update_timeout_leaderboard(user: int, duration: float):
     async with Database(DATABASE_NAME) as db:
         timeouts_for_user = await db.select(User, where=[WhereParam("id", user)])
-        if (len(timeouts_for_user) > 0):
+        if len(timeouts_for_user) > 0:
             timeout = timeouts_for_user[0]
             timeout.count += 1 if duration > 0 else 0
             timeout.duration += duration
@@ -19,4 +22,4 @@ async def update_timeout_leaderboard(user: int, duration: float):
 
 async def erase_timeout_user(user: int):
     async with Database(DATABASE_NAME) as db:
-        await db.delete(User, [WhereParam("id", user), ])
+        await db.delete(User, [WhereParam("id", user)])

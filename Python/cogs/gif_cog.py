@@ -1,14 +1,14 @@
-import operator
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-import aiohttp
 import os
 import random
-import utils.bot as bot_utils
-from typing import Optional
+
+import aiohttp
+import discord
 import logfire
+from discord import app_commands
+from discord.ext import commands
+
+import utils.bot as bot_utils
 
 _log = logfire
 
@@ -22,15 +22,14 @@ class GifCog(commands.Cog):
 
     async def find_best_gif(self, query: str, count: int) -> str | None:
         url = "https://tenor.googleapis.com/v2/search"
-        params = {
+        params: dict[str, str] = {
             "q": query,
             "key": TENOR_KEY,
-            "media_filter": "gif,mediumgif",  # keep payload small
-            "limit": count,
+            "media_filter": "gif,mediumgif",
+            "limit": str(count),
         }
-        async with aiohttp.ClientSession() as s:
-            async with s.get(url, params=params) as r:
-                data = await r.json()
+        async with aiohttp.ClientSession() as s, s.get(url, params=params) as r:
+            data = await r.json()
 
         results = data.get("results", [])
         if not results:
@@ -50,7 +49,7 @@ class GifCog(commands.Cog):
         if not candidates:
             return None
         return random.choice(candidates)
-        
+
     # --- Slash Command ---
 
     @app_commands.command(name='riot', description='RIOT!')
@@ -60,7 +59,7 @@ class GifCog(commands.Cog):
 
         embed = discord.Embed(title="RIOT!")
         embed.set_image(url=url)
-        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await interaction.response.send_message(embed=embed)
 
 
@@ -71,7 +70,7 @@ class GifCog(commands.Cog):
 
         embed = discord.Embed(title="Fuiyooh!")
         embed.set_image(url=url)
-        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await interaction.response.send_message(embed=embed)
 
 
@@ -80,10 +79,8 @@ class GifCog(commands.Cog):
     async def bin(self, interaction: discord.Interaction):
         embed = discord.Embed(title="Get in the bin")
         embed.set_image(url="https://c.tenor.com/5oer_C4ZVCsAAAAd/tenor.gif")
-        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await interaction.response.send_message(embed=embed)
-
-        
 
 
     @app_commands.command(name='pain', description='Pain')
@@ -92,11 +89,11 @@ class GifCog(commands.Cog):
         gifs = [
             "https://c.tenor.com/bn86eRUU0wUAAAAd/tenor.gif",
             "https://c.tenor.com/yYPwECdUVdwAAAAd/tenor.gif",
-        ] 
+        ]
 
         embed = discord.Embed(title="Pain")
         embed.set_image(url=random.choice(gifs))
-        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await interaction.response.send_message(embed=embed)
 
 
@@ -109,7 +106,7 @@ class GifCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -126,7 +123,3 @@ class GifCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(GifCog(bot))
-
-
-# async def teardown(bot: commands.Bot):
-#     _log.info(f"Cog '{BotBrokenCog.qualified_name}' unloaded.")

@@ -41,13 +41,15 @@ class Users:
         return list(dict.fromkeys(ids))
 
     @staticmethod
-    def random(filter: list[int] = []):
+    def random(filter: list[int] | None = None):
+        if filter is None:
+            filter = []
         ids = {v for k, v in vars(Users).items() if isinstance(v, int)}
         for f in filter:
             ids.discard(f)
         if not ids:
             raise ValueError("No users available after exclusion.")
-        return random.choice(list(ids)) 
+        return random.choice(list(ids))
 
 
 class Channels:
@@ -65,13 +67,14 @@ class Roles:
     BullyTarget = 1432752493670170624
 
 
-
 def is_guild_paradise(ctx):
     return ctx.guild and ctx.guild.id == Guilds.Default
 
 
 async def is_user_role(ctx: discord.Interaction, role_id: int):
     guild = ctx.guild
+    if guild is None:
+        return False
     member = guild.get_member(ctx.user.id) or await guild.fetch_member(ctx.user.id)
     role = guild.get_role(role_id) or await guild.fetch_role(role_id)
     return role in member.roles
@@ -82,24 +85,10 @@ def is_trusted_developer(ctx: discord.Interaction):
 
 
 def get_non_bot_users(ctx: discord.Interaction) -> list[int]:
-    return [x.id for x in ctx.guild.members if not x.bot and x.id != ctx.guild.owner_id]
-
-# async def send_dm_to_user(bot, user_id, message):
-#     try:
-#         # Use fetch_user to get the user object from Discord API
-#         user = await bot.fetch_user(user_id)
-
-#         if user:
-#             # Create a DM channel and send the message
-#             await user.send(message)
-#             print(f"Successfully sent DM to {user.name} ({user_id})")
-#         else:
-#             print(f"Could not find user with ID: {user_id}")
-
-#     except discord.errors.NotFound:
-#         print(f"User with ID {user_id} not found on Discord.")
-#     except Exception as e:
-#         print(f"An error occurred while sending DM: {e}")
+    guild = ctx.guild
+    if guild is None:
+        return []
+    return [x.id for x in guild.members if not x.bot and x.id != guild.owner_id]
 
 
 async def send_message(bot, user_id, message):
@@ -129,30 +118,38 @@ def defer_message(bot, user_id, message):
 def make_emoji_number(num: int):
     return "".join([f":number_{d}:" for d in str(num)])
 
+
 async def on_new_admin(interaction: discord.Interaction, new_admin: int):
-    new_admin_user = interaction.guild.get_member(new_admin) or await interaction.guild.fetch_member(new_admin)
+    guild = interaction.guild
+    if guild is None:
+        return
+    new_admin_user = guild.get_member(new_admin) or await guild.fetch_member(new_admin)
     if new_admin_user.is_timed_out():
         await new_admin_user.timeout(None)
 
     users = get_non_bot_users(interaction)
     for user_id in users:
-        user = await interaction.guild.fetch_member(user_id)
-        user_role = discord.utils.get(interaction.guild.roles, name=user.name)
+        user = await guild.fetch_member(user_id)
+        user_role = discord.utils.get(guild.roles, name=user.name)
         if user_role:
-            await user_role.edit(permissions=interaction.guild.default_role.permissions)
+            await user_role.edit(permissions=guild.default_role.permissions)
 
-    officers = interaction.guild.get_role(Roles.Officer) or await interaction.guild.fetch_role(Roles.Officer)
+    officers = guild.get_role(Roles.Officer) or await guild.fetch_role(Roles.Officer)
     for officer in officers.members:
         await officer.remove_roles(officers)
 
-    officers = interaction.guild.get_role(Roles.SuperOfficer) or await interaction.guild.fetch_role(Roles.SuperOfficer)
+    officers = guild.get_role(Roles.SuperOfficer) or await guild.fetch_role(Roles.SuperOfficer)
     for officer in officers.members:
         await officer.remove_roles(officers)
 
-async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
-    ROLL_GIF_URL = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
-    role = interaction.guild.get_role(role_id) or await interaction.guild.fetch_role(role_id)
+async def do_role_roll(interaction: discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
+    guild = interaction.guild
+    if guild is None:
+        return 0
+    roll_gif_url = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
+
+    role = guild.get_role(role_id) or await guild.fetch_role(role_id)
 
     for member in role.members:
         await member.remove_roles(role)
@@ -165,40 +162,38 @@ async def do_role_roll(interaction:discord.Interaction, role_id: int, roll_table
             inline=False,
         )
 
-    await interaction.followup.send(content=f"@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
+    await interaction.followup.send(content="@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
 
     if not roll_table:
         await interaction.followup.send(content="There are no users for this roll.")
         return 0
-    
+
     await asyncio.sleep(3)
 
     roll_embed = discord.Embed(title="Rolling...")
-    roll_embed.set_image(url=ROLL_GIF_URL)
+    roll_embed.set_image(url=roll_gif_url)
 
     msg = await interaction.followup.send(embed=roll_embed, wait=True)
 
-    # Sleep for dramatic effect
     await asyncio.sleep(4)
 
     index = secrets.randbelow(len(roll_table))
-    # index = random.randrange(0, len(roll_table))
     await msg.edit(content=f"A {make_emoji_number(index + 1)} was rolled!", embed=None)
     print('Roll Table:', *roll_table, index, sep='\n\t')
 
     await asyncio.sleep(3)
 
     choice = roll_table[index]
-    new_user = await interaction.guild.fetch_member(choice)
+    new_user = await guild.fetch_member(choice)
 
     await new_user.add_roles(role)
 
     prev_user = role.members[0] if len(role.members) > 1 else None
-    message_contents = response[0].format(id, choice) if prev_user else response[1].format(choice)
     message_contents = response[0].format(prev_user.id, choice) if prev_user else response[1].format(choice)
     await msg.edit(content=message_contents)
 
     return new_user.id
+
 
 class DiscordHandler(logging.Handler):
     def __init__(self, bot: discord.Client, user_id, *args, **kwargs):
@@ -211,16 +206,13 @@ class DiscordHandler(logging.Handler):
         self.bot.loop.create_task(self.send_dm(log_entry))
 
     async def send_dm(self, message):
-        # Nothing to see here
         while not self.bot.is_ready():
             await asyncio.sleep(1)
 
         try:
             paradise = discord.utils.get(self.bot.guilds, id=Guilds.Default)
             user = discord.utils.get(paradise.members, id=Users.Leighton)
-            # await leighton.send('setup')
 
-            # user = await self.bot.fetch_user(self.user_id)
             if user and not user.bot:
                 if len(message) > 1950:
                     message = message[:1950] + "\n... (truncated)"
@@ -240,6 +232,8 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
 
     async for entry in guild.audit_logs(limit=None, action=discord.AuditLogAction.member_update):
         member = entry.target
+        if not isinstance(member, discord.Member):
+            continue
 
         if member not in guild.members:
             continue
@@ -249,8 +243,8 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
 
         was_timeout = getattr(entry.changes.before, 'timed_out_until', None)
         now_timeout = getattr(entry.changes.after, 'timed_out_until', None)
-        was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
-        now_timeout = now_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+        was_timeout = was_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.UTC)
+        now_timeout = now_timeout or datetime.datetime(1, 1, 1, tzinfo=datetime.UTC)
 
         b_was_timeout = (was_timeout >= entry.created_at)
         b_now_timeout = (now_timeout >= entry.created_at)
@@ -258,7 +252,7 @@ async def get_timeout_data(guild: discord.Guild | None) -> list[User]:
         timeout_added = not b_was_timeout and b_now_timeout
         timeout_changed = b_was_timeout and b_now_timeout
         timeout_removed = b_was_timeout and not b_now_timeout
-        
+
         moderator = entry.user
         if (timeout_added or timeout_changed) and moderator == guild.owner:
             continue

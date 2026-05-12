@@ -129,7 +129,7 @@ class HotReloadBot(commands.Bot):
     async def _handle_error(self,
                             interaction: discord.Interaction,
                             error: discord.app_commands.AppCommandError):
-        logfire.error(error)
+        logfire.error(str(error))
         try:
             if interaction.response.is_done():
                 await interaction.followup.send(str(error), ephemeral=True)
@@ -143,11 +143,13 @@ def read_git_head():
     if not os.path.isfile('.git/HEAD'):
         return None, None
 
-    head = open('.git/HEAD').read().strip()
+    with open('.git/HEAD') as f:
+        head = f.read().strip()
 
     if head.startswith('ref:'):
         ref = head.split(' ')[1]
-        return head, open(f'.git/{ref}').read().strip()
+        with open(f'.git/{ref}') as f:
+            return head, f.read().strip()
     else:
         # Detached HEAD contains the hash directly
         return head, None

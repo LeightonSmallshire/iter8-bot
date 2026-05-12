@@ -1,6 +1,8 @@
+import asyncio
+
 import utils.database as database
 import utils.model as model
-import asyncio
+
 
 async def migrate():
     async with database.Database(database.DATABASE_NAME) as db:

@@ -1,19 +1,16 @@
+import datetime
 import operator
+from itertools import groupby
 
 import discord
-from discord.ext import commands
+import logfire
 from discord import app_commands
-from itertools import groupby
-import traceback
-import sys
-import datetime
+from discord.ext import commands
+
 import utils.bot as bot_utils
-import utils.database as shop_utils
+import utils.misc
 import utils.shop as shop_utils
 from view.shop_view import ShopView
-from typing import Optional
-import utils.misc
-import logfire
 
 _log = logfire
 
@@ -42,7 +39,7 @@ class ShopCog(commands.Cog):
             embed.add_field(name=f"{category}", value="────────────────────────────────────────────────────────", inline=False)
 
             for item in group:
-                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST 
+                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
 
                 embed.add_field(
                     name=item.DESCRIPTION,
@@ -66,11 +63,12 @@ class ShopCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        users = { user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and not user.id == interaction.guild.owner_id }
-        users = sorted(users.items(), key=operator.itemgetter(1), reverse=True)
+        assert interaction.guild is not None
+        user_credits: dict[discord.Member, float] = {user: await shop_utils.get_shop_credit(user.id) for user in interaction.guild.members if not user.bot and user.id != interaction.guild.owner_id}
+        sorted_users: list[tuple[discord.Member, float]] = sorted(user_credits.items(), key=operator.itemgetter(1), reverse=True)
 
         embed = discord.Embed(title="💵 How much is everyone worth? 💵", color=discord.Color.blue())
-        for (user, credit) in users:
+        for user, credit in sorted_users:
             embed.add_field(
                 name=user.display_name,
                 value=utils.misc.format_timedelta(datetime.timedelta(seconds=round(credit))),
@@ -88,7 +86,7 @@ class ShopCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

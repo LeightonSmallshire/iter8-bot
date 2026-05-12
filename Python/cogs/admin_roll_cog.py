@@ -1,35 +1,35 @@
-import operator
+
+import asyncio
+import random
+from datetime import time, timedelta
+from zoneinfo import ZoneInfo
 
 import discord
-from discord.ext import commands
-from discord import app_commands
-from zoneinfo import ZoneInfo
-from datetime import time, timedelta
-import random, secrets
-import asyncio
-import utils.bot as bot_utils
-import utils.admin_roll as roll_utils
-import utils.gamble as gamble_utils
 import logfire
+from discord import app_commands
+from discord.ext import commands
+
+import utils.admin_roll as roll_utils
+import utils.bot as bot_utils
+import utils.gamble as gamble_utils
 
 _log = logfire
 
 
-
 def is_correct_time(interaction: discord.Interaction) -> bool:
-    UK = ZoneInfo("Europe/London")
+    uk = ZoneInfo("Europe/London")
     dt_utc = interaction.created_at
-    dt_uk = dt_utc.astimezone(UK)
+    dt_uk = dt_utc.astimezone(uk)
 
     return dt_uk.weekday() == 4 and dt_uk.time() >= time(13, 0)
 
 async def is_first_roll(interaction: discord.Interaction) -> bool:
-    UK = ZoneInfo("Europe/London")
+    uk = ZoneInfo("Europe/London")
     dt_utc = interaction.created_at
-    dt_uk = dt_utc.astimezone(UK)
+    dt_uk = dt_utc.astimezone(uk)
 
     timestamps = await roll_utils.get_last_admin_roll()
-    time_passed = (dt_uk - timestamps.last_roll.astimezone(UK)) > timedelta(days=6) if timestamps else True
+    time_passed = (dt_uk - timestamps.last_roll.astimezone(uk)) > timedelta(days=6) if timestamps else True
 
     return time_passed
 
@@ -45,13 +45,13 @@ class AdminRollCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def command_roll_admin(self, interaction: discord.Interaction):
         if not is_correct_time(interaction):
-            await interaction.response.send_message(f"Wait till you've had your samosa!", ephemeral=True)
+            await interaction.response.send_message("Wait till you've had your samosa!", ephemeral=True)
             return
 
         if not await is_first_roll(interaction):
-            await interaction.response.send_message(f"The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
+            await interaction.response.send_message("The dice has already been rolled, respect its result (unless you have a reroll token).", ephemeral=True)
             return
-        
+
         await interaction.response.defer()
 
         await roll_utils.update_last_admin_roll()
@@ -60,27 +60,27 @@ class AdminRollCog(commands.Cog):
         roll_table += await roll_utils.get_extra_admin_rolls(consume=True)
 
         new_admin = await bot_utils.do_role_roll(
-            interaction, 
+            interaction,
             bot_utils.Roles.Admin,
             roll_table,
-            "🎲 Let's roll the dice! 🎲", 
+            "🎲 Let's roll the dice! 🎲",
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
 
         await bot_utils.on_new_admin(interaction, new_admin)
 
         await asyncio.sleep(2)
-        
+
         roll_table = [x for x in bot_utils.get_non_bot_users(interaction) if x != new_admin]
 
         await bot_utils.do_role_roll(
-            interaction, 
+            interaction,
             bot_utils.Roles.BullyTarget,
             roll_table,
-            "🎲 Who's getting bullied? 🎲", 
+            "🎲 Who's getting bullied? 🎲",
             ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!"),
         )
-        
+
         await asyncio.sleep(2)
 
         await self.do_gamble_payout(interaction, bot_utils.Users.Nathan)
@@ -95,7 +95,7 @@ class AdminRollCog(commands.Cog):
 
         target_ids = list(gamble_results.keys())
         weights = [gamble_results[uid]["odds"] for uid in target_ids]
-        
+
         if len(gamble_results) > 0:
             winner = random.choices(target_ids, weights=weights, k = 1)[0]
             result = gamble_results[winner]
@@ -105,8 +105,6 @@ class AdminRollCog(commands.Cog):
                 payout = prize * data["odds"]
                 lines.append(f"<@{user_id}> - {timedelta(seconds=round(payout))}")
                 await gamble_utils.payout_gamble(user_id, payout)
-
-            
 
             gamble_embed = discord.Embed(
                 title="Gambling Winnings 💰",
@@ -127,7 +125,7 @@ class AdminRollCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass

@@ -1,13 +1,13 @@
-import discord
-from discord import app_commands
-import discord.ui
-from typing import Callable
 import datetime
-import utils.database as db_utils
-from utils.model import Purchase
-import utils.shop as shop_utils
 import traceback
+
+import discord
+import discord.ui
 import logfire
+
+import utils.database as db_utils
+import utils.shop as shop_utils
+from utils.model import Purchase
 
 _log = logfire
 
@@ -31,10 +31,12 @@ class ShopOptionsView(discord.ui.View):
             super().__init__(label="Confirm Purchase", style=discord.ButtonStyle.green)
 
         async def callback(self, interaction: discord.Interaction):
-            view: ShopOptionsView = self.view
+            if not isinstance(self.view, ShopOptionsView):
+                return
+            view = self.view
             if interaction.user.id != view.buyer_id:
                 await interaction.response.send_message(
-                    "You can’t confirm someone else’s purchase.", ephemeral=True
+                    "You can't confirm someone else's purchase.", ephemeral=True
                 )
                 return
 
@@ -56,16 +58,16 @@ class ShopOptionsView(discord.ui.View):
 
             sale, _ = await shop_utils.is_ongoing_sale()
             discount = 0.5 if sale else 1
-            
+
             count = duration if duration else 1
             item_cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
-            
-            cost = item_cost * count
+
+            cost = int(item_cost * count)
 
             if await shop_utils.can_afford_purchase(interaction.user.id, cost):
                 db = await db_utils.Database(db_utils.DATABASE_NAME, defer_commit=True).connect()
                 try:
-                    await db.insert(Purchase(None, datetime.datetime.now(), item.ITEM_ID, cost, interaction.user.id, item.AUTO_USE))
+                    await db.insert(Purchase(timestamp=datetime.datetime.now(), item_id=item.ITEM_ID, cost=cost, user_id=interaction.user.id, used=item.AUTO_USE))
                     await view.item.handle_purchase(interaction, view.context)
                     await db.commit()
 
@@ -81,7 +83,7 @@ class ShopOptionsView(discord.ui.View):
 
             else:
                 await interaction.edit_original_response(
-                    view=None, content=f"❌ You can't afford this purchase."
+                    view=None, content="❌ You can't afford this purchase."
                 )
 
 

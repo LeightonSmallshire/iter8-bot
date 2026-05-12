@@ -25,7 +25,7 @@ class BaseDeps:
 class MainDeps(BaseDeps):
     db: Persistence
     bot: commands.Bot
-    # mem0_client: Any  # mem0.MemoryClient - will crash if MEM0_API_KEY missing
+    mem0_client: Any = None  # mem0.MemoryClient - None if MEM0_API_KEY missing
 
 
 @dataclass

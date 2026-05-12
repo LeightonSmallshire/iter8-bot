@@ -1,5 +1,9 @@
-from .database import *
-from .shop import AdminRerollItem, AdminTicketItem
+import datetime
+
+from .database import DATABASE_NAME, Database, WhereParam
+from .model import Purchase
+from .model import Timestamps
+from .shop import AdminRerollItem
 
 
 async def get_extra_admin_rolls(consume: bool) -> list[int]:
@@ -9,14 +13,15 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
     #     if consume:
     #         await db.update(Purchase(None, None, None, True, None ), where=[WhereParam("item_id", AdminTicketItem.ITEM_ID)])
     #
-    #     return [t.user_id for t in bonus_tickets if not t.used]
+    #     return [t for t in bonus_tickets if not t.used]
     return []
-    
 
-async def get_last_admin_roll() -> Optional[Timestamps]:
+
+async def get_last_admin_roll() -> Timestamps | None:
     async with Database(DATABASE_NAME) as db:
         return await db.select(Timestamps)
-    
+
+
 async def update_last_admin_roll():
     async with Database(DATABASE_NAME) as db:
         timestamps = await get_last_admin_roll()
@@ -24,16 +29,16 @@ async def update_last_admin_roll():
             timestamps.last_roll = datetime.datetime.now()
             await db.update(timestamps)
         else:
-            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))    
-    
-async def use_admin_reroll_token(user: int) -> tuple[bool, Optional[str]]:
+            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))
+
+
+async def use_admin_reroll_token(user: int) -> tuple[bool, str | None]:
     async with Database(DATABASE_NAME) as db:
         tokens = await db.select(Purchase, where=[WhereParam("item_id", AdminRerollItem.ITEM_ID), WhereParam("used", False)])
         if not tokens:
             return False, "Naughty naughty, you haven't purchased a reroll token."
-        
-        token = tokens[0]
+
+        _ = tokens[0]
         # await db.update(Purchase(None, None, None, None, True), where=[WhereParam("id", token.id)])
 
         return True, None
-    
