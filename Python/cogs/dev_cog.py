@@ -87,7 +87,7 @@ class DevCog(commands.Cog):
         elif os.path.isfile(path):
             file = discord.File(path)
             return await interaction.response.send_message(file=file, ephemeral=True)
-        
+
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction: discord.Interaction):
@@ -101,7 +101,7 @@ class DevCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def do_show_perms(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        
+
         guild = interaction.guild
         report = f"Permissions Report for {guild.name}\n"
         report += "="*30 + "\n\n"
@@ -131,7 +131,7 @@ class DevCog(commands.Cog):
 
         # Send the file
         await interaction.followup.send(content="Permissions report:", file=file, ephemeral=True)
-        
+
     def get_env(self, uid: int):
         env = self.envs.get(uid)
         if env is None:
@@ -140,7 +140,7 @@ class DevCog(commands.Cog):
             }
             self.envs[uid] = env
         return env
-    
+
     async def eval_code(self, src: str, env: dict[str, object]):
         buf = io.StringIO()
         compiled = compile(src, "<expr>", "eval")
@@ -149,7 +149,7 @@ class DevCog(commands.Cog):
             value = await value
         env["_"] = value
         return repr(value)
-        
+
     async def exec_code(self, src: str, env: dict[str, object]):
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -170,7 +170,7 @@ class DevCog(commands.Cog):
             except TypeError as e:
                 # main() requires args; surface a clear error
                 raise TypeError("Detected main but it requires arguments") from e
-            
+
         if ret:
             return buf.getvalue() + repr(ret)
         else:
@@ -210,10 +210,10 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name="reset_repl", description="Clear your REPL environment.")
     @commands.check(bot_utils.is_guild_paradise)
-    async def reset_env(self, interaction): 
+    async def reset_env(self, interaction):
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message(f'No REPL 4 U')
-        
+
         self.envs.pop(interaction.user.id, None)
         await interaction.response.send_message("Environment cleared.", ephemeral=True)
 
@@ -237,6 +237,29 @@ class DevCog(commands.Cog):
                 await interaction.followup.send(msg, ephemeral=True)
             else:
                 await interaction.response.send_message(msg, ephemeral=True)
+
+    @app_commands.command(name="bash", description="Execute Bash")
+    @commands.check(bot_utils.is_guild_paradise)
+    @app_commands.describe(code="Command to execute")
+    async def command_bash(self, interaction,  code: str):
+        if not bot_utils.is_trusted_developer(interaction):
+            return await interaction.response.send_message('No Bash 4 U')
+
+        await interaction.response.defer(ephemeral=True)
+
+        process = await asyncio.subprocess.create_subprocess_shell(
+            code,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT
+        )
+        stdout, _ = await process.communicate()
+
+        if len(stdout) > 1900:
+            buf = io.StringIO(stdout)
+            file = discord.File(fp=buf, name='stdout.txt')
+            await interaction.followup.send(f'Command exited with code {process.returncode}', ephemeral=True, file=file)
+        else:
+            await interaction.followup.send(f'Command exited with code {process.returncode}\n\n{stdout}', ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
