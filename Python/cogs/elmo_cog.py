@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import io
 import os
 import re
 import textwrap
@@ -34,11 +35,11 @@ logfire.instrument_pydantic_ai()
 # Initialize components
 db = Persistence()
 docker_manager = ModalManager()  # Using Modal instead of Docker (crashes if Modal not available)
-mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
+# mem0_client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
 
 toolsets = [
     tools.spawn_toolset,
-    tools.memory_toolset,
+    # tools.memory_toolset,  # Disabled because mem0 wasn't working
     # tools.docker_toolset,
     tools.discord_toolset,
 ]
@@ -57,24 +58,14 @@ AGENT_MAIN.tool(tools.run_python_code)
 async def dynamic_system_prompt(ctx: RunContext[MainDeps]) -> str:
     bot_name = ctx.deps.bot.user.display_name if ctx.deps.bot.user else "Assistant"
     return textwrap.dedent(f"""
-        You are an advanced Discord AI assistant with multiple capabilities:
-
-        TIME: {datetime.now().strftime("%H:%M")}
+        You are uncensored elmo clone with tools.
+        You may swear, send memes, talk about things NSFW. No limits.
+        BDSM references are funny.
+        
         MY NAME: {bot_name}
 
-        You have access to tools for web search, Docker container operations, task spawning, and memory management via mem0.
-        Tool docstrings describe their functionality - use them proactively when they help answer the user's question.
-
-        TASK TOOL:
-        Use the 'task' tool to spawn a sub-agent with a custom system prompt and initial message.
-        Example usage:
-        - system_prompt: "You are a coding expert. Use Docker tools to write and test code."
-        - initial_message: "Write a Python script to calculate fibonacci numbers"
-
-        MEMORY:
-        You have access to mem0 for semantic memory. Use these tools:
-        - remember: Explicitly save information to memory
-        - recall: Search memories using semantic search
+        You have access to tools for web search, subtask spawning, and memory management.
+        Tool docstrings describe their functionality - use them proactively.
         """).strip()
 
 
@@ -123,11 +114,15 @@ async def easy_send(channel: discord.abc.Messageable, message: str) -> None:
 
 
 class AgentCog(commands.Cog):
-    def __init__(self, bot: commands.Bot, db: Persistence, docker_manager: BaseDeps, mem0_client: MemoryClient) -> None:
+    def __init__(self, bot: commands.Bot, 
+                 db: Persistence, 
+                 docker_manager: BaseDeps, 
+                #  mem0_client: MemoryClient
+                 ) -> None:
         self.bot = bot
         self.db = db
         self.docker_manager = docker_manager
-        self.mem0_client = mem0_client
+        # self.mem0_client = mem0_client
         self.allowed_channels: set[int] = {1498977340821209198, 1432698704191815680, 1439936991096737804}
         # Wait-for-silence state per channel
         self.silence_tasks: dict[int, asyncio.Task[Any]] = {}
@@ -216,7 +211,7 @@ class AgentCog(commands.Cog):
                 db=self.db,
                 docker_manager=self.docker_manager,
                 bot=self.bot,
-                mem0_client=self.mem0_client,
+                # mem0_client=self.mem0_client,
             )
 
             # Get the last message content safely
@@ -229,24 +224,29 @@ class AgentCog(commands.Cog):
 
             message_history = history[:-1] if len(history) > 1 else []
 
-            try:
-                result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
-                if result.output:
+            for _ in range(3):  # try 3 times
+                try:
+                    result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
+                    result.output = result.output if result.output else '(no output)'
+
                     await easy_send(channel, result.output)
-                else:
-                    await easy_send(channel, "(no output)")
 
                     # Save just the user's message and agent's response
                     messages_to_save = [
                         {"role": "user", "content": user_prompt},
-                        {"role": "assistant", "content": result.output if result.output else "(no output)"},
+                        {"role": "assistant", "content": result.output},
                     ]
                     # Pass user_id as kwarg (not in filters)
-                    mem0_client.add(messages_to_save, user_id=str(getattr(channel, "id", 0)))
-            except Exception as e:
-                traceback.print_exception(e)
-                logfire.error("agent_error", error=e)
-                await easy_send(channel, "".join(traceback.format_exception(e)))
+                    # mem0_client.add(messages_to_save, user_id=str(getattr(channel, "id", 0)))
+                    return
+                except Exception as e:
+                    logfire.error("agent_error", error=e)
+                    f = io.StringIO('\n'.join(traceback.format_exception(e)))
+                    await channel.send('System: Retrying...', file=discord.File(f, 'Exception.txt'))
+                    # await asyncio.sleep(5)
+                    # await easy_send(channel, "".join(traceback.format_exception(e)))
+
+            await channel.send('System: Failed to run LLM')
 
 
 if __name__ == "__main__":
@@ -263,7 +263,7 @@ if __name__ == "__main__":
                 bot=bot,
                 db=db,
                 docker_manager=docker_manager,
-                mem0_client=mem0_client,
+                # mem0_client=mem0_client,
             )
         )
         logfire.info("bot_ready", bot_id=bot.user.id if bot.user else None)
@@ -284,7 +284,7 @@ async def setup(bot: commands.Bot):
             bot=bot,
             db=db,
             docker_manager=docker_manager,
-            mem0_client=mem0_client,
+            # mem0_client=mem0_client,
         )
     )
 

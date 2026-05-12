@@ -491,6 +491,7 @@ async def send_gif(ctx: RunContext[MainDeps], query: str) -> str:
 @logfire.instrument(None, record_return=True)
 async def timeout_user(ctx: RunContext[MainDeps], user_id: int, duration_seconds: int = 60) -> str:
     """Timeout (mute) a user in the guild for a specified duration.
+    You should ask for a reason before doing this.
 
     Args:
         user_id: The Discord user ID to timeout
