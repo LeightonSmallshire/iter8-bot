@@ -1,6 +1,7 @@
 import datetime
 import math
 from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 from utils.shop import get_shop_credit
 from utils.stocks.stock_controls import (
@@ -9,8 +10,6 @@ from utils.stocks.stock_controls import (
     update_stock_direction,
     update_stocks_rand,
 )
-
-from typing import cast
 
 from ..database import DATABASE_NAME, Database, WhereParam
 from ..model import Stock, Timestamps, Trade
@@ -44,7 +43,7 @@ async def can_afford_stock(user_id: int, stock_id: str, count: int) -> tuple[boo
             return False, "Can't afford this purchase!"
 
 
-async def do_stock_market_update(db: Database, dt: float, autosell_callback: Callable[[str], Awaitable]) -> float:
+async def do_stock_market_update(db: Database, dt: float, autosell_callback: Callable[[str], Awaitable[Any]]) -> float:
     stocks = await db.select(Stock)
     time_frames = dt / 5.0
     dt = await update_stocks_rand(stocks, time_frames) * 5.0
@@ -72,7 +71,7 @@ async def do_stock_market_directions_update(db: Database, iterations: int) -> No
             await db.update(stock)
 
 
-async def update_market_since_last_action(autosell_callback: Callable[[str], Awaitable]) -> None:
+async def update_market_since_last_action(autosell_callback: Callable[[str], Awaitable[Any]]) -> None:
     async with Database(DATABASE_NAME) as db:
         timestamps = await db.select(Timestamps)
 

@@ -20,7 +20,7 @@ class BotBrokenCog(commands.Cog):
 
     @app_commands.command(name='broken', description='Bot is broken')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_broken(self, interaction: discord.Interaction, user: discord.User | None = None):
+    async def command_bot_broken(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
         user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
@@ -34,7 +34,7 @@ class BotBrokenCog(commands.Cog):
 
     @app_commands.command(name='working', description='Bot is working')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bot_working(self, interaction: discord.Interaction, user: discord.User | None = None):
+    async def command_bot_working(self, interaction: discord.Interaction, user: discord.User | None = None) -> None:
         user_target = user.id if user is not None else bot_utils.Users.Leighton
 
         _log.info(f"Broken command from {interaction.user.display_name}")
@@ -48,7 +48,7 @@ class BotBrokenCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_message(self, message: discord.Message):
+    async def on_message(self, message: discord.Message) -> None:
         if message.author == self.bot_.user:
             return  # ignore self
         if 'bot broken' in message.content.lower():
@@ -80,7 +80,7 @@ class BotBrokenCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(BotBrokenCog(bot))
 
 

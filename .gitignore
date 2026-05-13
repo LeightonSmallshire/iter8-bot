@@ -1,13 +1,21 @@
+temp/
 .idea/
 .venv/
 .git/
 
 **.env**
-**__pycache__**
-**secret**
+**.pyc**
+**.pyo**
+**.pyd**
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-!stack.env
-
+**.env**
+**.pyc**
+**.pyo**
+**.pyd**
 __pycache__/
 out/
 data/

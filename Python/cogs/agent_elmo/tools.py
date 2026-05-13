@@ -1,6 +1,7 @@
 import asyncio
 import os
 from datetime import UTC
+from typing import Any
 
 import aiohttp
 import logfire
@@ -15,7 +16,7 @@ from .deps import BaseDeps, MainDeps
 _sub_agents = None
 
 
-def _get_sub_agents():
+def _get_sub_agents() -> Any:
     global _sub_agents
     if _sub_agents is None:
         from . import sub_agents
@@ -25,14 +26,14 @@ def _get_sub_agents():
 
 
 # Create yes/no agent lazily (still used by batch_yes_no)
-def _get_agent_yes_no():
+def _get_agent_yes_no() -> Any:
     return _get_sub_agents().create_yes_no_agent()
 
 
 AGENT_YES_NO = None
 
 
-def _ensure_agents():
+def _ensure_agents() -> None:
     global AGENT_YES_NO
     if AGENT_YES_NO is None:
         AGENT_YES_NO = _get_agent_yes_no()

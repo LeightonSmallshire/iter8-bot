@@ -252,7 +252,7 @@ if __name__ == "__main__":
         logfire.info("bot_shutdown")
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(
         AgentCog(
             bot=bot,

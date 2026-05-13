@@ -3,6 +3,7 @@ import datetime
 import io
 import sys
 import traceback
+from typing import Any
 
 import discord
 import logfire
@@ -25,7 +26,7 @@ class TimeoutsCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_member_update(self, before: discord.Member, after: discord.Member):
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         """Handles member updates, specifically looking for timeout changes."""
 
         now = datetime.datetime.now(datetime.UTC)
@@ -81,7 +82,7 @@ class TimeoutsCog(commands.Cog):
     async def on_member_timeout(member: discord.Member,
                                 until: datetime.datetime,
                                 moderator: discord.Member | None,
-                                reason: str | None):
+                                reason: str | None) -> None:
         """Handles the event after a member is timed out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -105,8 +106,8 @@ class TimeoutsCog(commands.Cog):
 
     @staticmethod
     async def on_member_untimeout(member: discord.Member,
-                                moderator: discord.Member | None,
-                                reason: str | None):
+                                 moderator: discord.Member | None,
+                                 reason: str | None) -> None:
         """Handles the event after a member is released from a time out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -129,7 +130,7 @@ class TimeoutsCog(commands.Cog):
                 silent=True)
 
     @commands.Cog.listener()
-    async def on_error(self, event, *args, **kwargs):
+    async def on_error(self, event: Any, *args: Any, **kwargs: Any) -> None:
         """
         Listener for unhandled errors that occur during event processing.
         This provides a catch-all for logic errors not caught by a command error handler.
@@ -152,7 +153,7 @@ class TimeoutsCog(commands.Cog):
 
     @app_commands.command(name='leaderboard', description='Show timeout leaderboards')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_show_leaderboard(self, interaction: discord.Interaction):
+    async def command_show_leaderboard(self, interaction: discord.Interaction) -> None:
         """Generates and displays the timeout leaderboard from audit logs."""
 
         # Getting leaderboard might take time
@@ -218,5 +219,5 @@ class TimeoutsCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(TimeoutsCog(bot))

@@ -36,7 +36,7 @@ class DockerManager:
         self.client: docker.DockerClient | None = None
 
         # Security: Command denylist - dangerous commands that should never execute
-        self.denied_commands: frozenset = frozenset(
+        self.denied_commands: frozenset[str] = frozenset(
             {
                 "rm",
                 "rmdir",

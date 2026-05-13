@@ -43,7 +43,7 @@ class AdminRollCog(commands.Cog):
 
     @app_commands.command(name='roll_admin', description='Commence the weekly admin dice roll.')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_roll_admin(self, interaction: discord.Interaction):
+    async def command_roll_admin(self, interaction: discord.Interaction) -> None:
         if not is_correct_time(interaction):
             await interaction.response.send_message("Wait till you've had your samosa!", ephemeral=True)
             return
@@ -85,7 +85,7 @@ class AdminRollCog(commands.Cog):
 
         await self.do_gamble_payout(interaction, bot_utils.Users.Nathan)
 
-    async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int):
+    async def do_gamble_payout(self, interaction: discord.Interaction, new_admin: int) -> None:
         gamble_msg = await interaction.followup.send("Calculating gambling results...", wait=True)
 
         await asyncio.sleep(2)
@@ -139,7 +139,7 @@ class AdminRollCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(AdminRollCog(bot))
 
 

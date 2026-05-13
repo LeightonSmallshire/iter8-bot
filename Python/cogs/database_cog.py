@@ -1,6 +1,7 @@
 
 import io
 from collections.abc import Iterable
+from typing import Any
 
 import discord
 import logfire
@@ -12,19 +13,19 @@ import utils.database as db_utils
 
 _log = logfire
 
-def _format_rows(headers: list[str], rows: Iterable[tuple]) -> str:
+def _format_rows(headers: list[str], rows: Iterable[tuple[Any, ...]]) -> str:
     cols = [headers] + [list(map(lambda x: "" if x is None else str(x), r)) for r in rows]
     if not cols:  # no headers and no rows
         return "No results."
     widths = [max(len(row[i]) for row in cols) for i in range(len(cols[0]))]
-    def fmt(row): return " | ".join(val.ljust(widths[i]) for i, val in enumerate(row))
+    def fmt(row: list[str]) -> str: return " | ".join(val.ljust(widths[i]) for i, val in enumerate(row))
     sep = "-+-".join("-" * w for w in widths)
     lines = [fmt(cols[0]), sep] + [fmt(r) for r in cols[1:]]
     return "```\n" + "\n".join(lines) + "\n```"
 
 
 class DatabaseCog(commands.Cog):
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: discord.Client) -> None:
         self.bot_ = client
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
@@ -32,7 +33,7 @@ class DatabaseCog(commands.Cog):
     # --- Slash Command ---
 
     @app_commands.command(name="sql", description="SQL database operations")
-    async def sql_group(self, interaction: discord.Interaction, query: str):
+    async def sql_group(self, interaction: discord.Interaction, query: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No squeal 4 U")
 
@@ -58,7 +59,7 @@ class DatabaseCog(commands.Cog):
             await interaction.followup.send(file=discord_file, ephemeral=True)
 
     @app_commands.command(name="sqlfile", description="SQL database operations")
-    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment):
+    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No squeal 4 U")
 
@@ -110,7 +111,7 @@ class DatabaseCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(DatabaseCog(bot))
 
 

@@ -46,7 +46,7 @@ def compute_betting_odds(bets: list[AdminBet]) -> dict[int, dict[str, Any]]:
     return targets
 
 
-async def get_gamble_odds(consume_bets: bool):
+async def get_gamble_odds(consume_bets: bool) -> dict[int, dict[str, Any]]:
     async with Database(DATABASE_NAME) as db:
         all_bets = await db.select(AdminBet, where=[WhereParam("used", False)])
 
@@ -56,6 +56,6 @@ async def get_gamble_odds(consume_bets: bool):
         return compute_betting_odds(bets=all_bets)
 
 
-async def payout_gamble(user: int, value: float):
+async def payout_gamble(user: int, value: float) -> None:
     async with Database(DATABASE_NAME) as db:
         await db.insert(GambleWin(amount=value, user_id=user))

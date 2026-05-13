@@ -7,11 +7,11 @@ import discord.ui
 from PIL import Image
 
 
-class UserSelect(discord.ui.UserSelect):
-    def __init__(self):
+class UserSelect(discord.ui.UserSelect[Any]):
+    def __init__(self) -> None:
         super().__init__(placeholder="Select a user to target")
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         user = self.values[0]
         guild = interaction.guild
         if guild is None:
@@ -31,15 +31,15 @@ class UserSelect(discord.ui.UserSelect):
         await interaction.response.defer()
 
 
-class DurationSelect(discord.ui.Select):
-    def __init__(self):
+class DurationSelect(discord.ui.Select[Any]):
+    def __init__(self) -> None:
         options = [
             discord.SelectOption(label=f"{m} minute(s)", value=str(m))
             for m in [1, 2, 5, 10, 15, 30, 60]
         ]
         super().__init__(placeholder="Choose duration", options=options)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         view = self.view
         if not isinstance(view, discord.ui.View):
             return
@@ -50,18 +50,18 @@ class DurationSelect(discord.ui.Select):
         await interaction.response.defer()
 
 
-class ColourSelect(discord.ui.Button):
-    def __init__(self):
+class ColourSelect(discord.ui.Button[Any]):
+    def __init__(self) -> None:
         super().__init__(label="Enter colour", style=discord.ButtonStyle.primary)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         class ColourModal(discord.ui.Modal):
             HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
 
-            def __init__(self, parent):
+            def __init__(self, parent: "ColourSelect") -> None:
                 self.parent = parent
                 super().__init__(title="Enter a colour hex code")
-                self.colour_input = discord.ui.TextInput(label="HEX code", placeholder="#ff8800")
+                self.colour_input: discord.ui.TextInput[Any] = discord.ui.TextInput(label="HEX code", placeholder="#ff8800")
                 self.add_item(self.colour_input)
 
             async def make_color_emoji(self, guild: discord.Guild, hex_code: str) -> discord.Emoji:
@@ -77,7 +77,7 @@ class ColourSelect(discord.ui.Button):
 
                 return await guild.create_custom_emoji(name=f"col_{hex_code.lstrip('#')}", image=image)
 
-            async def on_submit(self, interaction: discord.Interaction):
+            async def on_submit(self, interaction: discord.Interaction) -> None:
                 val = self.colour_input.value.strip()
                 if not self.HEX_RE.fullmatch(val):
                     await interaction.response.send_message(
@@ -108,22 +108,22 @@ class ColourSelect(discord.ui.Button):
         await interaction.response.send_modal(ColourModal(self))
 
 
-class TextSelect(discord.ui.Button):
-    def __init__(self, title: str, label: str, placeholder: str):
+class TextSelect(discord.ui.Button[Any]):
+    def __init__(self, title: str, label: str, placeholder: str) -> None:
         self.title = title
         self.edit_label = label
         self.placeholder = placeholder
         super().__init__(label=title, style=discord.ButtonStyle.primary)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         class TextModal(discord.ui.Modal):
-            def __init__(self, select: TextSelect):
+            def __init__(self, select: TextSelect) -> None:
                 self.parent = select
                 super().__init__(title=select.title)
-                self.text_input: discord.ui.TextInput = discord.ui.TextInput(label=select.label, placeholder=select.placeholder)
+                self.text_input: discord.ui.TextInput[Any] = discord.ui.TextInput(label=select.label, placeholder=select.placeholder)
                 self.add_item(self.text_input)
 
-            async def on_submit(self, interaction: discord.Interaction):
+            async def on_submit(self, interaction: discord.Interaction) -> None:
                 parent_view = self.parent.view
                 if not isinstance(parent_view, discord.ui.View):
                     return

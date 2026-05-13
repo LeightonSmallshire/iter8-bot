@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import secrets
+from typing import Any
 
 import discord
 import dotenv
@@ -35,13 +36,13 @@ class Users:
     Tom = 1339198017324187681
 
     @staticmethod
-    def all_users():
+    def all_users() -> list[int]:
         ids = [v for k, v in vars(Users).items()
                if isinstance(v, int) and not k.startswith("__")]
         return list(dict.fromkeys(ids))
 
     @staticmethod
-    def random(filter: list[int] | None = None):
+    def random(filter: list[int] | None = None) -> int:
         if filter is None:
             filter = []
         ids = {v for k, v in vars(Users).items() if isinstance(v, int)}
@@ -67,11 +68,11 @@ class Roles:
     BullyTarget = 1432752493670170624
 
 
-def is_guild_paradise(ctx):
-    return ctx.guild and ctx.guild.id == Guilds.Default
+def is_guild_paradise(ctx: discord.Interaction) -> bool:
+    return ctx.guild is not None and ctx.guild.id == Guilds.Default
 
 
-async def is_user_role(ctx: discord.Interaction, role_id: int):
+async def is_user_role(ctx: discord.Interaction, role_id: int) -> bool:
     guild = ctx.guild
     if guild is None:
         return False
@@ -80,7 +81,7 @@ async def is_user_role(ctx: discord.Interaction, role_id: int):
     return role in member.roles
 
 
-def is_trusted_developer(ctx: discord.Interaction):
+def is_trusted_developer(ctx: discord.Interaction) -> bool:
     return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
@@ -91,35 +92,38 @@ def get_non_bot_users(ctx: discord.Interaction) -> list[int]:
     return [x.id for x in guild.members if not x.bot and x.id != guild.owner_id]
 
 
-async def send_message(bot, user_id, message):
+async def send_message(bot: discord.Client, user_id: int, message: str) -> None:
     while not bot.is_ready():
         await asyncio.sleep(1)
 
     paradise = discord.utils.get(bot.guilds, id=Guilds.Default)
     if paradise is None:
-        return logging.error('could not find paradise')
+        logging.error('could not find paradise')
+        return
     user = discord.utils.get(paradise.members, id=user_id)
     if user is None:
-        return logging.error('could not find user')
+        logging.error('could not find user')
+        return
 
     while True:
         try:
-            return await user.send(message)
+            await user.send(message)
+            return
         except discord.errors.HTTPException as e:
             if 'You are opening direct messages too fast' not in repr(e):
                 raise e
             await asyncio.sleep(1)
 
 
-def defer_message(bot, user_id, message):
+def defer_message(bot: discord.Client, user_id: int, message: str) -> None:
     asyncio.create_task(send_message(bot, user_id, message))
 
 
-def make_emoji_number(num: int):
+def make_emoji_number(num: int) -> str:
     return "".join([f":number_{d}:" for d in str(num)])
 
 
-async def on_new_admin(interaction: discord.Interaction, new_admin: int):
+async def on_new_admin(interaction: discord.Interaction, new_admin: int) -> None:
     guild = interaction.guild
     if guild is None:
         return
@@ -196,28 +200,29 @@ async def do_role_roll(interaction: discord.Interaction, role_id: int, roll_tabl
 
 
 class DiscordHandler(logging.Handler):
-    def __init__(self, bot: discord.Client, user_id, *args, **kwargs):
+    def __init__(self, bot: discord.Client, user_id: int, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.bot = bot
         self.user_id = user_id
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         log_entry = self.format(record)
         self.bot.loop.create_task(self.send_dm(log_entry))
 
-    async def send_dm(self, message):
+    async def send_dm(self, message: str) -> None:
         while not self.bot.is_ready():
             await asyncio.sleep(1)
 
         try:
             paradise = discord.utils.get(self.bot.guilds, id=Guilds.Default)
-            user = discord.utils.get(paradise.members, id=Users.Leighton)
+            if paradise:
+                user = discord.utils.get(paradise.members, id=Users.Leighton)
 
-            if user and not user.bot:
-                if len(message) > 1950:
-                    message = message[:1950] + "\n... (truncated)"
+                if user and not user.bot:
+                    if len(message) > 1950:
+                        message = message[:1950] + "\n... (truncated)"
 
-                await user.send(f"**Bot Log: ** ```{message}```")
+                    await user.send(f"**Bot Log: ** ```{message}```")
         except discord.errors.NotFound:
             print(f"Error: Could not find user with ID {self.user_id}")
         except Exception as e:

@@ -1,5 +1,6 @@
 import datetime
 import secrets
+from typing import Any, cast
 
 import discord
 import discord.ui
@@ -8,8 +9,8 @@ import discord.utils
 from view.components import ColourSelect, DurationSelect, TextSelect, UserSelect
 
 from .bot import Roles, do_role_roll, get_non_bot_users, on_new_admin
-from .database import DATABASE_NAME, AdminBet, Database, GambleWin, Gift, OrderParam, Purchase, WhereParam
-from .model import User
+from .database import DATABASE_NAME, Database, OrderParam, WhereParam
+from .model import AdminBet, GambleWin, Gift, Purchase, User
 
 SHOP_ITEMS = list[type['ShopItem']]()
 
@@ -31,14 +32,15 @@ class ShopItem:
         SHOP_ITEMS.append(cls)
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
         target = await guild.fetch_member(params['user'])
 
         if target.id == ctx.user.id:
-            return await ctx.edit_original_response(content='No timeout farming')
+            await ctx.edit_original_response(content='No timeout farming')
+            return
 
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
@@ -48,7 +50,7 @@ class ShopItem:
         await target.timeout(until, reason=f"<@{ctx.user.id}> used the power of the shop{f' for {reason}' if reason else ''}.")
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [UserSelect(), DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 
@@ -60,7 +62,7 @@ class BullyTimeoutItem(ShopItem):
     CATEGORY = "Timeouts"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -68,7 +70,8 @@ class BullyTimeoutItem(ShopItem):
         member = role.members[0]
 
         if member.id == ctx.user.id:
-            return await ctx.edit_original_response(content='No timeout farming')
+            await ctx.edit_original_response(content='No timeout farming')
+            return
 
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
@@ -78,7 +81,7 @@ class BullyTimeoutItem(ShopItem):
         await role.members[0].timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice{f' for {reason}' if reason else ''}.")
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 
@@ -90,7 +93,7 @@ class TimeoutRandomItem(ShopItem):
     CATEGORY = "Timeouts"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -108,7 +111,7 @@ class TimeoutRandomItem(ShopItem):
         await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully someone at random{f' for {reason}' if reason else ''}.")
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
 
 
@@ -130,7 +133,7 @@ class BullyRerollItem(ShopItem):
     CATEGORY = "Timeouts"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         await do_role_roll(
             ctx,
             Roles.BullyTarget,
@@ -148,7 +151,7 @@ class BullyChooseItem(ShopItem):
     CATEGORY = "Timeouts"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -164,7 +167,7 @@ class BullyChooseItem(ShopItem):
         await new_target.add_roles(role)
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [UserSelect()]
 
 
@@ -176,7 +179,7 @@ class AdminTicketItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         pass
 
 
@@ -188,7 +191,7 @@ class AdminRerollItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -224,7 +227,7 @@ class MakeAdminItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -260,7 +263,7 @@ class ChooseNicknameOwnItem(ShopItem):
     CATEGORY = "Customise"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -269,7 +272,7 @@ class ChooseNicknameOwnItem(ShopItem):
         await member.edit(nick=new_nick)
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")]
 
 
@@ -281,7 +284,7 @@ class ChooseNicknameOtherItem(ShopItem):
     CATEGORY = "Customise"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -290,7 +293,7 @@ class ChooseNicknameOtherItem(ShopItem):
         await target.edit(nick=new_nick)
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [
             UserSelect(),
             TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")
@@ -304,7 +307,7 @@ def colour_from_hex(code: str) -> discord.Color:
     return discord.Color(int(code, 16))
 
 
-async def set_colour(ctx: discord.Interaction, target: discord.Member, params: dict):
+async def set_colour(ctx: discord.Interaction, target: discord.Member, params: dict[str, Any]) -> None:
     guild = ctx.guild
     if guild is None:
         return
@@ -327,13 +330,13 @@ class ChooseColourOwnItem(ShopItem):
     CATEGORY = "Customise"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         if not isinstance(ctx.user, discord.Member):
             return
         await set_colour(ctx, ctx.user, params)
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [ColourSelect()]
 
 
@@ -345,7 +348,7 @@ class ChooseColourOtherItem(ShopItem):
     CATEGORY = "Customise"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -354,7 +357,7 @@ class ChooseColourOtherItem(ShopItem):
 
 
     @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item]:
+    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
         return [
             UserSelect(),
             ColourSelect(),
@@ -369,7 +372,7 @@ class BlackFridaySaleItem(ShopItem):
     CATEGORY = "Sale"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict):
+    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
         guild = ctx.guild
         if guild is None:
             return
@@ -403,22 +406,20 @@ class BlackFridaySaleItem(ShopItem):
 
 async def get_shop_credit(user_id: int) -> float:
     async with Database(DATABASE_NAME) as db:
-        user = await db.select(User, [WhereParam("id", user_id)])
-        if not user:
-            return 0
+        user_list = cast(list[User], await db.select(User, [WhereParam("id", user_id)]))
+        if not user_list:
+            return 0.0
 
-        user = user[0]
+        user = user_list[0]
 
-        purchases = await db.select(Purchase, where=[WhereParam("user_id", user_id)])
+        purchases = cast(list[Purchase], await db.select(Purchase, where=[WhereParam("user_id", user_id)]))
+        winnings = cast(list[GambleWin], await db.select(GambleWin, where=[WhereParam("user_id", user_id)]))
+        bets = cast(list[AdminBet], await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)]))
 
-        winnings = await db.select(GambleWin, where=[WhereParam("user_id", user_id)])
-        bets = await db.select(AdminBet, where=[WhereParam("gamble_user_id", user_id)])
-
-        gifts_sent = await db.select(Gift, where=[WhereParam("giver", user.id)])
-        gifts_received = await db.select(Gift, where=[WhereParam("receiver", user.id)])
+        gifts_sent = cast(list[Gift], await db.select(Gift, where=[WhereParam("giver", user.id)]))
+        gifts_received = cast(list[Gift], await db.select(Gift, where=[WhereParam("receiver", user.id)]))
 
         credit = user.duration
-
         credit -= sum([p.cost for p in purchases])
         credit -= sum([b.amount for b in bets])
         credit += sum([w.amount for w in winnings])
@@ -436,7 +437,7 @@ async def can_afford_purchase(user: int, cost: int) -> bool:
 
 async def is_ongoing_sale() -> tuple[bool, datetime.datetime | None]:
     async with Database(DATABASE_NAME) as db:
-        sale = await db.select(Purchase, where=[WhereParam("item_id", BlackFridaySaleItem.ITEM_ID)], order=[OrderParam("timestamp", True)])
+        sale = cast(list[Purchase], await db.select(Purchase, where=[WhereParam("item_id", BlackFridaySaleItem.ITEM_ID)], order=[OrderParam("timestamp", True)]))
         if not sale:
             return False, None
 

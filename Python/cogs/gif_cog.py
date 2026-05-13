@@ -1,6 +1,7 @@
 
 import os
 import random
+from typing import Any
 
 import aiohttp
 import discord
@@ -36,7 +37,7 @@ class GifCog(commands.Cog):
             return None
 
         # Heuristic: prefer "gif", then "mediumgif", then "tinygif"
-        def pick_url(item):
+        def pick_url(item: Any) -> str | None:
             mf = item.get("media_formats", {})
             for key in ("gif", "mediumgif", "tinygif"):
                 if key in mf and "url" in mf[key]:
@@ -54,7 +55,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='riot', description='RIOT!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_gif_riot(self, interaction: discord.Interaction):
+    async def command_gif_riot(self, interaction: discord.Interaction) -> None:
         url = await self.find_best_gif("rioters", 12)
 
         embed = discord.Embed(title="RIOT!")
@@ -65,7 +66,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='wok', description='Fuiyooooh!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def wok(self, interaction: discord.Interaction):
+    async def wok(self, interaction: discord.Interaction) -> None:
         url = await self.find_best_gif("wok", 10)
 
         embed = discord.Embed(title="Fuiyooh!")
@@ -76,7 +77,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='bin', description='Get in the bin')
     @commands.check(bot_utils.is_guild_paradise)
-    async def bin(self, interaction: discord.Interaction):
+    async def bin(self, interaction: discord.Interaction) -> None:
         embed = discord.Embed(title="Get in the bin")
         embed.set_image(url="https://c.tenor.com/5oer_C4ZVCsAAAAd/tenor.gif")
         embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
@@ -85,7 +86,7 @@ class GifCog(commands.Cog):
 
     @app_commands.command(name='pain', description='Pain')
     @commands.check(bot_utils.is_guild_paradise)
-    async def pain(self, interaction: discord.Interaction):
+    async def pain(self, interaction: discord.Interaction) -> None:
         gifs = [
             "https://c.tenor.com/bn86eRUU0wUAAAAd/tenor.gif",
             "https://c.tenor.com/yYPwECdUVdwAAAAd/tenor.gif",
@@ -121,5 +122,5 @@ class GifCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GifCog(bot))

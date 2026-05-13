@@ -26,7 +26,7 @@ class DevCog(commands.Cog):
         _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     @app_commands.command(name='stdout')
-    async def get_stdout(self, interaction: discord.Interaction):
+    async def get_stdout(self, interaction: discord.Interaction) -> None:
         msg: str = getattr(sys.stdout, 'buf_', '')
 
         if len(msg) > 1950:
@@ -38,7 +38,7 @@ class DevCog(commands.Cog):
     @app_commands.command(name='logs')
     # @commands.check(bot_utils.is_leighton)
     @app_commands.describe(level="Filter by log level")
-    async def get_logs(self, interaction: discord.Interaction, level: str | None = None):
+    async def get_logs(self, interaction: discord.Interaction, level: str | None = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No logs 4 U")
 
@@ -72,7 +72,7 @@ class DevCog(commands.Cog):
     @app_commands.command(name='download')
     @app_commands.autocomplete(path=autocomplete_path)
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_download(self, interaction: discord.Interaction, path: str):
+    async def do_download(self, interaction: discord.Interaction, path: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message("No files 4 U")
 
@@ -87,7 +87,7 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_crash(self, interaction: discord.Interaction):
+    async def do_crash(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message(f'Stop it {interaction.user.mention}')
 
@@ -96,7 +96,7 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name='show_perms', description="Shows all permissions for all roles and users")
     @commands.check(bot_utils.is_guild_paradise)
-    async def do_show_perms(self, interaction: discord.Interaction):
+    async def do_show_perms(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
 
         assert interaction.guild is not None
@@ -130,7 +130,7 @@ class DevCog(commands.Cog):
         # Send the file
         await interaction.followup.send(content="Permissions report:", file=file, ephemeral=True)
 
-    def get_env(self, uid: int):
+    def get_env(self, uid: int) -> dict[str, object]:
         env = self.envs.get(uid)
         if env is None:
             env = {
@@ -139,7 +139,7 @@ class DevCog(commands.Cog):
             self.envs[uid] = env
         return env
 
-    async def eval_code(self, src: str, env: dict[str, object]):
+    async def eval_code(self, src: str, env: dict[str, object]) -> str:
         compiled = compile(src, "<expr>", "eval")
         value = eval(compiled, env)
         if inspect.isawaitable(value):
@@ -147,7 +147,7 @@ class DevCog(commands.Cog):
         env["_"] = value
         return repr(value)
 
-    async def exec_code(self, src: str, env: dict[str, object]):
+    async def exec_code(self, src: str, env: dict[str, object]) -> str:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             exec(compile(src, "<exec>", "exec"), env)
@@ -176,7 +176,7 @@ class DevCog(commands.Cog):
     @app_commands.command(name="exec", description="Execute Python in your persistent REPL.")
     @commands.check(bot_utils.is_guild_paradise)
     @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
-    async def command_exec(self, interaction,  code: str | None = None, file: discord.Attachment | None = None):
+    async def command_exec(self, interaction: discord.Interaction,  code: str | None = None, file: discord.Attachment | None = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message('No REPL 4 U')
 
@@ -209,7 +209,7 @@ class DevCog(commands.Cog):
 
     @app_commands.command(name="reset_repl", description="Clear your REPL environment.")
     @commands.check(bot_utils.is_guild_paradise)
-    async def reset_env(self, interaction):
+    async def reset_env(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message('No REPL 4 U')
 
@@ -240,7 +240,7 @@ class DevCog(commands.Cog):
     @app_commands.command(name="bash", description="Execute Bash")
     @commands.check(bot_utils.is_guild_paradise)
     @app_commands.describe(code="Command to execute")
-    async def command_bash(self, interaction,  code: str):
+    async def command_bash(self, interaction: discord.Interaction,  code: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
             return await interaction.response.send_message('No Bash 4 U')
 
@@ -262,5 +262,5 @@ class DevCog(commands.Cog):
             await interaction.followup.send(f'Command exited with code {process.returncode}\n\n{stdout_text}', ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(DevCog(bot))

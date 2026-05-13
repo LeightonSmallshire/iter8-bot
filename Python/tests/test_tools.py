@@ -1,4 +1,5 @@
 """Tests for agent_elmo tools."""
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,7 +11,7 @@ from cogs.agent_elmo.tools import task
 
 
 @pytest.fixture
-def mock_ctx():
+def mock_ctx() -> Any:
     """Create a mock RunContext with BaseDeps."""
     docker_manager = MagicMock(spec=DockerManager)
     deps = BaseDeps(docker_manager=docker_manager, channel_id=123456)
@@ -20,7 +21,7 @@ def mock_ctx():
 
 
 @pytest.mark.asyncio
-async def test_task_tool_creates_agent(mock_ctx):
+async def test_task_tool_creates_agent(mock_ctx: Any) -> None:
     """Test that task tool creates an agent with given system prompt."""
     with patch("pydantic_ai.Agent") as mock_agent_class:
         mock_agent = MagicMock()
@@ -35,7 +36,7 @@ async def test_task_tool_creates_agent(mock_ctx):
 
 
 @pytest.mark.asyncio
-async def test_task_tool_with_docker_hint(mock_ctx):
+async def test_task_tool_with_docker_hint(mock_ctx: Any) -> None:
     """Test that task tool registers Docker tools when hinted in system prompt."""
     with patch("pydantic_ai.Agent") as mock_agent_class:
         mock_agent = MagicMock()

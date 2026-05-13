@@ -35,6 +35,8 @@ class SingleValueTable(Protocol):
 IsDatabaseTable = HasIdTable | SingleValueTable
 
 T = TypeVar("T", bound=IsDatabaseTable)
+T_single = TypeVar("T_single", bound=SingleValueTable)
+T_id = TypeVar("T_id", bound=HasIdTable)
 U = TypeVar("U", bound=IsDatabaseTable)
 
 def is_nullable(tp: Any) -> bool:

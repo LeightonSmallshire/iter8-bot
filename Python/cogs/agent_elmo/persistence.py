@@ -14,7 +14,7 @@ class Persistence:
         self.db_path = db_path
         self._migrate()
 
-    def _get_connection(self):
+    def _get_connection(self) -> sqlite3.Connection:
         """Get a new connection for thread safety."""
         return sqlite3.connect(self.db_path)
 

@@ -1,8 +1,8 @@
 import datetime
+from typing import cast
 
 from .database import DATABASE_NAME, Database, WhereParam
-from .model import Purchase
-from .model import Timestamps
+from .model import Purchase, Timestamps
 from .shop import AdminRerollItem
 
 
@@ -19,10 +19,11 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
 
 async def get_last_admin_roll() -> Timestamps | None:
     async with Database(DATABASE_NAME) as db:
-        return await db.select(Timestamps)
+        res = await db.select(Timestamps)
+        return cast(Timestamps, res) if res else None
 
 
-async def update_last_admin_roll():
+async def update_last_admin_roll() -> None:
     async with Database(DATABASE_NAME) as db:
         timestamps = await get_last_admin_roll()
         if timestamps is not None:
@@ -34,7 +35,7 @@ async def update_last_admin_roll():
 
 async def use_admin_reroll_token(user: int) -> tuple[bool, str | None]:
     async with Database(DATABASE_NAME) as db:
-        tokens = await db.select(Purchase, where=[WhereParam("item_id", AdminRerollItem.ITEM_ID), WhereParam("used", False)])
+        tokens = cast(list[Purchase], await db.select(Purchase, where=[WhereParam("item_id", AdminRerollItem.ITEM_ID), WhereParam("used", False)]))
         if not tokens:
             return False, "Naughty naughty, you haven't purchased a reroll token."
 

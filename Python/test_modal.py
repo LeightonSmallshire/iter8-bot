@@ -16,7 +16,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 
 
-def test_modal():
+def test_modal() -> bool:
     print("Testing ModalManager operations...")
 
     # Initialize ModalManager (will crash if Modal credentials missing)

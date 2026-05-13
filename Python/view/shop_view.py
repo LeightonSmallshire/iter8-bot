@@ -1,5 +1,6 @@
 import datetime
 import traceback
+from typing import Any
 
 import discord
 import discord.ui
@@ -13,11 +14,11 @@ _log = logfire
 
 
 class ShopOptionsView(discord.ui.View):
-    def __init__(self, item: type['shop_utils.ShopItem'], buyer_id: int):
+    def __init__(self, item: type['shop_utils.ShopItem'], buyer_id: int) -> None:
         super().__init__(timeout=120)
         self.item = item
         self.buyer_id = buyer_id
-        self.context: dict = {}
+        self.context: dict[str, Any] = {}
 
         # Collect components from handlers
         for comp in self.item.get_input_handlers():
@@ -26,11 +27,11 @@ class ShopOptionsView(discord.ui.View):
         # Always add confirm button
         self.add_item(self.ConfirmButton())
 
-    class ConfirmButton(discord.ui.Button):
-        def __init__(self):
+    class ConfirmButton(discord.ui.Button[Any]):
+        def __init__(self) -> None:
             super().__init__(label="Confirm Purchase", style=discord.ButtonStyle.green)
 
-        async def callback(self, interaction: discord.Interaction):
+        async def callback(self, interaction: discord.Interaction) -> None:
             if not isinstance(self.view, ShopOptionsView):
                 return
             view = self.view
@@ -87,15 +88,15 @@ class ShopOptionsView(discord.ui.View):
                 )
 
 
-class ShopSelect(discord.ui.Select):
-    def __init__(self):
+class ShopSelect(discord.ui.Select[Any]):
+    def __init__(self) -> None:
         self.items = shop_utils.SHOP_ITEMS
         super().__init__(
             placeholder="Choose an item…",
             options=[discord.SelectOption(label=i.DESCRIPTION, value=str(i.ITEM_ID)) for i in self.items],
         )
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         item = next(i for i in self.items if str(i.ITEM_ID) == self.values[0])
         view = ShopOptionsView(item, interaction.user.id)
         await interaction.response.send_message(
@@ -104,6 +105,6 @@ class ShopSelect(discord.ui.Select):
 
 
 class ShopView(discord.ui.View):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(timeout=None)
         self.add_item(ShopSelect())

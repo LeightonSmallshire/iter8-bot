@@ -29,7 +29,7 @@ class GiftingCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 
@@ -61,7 +61,7 @@ class GiftingCog(commands.Cog):
 
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
         if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 
@@ -111,5 +111,5 @@ class GiftingCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GiftingCog(bot))

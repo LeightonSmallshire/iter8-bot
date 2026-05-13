@@ -15,7 +15,7 @@ load_dotenv()
 sys.path.insert(0, os.path.dirname(__file__))
 
 
-def test_mem0():
+def test_mem0() -> bool:
     print("Testing mem0 read/write operations...")
 
     # Initialize client (will crash if MEM0_API_KEY is missing)

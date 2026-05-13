@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import Any
 
 import discord
 import logfire
@@ -27,10 +28,10 @@ is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
 
 
 class HotReloadBot(commands.Bot):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         logfire.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
 
         if is_work_hours and IS_LIVE:
@@ -45,7 +46,7 @@ class HotReloadBot(commands.Bot):
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
 
-    async def hot_reload_cogs(self):
+    async def hot_reload_cogs(self) -> dict[str, Any]:
         """Unloads, reloads, and reports the status of all cogs."""
 
         logfire.info('--- Loading cogs ---')
@@ -128,7 +129,7 @@ class HotReloadBot(commands.Bot):
 
     async def _handle_error(self,
                             interaction: discord.Interaction,
-                            error: discord.app_commands.AppCommandError):
+                            error: discord.app_commands.AppCommandError) -> None:
         logfire.error(str(error))
         try:
             if interaction.response.is_done():
@@ -139,7 +140,7 @@ class HotReloadBot(commands.Bot):
             pass  # Avoid cascade errors
 
 
-def read_git_head():
+def read_git_head() -> tuple[str | None, str | None]:
     if not os.path.isfile('.git/HEAD'):
         return None, None
 
@@ -155,7 +156,7 @@ def read_git_head():
         return head, None
 
 
-def main():
+def main() -> None:
     logfire.info(f'Starting Discord Bot... {read_git_head()}')
     bot = HotReloadBot()
     bot.run(DISCORD_TOKEN)

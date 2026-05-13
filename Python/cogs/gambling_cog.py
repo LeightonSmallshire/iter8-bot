@@ -25,7 +25,7 @@ class GamblingCog(commands.Cog):
     # --- Slash Command ---
     @app_commands.command(name='bookies', description='iter8 does not condone gambling. BUT HAVE FUN!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bookies(self, interaction: discord.Interaction):
+    async def command_bookies(self, interaction: discord.Interaction) -> None:
         """Generates and displays the gambling info."""
 
         def disp_width(s: str) -> int:
@@ -129,7 +129,7 @@ class GamblingCog(commands.Cog):
 
     @app_commands.command(name='bet', description='iter8 does not condone gambling. BUT HAVE FUN!')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_bet(self, interaction: discord.Interaction, user: discord.Member, duration: app_commands.Transform[datetime.timedelta, DurationTransformer]):
+    async def command_bet(self, interaction: discord.Interaction, user: discord.Member, duration: app_commands.Transform[datetime.timedelta, DurationTransformer]) -> None:
         """Bet on someone to be the next admin!"""
 
         await interaction.response.defer(thinking=True)
@@ -170,5 +170,5 @@ class GamblingCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GamblingCog(bot))

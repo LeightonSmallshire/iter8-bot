@@ -25,7 +25,7 @@ class ShopCog(commands.Cog):
 
     @app_commands.command(name='shop', description='Let\'s see what the lovely shop has to offer')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_display_shop(self, interaction: discord.Interaction):
+    async def command_display_shop(self, interaction: discord.Interaction) -> None:
         """Generates and displays the timeout shop."""
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -58,7 +58,7 @@ class ShopCog(commands.Cog):
 
     @app_commands.command(name='credit', description='Find out how much shop credit everyone has')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_display_credit(self, interaction: discord.Interaction):
+    async def command_display_credit(self, interaction: discord.Interaction) -> None:
         """Calculates and displays available shop credit."""
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -101,7 +101,7 @@ class ShopCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ShopCog(bot))
 
 

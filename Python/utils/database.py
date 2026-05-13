@@ -1,8 +1,9 @@
 import datetime
 import sqlite3
+from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, fields
-from typing import Any, cast, get_type_hints
+from typing import Any, cast, get_type_hints, overload
 
 import aiosqlite
 from packaging.version import Version
@@ -16,6 +17,8 @@ from .model import (
     Purchase,
     Stock,
     T,
+    T_id,
+    T_single,
     Timestamps,
     Trade,
     U,
@@ -113,7 +116,7 @@ def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
 
 # --- core ORM ---
 class Database:
-    def __init__(self, path: str, defer_commit: bool = False):
+    def __init__(self, path: str, defer_commit: bool = False) -> None:
         self.path = path
         self.defer_commit = defer_commit
 
@@ -128,7 +131,7 @@ class Database:
             "BOOLEAN", lambda b: b.strip().lower() in (b"1", b"t", b"true", b"y", b"yes")
 )
 
-    async def connect(self):
+    async def connect(self) -> "Database":
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.con.row_factory = aiosqlite.Row
         return self
@@ -141,12 +144,12 @@ class Database:
         await self.con.rollback()
         await self.con.close()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "Database":
         self.con = await aiosqlite.connect(self.path, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         self.con.row_factory = aiosqlite.Row
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: Any) -> None:
         if self.defer_commit:
             return
 
@@ -178,7 +181,7 @@ class Database:
         )
         return (await cur.fetchone()) is not None
 
-    async def create_single_value_table(self, model: type[T]):
+    async def create_single_value_table(self, model: type[T]) -> None:
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
@@ -195,7 +198,7 @@ class Database:
         await self.con.execute(sql)
         return
 
-    async def create_id_table(self, model: type[T]):
+    async def create_id_table(self, model: type[T]) -> None:
         cols = []
         hints = get_type_hints(model)
         for f in fields(model):
@@ -266,10 +269,19 @@ class Database:
                 pass
             if new_id is None:
                 return 0
-            return cast(int, new_id)
+            return new_id
 
-        return int(obj.id) if hasattr(obj, "id") else 1
+        if hasattr(obj, "id"):
+            val = obj.id
+            return int(val) if val is not None else 0
+        return 1
 
+
+    @overload
+    async def select(self, model: type[T_single], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> T_single: ...
+
+    @overload
+    async def select(self, model: type[T_id], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> list[T_id]: ...
 
     async def select(self, model: type[T], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> T | list[T]:
         if where is None:
@@ -289,14 +301,14 @@ class Database:
             sql += f"{param.field} {'DESC' if param.descending else ''}"
 
         cur = await self.con.execute(sql, params)
-        results = await cur.fetchmany(limit) if limit else await cur.fetchall()
-        results = [dict(row) for row in results]
+        rows = cast(list[aiosqlite.Row], await cur.fetchmany(limit) if limit else await cur.fetchall())
+        data_rows: list[dict[str, Any]] = [dict(row) for row in rows]
 
         if is_single:
-            for row in results:
-                row.pop("guard")
+            for row in data_rows:
+                row.pop("guard", None)
 
-        results = [model(**row) for row in results]
+        results: list[T] = [cast(T, model(**row)) for row in data_rows]
         return results[0] if is_single else results
 
     async def update(self, obj: T, where: WhereClause | None = None) -> None:
@@ -368,7 +380,10 @@ class Database:
 
         params = [data[k] for k in keys] + where_params
         await self.con.execute(sql, params)
-        return int(obj.id) if hasattr(obj, "id") else 1
+        if hasattr(obj, "id"):
+            val = obj.id
+            return int(val) if val is not None else 0
+        return 1
 
 
     async def join_select(
@@ -449,7 +464,7 @@ DATABASE_NAME = "data/storage.db"
 #-----------------------------------------------------------------
 #   Initialisation
 
-async def init_database(timeout_data: list[User], stock_list: list[Stock]):
+async def init_database(timeout_data: list[User], stock_list: list[Stock]) -> None:
     async with Database(DATABASE_NAME) as db:
         await db.drop_table(User)
         await db.create_table(User)
@@ -483,7 +498,7 @@ async def init_database(timeout_data: list[User], stock_list: list[Stock]):
 #-----------------------------------------------------------------
 #   Utility
 
-async def execute_raw_query(query: str):
+async def execute_raw_query(query: str) -> tuple[list[str] | None, Sequence[aiosqlite.Row] | None]:
     async with Database(DATABASE_NAME) as db:
         cur = await db.execute(query)
         if cur.description is None:
@@ -493,7 +508,7 @@ async def execute_raw_query(query: str):
         return headers, rows
 
 
-async def execute_raw_script(script: str):
+async def execute_raw_script(script: str) -> tuple[list[str] | None, Sequence[aiosqlite.Row] | None]:
     async with Database(DATABASE_NAME) as db:
         cur = await db.executescript(script)
         if cur.description is None:
