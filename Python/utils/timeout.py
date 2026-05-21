@@ -1,7 +1,6 @@
 from typing import cast
-
 from .database import DATABASE_NAME, Database, OrderParam, WhereParam
-from .model import User
+from .model import User, IsDatabaseTable
 
 
 async def get_timeout_leaderboard() -> list[User]:
@@ -16,12 +15,12 @@ async def update_timeout_leaderboard(user: int, duration: float) -> None:
             timeout = timeouts_for_user[0]
             timeout.count += 1 if duration > 0 else 0
             timeout.duration += duration
-            await db.update(timeout, [WhereParam("id", user)])
+            await db.update(cast(IsDatabaseTable, timeout), [WhereParam("id", user)])
         else:
             timeout = User(user, 1 if duration > 0 else 0, duration)
-            await db.insert(timeout)
+            await db.insert(cast(IsDatabaseTable, timeout))
 
 
 async def erase_timeout_user(user: int) -> None:
     async with Database(DATABASE_NAME) as db:
-        await db.delete(User, [WhereParam("id", user)])
+        await db.delete(cast(type[IsDatabaseTable], User), [WhereParam("id", user)])

@@ -9,6 +9,7 @@ from discord.ext import commands
 import utils.bot as bot_utils
 import utils.database as db_utils
 import utils.stocks.stock_db as stock_utils
+from utils.stocks.stock_control_params import AVAILABLE_STOCKS
 
 # --- Configuration ---
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
@@ -32,7 +33,9 @@ class HotReloadBot(commands.Bot):
         super().__init__(command_prefix="!", intents=discord.Intents.all())
 
     async def on_ready(self) -> None:
-        logfire.info(f'Discord Bot logged in as {self.user} (ID: {self.user.id})')
+        user_id = self.user.id if self.user else "Unknown"
+        logfire.info(f'Discord Bot logged in as {self.user} (ID: {user_id})')
+
 
         if is_work_hours and IS_LIVE:
             message = f'Bot connected {read_git_head()}'
@@ -41,7 +44,8 @@ class HotReloadBot(commands.Bot):
 
         server = discord.utils.get(self.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
-        await db_utils.init_database(leaderboard, stock_utils.AVAILABLE_STOCKS)
+        await db_utils.init_database(leaderboard, AVAILABLE_STOCKS)
+
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()

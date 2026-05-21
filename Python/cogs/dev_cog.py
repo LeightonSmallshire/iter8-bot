@@ -40,7 +40,8 @@ class DevCog(commands.Cog):
     @app_commands.describe(level="Filter by log level")
     async def get_logs(self, interaction: discord.Interaction, level: str | None = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No logs 4 U")
+            await interaction.response.send_message("No logs 4 U")
+            return
 
         from utils.log import read_logs
         rows = await read_logs(level=level)
@@ -74,22 +75,26 @@ class DevCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def do_download(self, interaction: discord.Interaction, path: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No files 4 U")
+            await interaction.response.send_message("No files 4 U")
+            return
 
         if os.path.isdir(path):
             zip_dir = utils.files.zip_directory(path)
             file = discord.File(zip_dir, f'{path}.zip')
-            return await interaction.response.send_message(file=file, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
+            return
 
         elif os.path.isfile(path):
             file = discord.File(path)
-            return await interaction.response.send_message(file=file, ephemeral=True)
+            await interaction.response.send_message(file=file, ephemeral=True)
+            return
 
     @app_commands.command(name='crash')
     @commands.check(bot_utils.is_guild_paradise)
     async def do_crash(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message(f'Stop it {interaction.user.mention}')
+            await interaction.response.send_message(f'Stop it {interaction.user.mention}')
+            return
 
         os.abort()
         interaction.response.send_message('past abort somehow - very impressive')
@@ -178,10 +183,12 @@ class DevCog(commands.Cog):
     @app_commands.describe(code="Code to execute", file="File containing code to execute. Use a main function as entrypoint for async code.")
     async def command_exec(self, interaction: discord.Interaction,  code: str | None = None, file: discord.Attachment | None = None) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message('No REPL 4 U')
+            await interaction.response.send_message('No REPL 4 U')
+            return
 
         if not code and not file:
-            return await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
+            await interaction.response.send_message("You must provide code or a file to execute.", ephemeral=True)
+            return
 
         await interaction.response.defer(ephemeral=True)
         env = self.get_env(interaction.user.id)
@@ -211,7 +218,8 @@ class DevCog(commands.Cog):
     @commands.check(bot_utils.is_guild_paradise)
     async def reset_env(self, interaction: discord.Interaction) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message('No REPL 4 U')
+            await interaction.response.send_message('No REPL 4 U')
+            return
 
         self.envs.pop(interaction.user.id, None)
         await interaction.response.send_message("Environment cleared.", ephemeral=True)
@@ -242,7 +250,8 @@ class DevCog(commands.Cog):
     @app_commands.describe(code="Command to execute")
     async def command_bash(self, interaction: discord.Interaction,  code: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message('No Bash 4 U')
+            await interaction.response.send_message('No Bash 4 U')
+            return
 
         await interaction.response.defer(ephemeral=True)
 

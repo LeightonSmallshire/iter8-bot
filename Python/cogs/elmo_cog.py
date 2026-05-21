@@ -12,7 +12,7 @@ import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 
 from .agent_elmo import tools
 from .agent_elmo.deps import MainDeps
@@ -182,30 +182,44 @@ class AgentCog(commands.Cog):
 
     @logfire.instrument
     async def run_agent(self, channel: discord.abc.Messageable) -> None:
-        history: list[ModelMessage] = []
-        async for msg in channel.history(limit=20):
-            if self.bot.user and msg.author.id == self.bot.user.id:
-                history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
-            else:
-                author_name = f'{msg.author.name} id={msg.author.id}' if msg.author else "Unknown"
-                history.append(ModelRequest(parts=[UserPromptPart(content=f"{author_name}: {msg.clean_content}")]))
-        history.reverse()
+        cid = getattr(channel, "id", 0)
+
+        # 1. Load persisted history
+        history = self.db.load_message_history(cid)
+
+        # 2. Bootstrap from Discord if no persisted history exists
+        if not history:
+            async for msg in channel.history(limit=20):
+                if self.bot.user and msg.author.id == self.bot.user.id:
+                    history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
+                else:
+                    timestamp = msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else "Unknown Time"
+                    username = msg.author.name if msg.author else "Unknown"
+                    user_id = msg.author.id if msg.author else "Unknown"
+                    display_name = msg.author.display_name if msg.author else "Unknown"
+                    reactions_list = [f"{r.emoji}({r.count})" for r in msg.reactions]
+                    reactions_str = f" | Reactions: {', '.join(reactions_list)}" if reactions_list else ""
+                    content = f"[{timestamp}] <{username} (ID: {user_id}) [{display_name}]>: {msg.clean_content}{reactions_str}"
+                    history.append(ModelRequest(parts=[UserPromptPart(content=content)]))
+            history.reverse()
 
         async with channel.typing():
             deps = MainDeps(
-                channel_id=getattr(channel, "id", 0),
+                channel_id=cid,
                 db=self.db,
                 docker_manager=self.docker_manager,
                 bot=self.bot,
             )
 
-            # Get the last message content safely
-            last_message = history[-1] if history else None
+            # 3. Extract the latest user prompt
+            # We assume the last message in history is the one that triggered this run
             user_prompt: str = ""
-            if last_message and isinstance(last_message, ModelRequest):
-                parts = last_message.parts
-                if parts and isinstance(parts[0], UserPromptPart):
-                    user_prompt = str(parts[0].content)
+            if history:
+                last_message = history[-1]
+                if isinstance(last_message, ModelRequest):
+                    parts = last_message.parts
+                    if parts and isinstance(parts[0], UserPromptPart):
+                        user_prompt = str(parts[0].content)
 
             message_history = history[:-1] if len(history) > 1 else []
 
@@ -215,6 +229,11 @@ class AgentCog(commands.Cog):
                     result.output = result.output if result.output else '(no output)'
 
                     await easy_send(channel, result.output)
+
+                    # 4. Save the full conversation state (including tool calls) to persistence
+                    self.db.save_message_history(cid, result.all_messages())
+                    # 5. Compact the history to keep it efficient
+                    self.db.compact_history(cid)
 
                     return
                 except Exception as e:

@@ -1,10 +1,10 @@
 import datetime
 import re
 from dataclasses import dataclass, field, fields
-from typing import Any, ClassVar, Literal, Protocol, TypeVar, get_args, get_origin
-
+from typing import Any, ClassVar, Literal, Protocol, TypeVar, get_args, get_origin, runtime_checkable
+ 
 from packaging.version import Version
-
+ 
 # --- type mapping ---
 TYPE_MAP = {
     int: "INTEGER",
@@ -22,14 +22,16 @@ def single_value_table(cls: type[Any]) -> type[Any]:
     return cls
 
 # --- A dataclass type that has an int id ---
+@runtime_checkable
 class HasIdTable(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
     id: int | None
-
-# --- A dataclass type marked as single-value ---
+ 
+@runtime_checkable
 class SingleValueTable(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
     __single_value_table__: ClassVar[Literal[True]]
+
 
 # --- Either one is acceptable ---
 IsDatabaseTable = HasIdTable | SingleValueTable

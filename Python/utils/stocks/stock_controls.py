@@ -54,7 +54,7 @@ async def update_stock_rand(stock: Stock, dt: float) -> None:
         trade_credit = random.gauss(force_drift, math.sqrt(dt) * STOCK_ACTOR_SIM_SOFT_RANGE / 2)
         trade_credit = min(3600, max(trade_credit, -3600))
         trade_count = trade_credit / stock.value
-        await order_stock(stock, trade_count)
+        order_stock(stock, trade_count)
     except Exception as e:
         print(e)
 

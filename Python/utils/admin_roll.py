@@ -1,8 +1,7 @@
 import datetime
 from typing import cast
-
 from .database import DATABASE_NAME, Database, WhereParam
-from .model import Purchase, Timestamps
+from .model import Purchase, Timestamps, IsDatabaseTable, SingleValueTable
 from .shop import AdminRerollItem
 
 
@@ -19,7 +18,7 @@ async def get_extra_admin_rolls(consume: bool) -> list[int]:
 
 async def get_last_admin_roll() -> Timestamps | None:
     async with Database(DATABASE_NAME) as db:
-        res = await db.select(Timestamps)
+        res = await db.select(cast(type[SingleValueTable], Timestamps))
         return cast(Timestamps, res) if res else None
 
 
@@ -28,9 +27,9 @@ async def update_last_admin_roll() -> None:
         timestamps = await get_last_admin_roll()
         if timestamps is not None:
             timestamps.last_roll = datetime.datetime.now()
-            await db.update(timestamps)
+            await db.update(cast(IsDatabaseTable, timestamps))
         else:
-            await db.insert(Timestamps(datetime.datetime.now(), datetime.datetime.now()))
+            await db.insert(cast(IsDatabaseTable, Timestamps(datetime.datetime.now(), datetime.datetime.now())))
 
 
 async def use_admin_reroll_token(user: int) -> tuple[bool, str | None]:

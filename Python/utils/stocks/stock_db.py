@@ -12,7 +12,7 @@ from utils.stocks.stock_controls import (
 )
 
 from ..database import DATABASE_NAME, Database, WhereParam
-from ..model import Stock, Timestamps, Trade
+from ..model import Stock, Timestamps, Trade, IsDatabaseTable, SingleValueTable
 
 
 async def get_all_stocks() -> list[Stock]:
@@ -56,7 +56,7 @@ async def do_stock_market_update(db: Database, dt: float, autosell_callback: Cal
         for trade in autosell_trades:
             sell = (trade.auto_sell_low is not None and trade.auto_sell_low > low) or (trade.auto_sell_high is not None and trade.auto_sell_high < high)
             if sell:
-                success, msg = await close_market_trade(db, trade.user_id, trade.id)
+                success, msg = await close_market_trade(db, trade.user_id, cast(int, trade.id))
                 if success:
                     await autosell_callback(msg)
     return dt
@@ -73,16 +73,16 @@ async def do_stock_market_directions_update(db: Database, iterations: int) -> No
 
 async def update_market_since_last_action(autosell_callback: Callable[[str], Awaitable[Any]]) -> None:
     async with Database(DATABASE_NAME) as db:
-        timestamps = await db.select(Timestamps)
-
+        timestamps = cast(Timestamps, await db.select(cast(type[SingleValueTable], Timestamps)))
+ 
         five_min_diff = math.floor(datetime.datetime.now().minute / 15) - math.floor(timestamps.last_market_update.minute / 15)
         await do_stock_market_directions_update(db, five_min_diff)
-
+ 
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
         dt = await do_stock_market_update(db, dt, autosell_callback)
-
+ 
         timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
-        await db.update(timestamps)
+        await db.update(cast(IsDatabaseTable, timestamps))
 
 
 async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_low: datetime.timedelta | None, auto_sell_high: datetime.timedelta | None) -> tuple[bool, str]:
@@ -98,7 +98,7 @@ async def stock_market_buy(user_id: int, stock_id: str, count: int, auto_sell_lo
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
-        buy = Trade(count=count, bought_at=buy_price, sold_at=None, user_id=user_id, stock=stock.id, short=False, auto_sell_low=sell_low, auto_sell_high=sell_high)
+        buy = Trade(count=count, bought_at=buy_price, sold_at=None, user_id=user_id, stock=cast(int, stock.id), short=False, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg = f"<@{user_id}> bought {count} shares of {stock.code} @ {buy_price}s"
 
         order_stock(stock, count)
@@ -121,7 +121,7 @@ async def stock_market_short(user_id: int, stock_id: str, count: int, auto_sell_
         sell_low = auto_sell_low.total_seconds() if auto_sell_low else None
         sell_high = auto_sell_high.total_seconds() if auto_sell_high else None
 
-        short = Trade(count=count, bought_at=buy_price, sold_at=None, user_id=user_id, stock=stock.id, short=True, auto_sell_low=sell_low, auto_sell_high=sell_high)
+        short = Trade(count=count, bought_at=buy_price, sold_at=None, user_id=user_id, stock=cast(int, stock.id), short=True, auto_sell_low=sell_low, auto_sell_high=sell_high)
         msg = f"<@{user_id}> shorted {count} shares of {stock.code} @ {buy_price}s"
 
         order_stock(stock, -count)

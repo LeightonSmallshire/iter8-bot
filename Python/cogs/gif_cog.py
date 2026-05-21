@@ -1,7 +1,7 @@
 
 import os
 import random
-from typing import Any
+from typing import Any, cast
 
 import aiohttp
 import discord
@@ -41,7 +41,7 @@ class GifCog(commands.Cog):
             mf = item.get("media_formats", {})
             for key in ("gif", "mediumgif", "tinygif"):
                 if key in mf and "url" in mf[key]:
-                    return mf[key]["url"]
+                    return cast(str, mf[key]["url"])
             return None
 
         # Filter to items that actually have a gif-like URL
