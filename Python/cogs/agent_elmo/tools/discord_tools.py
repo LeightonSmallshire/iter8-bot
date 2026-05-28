@@ -5,10 +5,16 @@ from typing import Any
 import aiohttp
 import discord
 from langchain_core.tools import tool
+from pydantic import BaseModel, ConfigDict
 
 TENOR_KEY = os.environ.get("TENOR_TOKEN", "")
 
-@tool
+
+class SendGifInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    query: str
+
+@tool(args_schema=SendGifInput, infer_schema=False)
 async def send_gif(query: str, bot: Any, channel_id: int) -> str:
     """Send a GIF to the channel using Tenor."""
     if not TENOR_KEY:
@@ -38,7 +44,13 @@ async def send_gif(query: str, bot: Any, channel_id: int) -> str:
     except Exception as e:
         return f"Error sending GIF: {str(e)}"
 
-@tool
+class TimeoutUserInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    user_id: int
+    reason: str
+    duration_seconds: int
+
+@tool(args_schema=TimeoutUserInput, infer_schema=False)
 async def timeout_user(user_id: int, reason: str, duration_seconds: int, bot: Any, channel_id: int) -> str:
     """Timeout (mute) a user in the guild. duration_seconds max 300."""
     duration_seconds = min(duration_seconds, 300)

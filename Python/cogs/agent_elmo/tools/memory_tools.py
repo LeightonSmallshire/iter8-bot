@@ -1,9 +1,14 @@
 from typing import Any
 
 from langchain_core.tools import tool
+from pydantic import BaseModel, ConfigDict
 
 
-@tool
+class RememberInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    content: str
+
+@tool(args_schema=RememberInput, infer_schema=False)
 async def remember(content: str, mem0_client: Any, channel_id: int) -> str:
     """Explicitly save information to memory using mem0."""
     if not mem0_client:
@@ -14,7 +19,12 @@ async def remember(content: str, mem0_client: Any, channel_id: int) -> str:
     except Exception as e:
         return f"Error saving to memory: {str(e)}"
 
-@tool
+
+class RecallInput(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    query: str
+
+@tool(args_schema=RecallInput, infer_schema=False)
 async def recall(query: str, mem0_client: Any, channel_id: int) -> str:
     """Search memories using mem0 semantic search."""
     if not mem0_client:

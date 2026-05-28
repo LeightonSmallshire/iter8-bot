@@ -28,12 +28,17 @@ def get_llm_with_tools() -> Any:
     return get_llm().bind_tools(all_tools).with_retry(stop_after_attempt=3)
 
 # --- Tool Setup ---
-# Collect all tools
-all_tools = [
+# Collect all tools — filter by hasattr(name) + hasattr(description) to match
+# StructuredTool instances reliably while excluding modules (e.g. os) that
+# happen to have a .name attribute.
+def _is_tool(t: Any) -> bool:
+    return hasattr(t, "name") and hasattr(t, "description")
+
+all_tools: list[Any] = [
     web_tools.web_search,
-    * [t for t in discord_tools.__dict__.values() if callable(t) and hasattr(t, "name") and not t.__name__.startswith("_")],
-    * [t for t in memory_tools.__dict__.values() if callable(t) and hasattr(t, "name") and not t.__name__.startswith("_")],
-    * [t for t in sandbox_tools.__dict__.values() if callable(t) and hasattr(t, "name") and not t.__name__.startswith("_")],
+    *[t for t in discord_tools.__dict__.values() if _is_tool(t)],
+    *[t for t in memory_tools.__dict__.values() if _is_tool(t)],
+    *[t for t in sandbox_tools.__dict__.values() if _is_tool(t)],
 ]
 
 # Create a ToolNode for execution
