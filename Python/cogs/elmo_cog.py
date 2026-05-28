@@ -7,6 +7,7 @@ import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.runnables import RunnableConfig
 
 from .agent_elmo.deps import AgentDeps
 from .agent_elmo.graph import create_agent_graph
@@ -25,7 +26,9 @@ logfire.configure(console=logfire.ConsoleOptions(min_log_level="debug"))
 # Global agent state
 memory_store = AgentMemoryStore()
 sandbox_manager = SandboxManager()
-graph = create_agent_graph().compile(checkpointer=memory_store.get_checkpointer())
+# Graph is created but NOT compiled here
+_agent_graph = create_agent_graph()
+graph: Any = None
 
 class AgentCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -112,7 +115,7 @@ class AgentCog(commands.Cog):
                 "channel_id": cid,
             }
 
-            config = {
+            config: RunnableConfig = {
                 "configurable": {
                     "thread_id": str(cid),
                     "deps": deps,
@@ -126,7 +129,13 @@ class AgentCog(commands.Cog):
                 # Get the final AI message
                 last_msg = final_state["messages"][-1]
                 if isinstance(last_msg, AIMessage):
-                    await easy_send(channel, last_msg.content)
+                    content = last_msg.content
+                    if isinstance(content, list):
+                        # Handle multimodal content by extracting text
+                        text_content = " ".join([block["text"] for block in content if isinstance(block, dict) and "text" in block])
+                        await easy_send(channel, text_content)
+                    else:
+                        await easy_send(channel, str(content))
                 else:
                     await channel.send("System: Agent failed to return a valid response.")
             except Exception as e:
@@ -136,4 +145,10 @@ class AgentCog(commands.Cog):
 async def setup(bot: commands.Bot) -> None:
     # Cleanup old checkpoints on startup
     memory_store.cleanup_old_checkpoints()
+
+    # Compile graph with the async checkpointer
+    global graph
+    checkpointer = await memory_store.get_checkpointer()
+    graph = _agent_graph.compile(checkpointer=checkpointer)
+
     await bot.add_cog(AgentCog(bot=bot))

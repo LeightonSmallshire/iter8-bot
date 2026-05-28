@@ -1,18 +1,30 @@
 import sqlite3
 from datetime import datetime, timedelta
+from typing import Any
 
 import logfire
-from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 
 class AgentMemoryStore:
     def __init__(self, db_path: str = "data/agent_storage.db"):
         self.db_path = db_path
-        self.checkpointer = SqliteSaver.from_conn_string(self.db_path)
+        self._saver: AsyncSqliteSaver | None = None
+        self._ctx: Any | None = None
 
-    def get_checkpointer(self) -> SqliteSaver:
-        """Returns the LangGraph checkpointer."""
-        return self.checkpointer
+    async def get_checkpointer(self) -> AsyncSqliteSaver:
+        """Returns the LangGraph checkpointer, initializing it if necessary."""
+        if self._saver is None:
+            self._ctx = AsyncSqliteSaver.from_conn_string(self.db_path)
+            self._saver = await self._ctx.__aenter__()
+        return self._saver
+
+    async def close(self) -> None:
+        """Closes the checkpointer connection."""
+        if self._ctx and self._saver:
+            await self._ctx.__aexit__(None, None, None)
+            self._saver = None
+            self._ctx = None
 
     def cleanup_old_checkpoints(self) -> None:
         """Prunes checkpoints older than 7 days."""

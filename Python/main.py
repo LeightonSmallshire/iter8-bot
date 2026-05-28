@@ -11,17 +11,20 @@ import utils.database as db_utils
 from utils.stocks.stock_control_params import AVAILABLE_STOCKS
 
 # --- Configuration ---
-DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
-
 COGS_DIR = "cogs"
 
 IS_LIVE = bot_utils.IS_LIVE
 IS_TESTING = bot_utils.IS_TESTING
 
+DISCORD_TOKEN = os.environ["DISCORD_TOKEN_LIVE"] if IS_LIVE else os.environ["DISCORD_TOKEN_DEV"]
+
 os.makedirs('data', exist_ok=True)
 
 # --- Logfire Setup ---
-logfire.configure(environment='Live' if IS_LIVE else 'Testing')
+logfire.configure(
+    environment='Live' if IS_LIVE else 'Testing',
+    console=logfire.ConsoleOptions(min_log_level="debug")
+)
 
 now = datetime.datetime.now().time()
 is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
@@ -35,7 +38,6 @@ class HotReloadBot(commands.Bot):
         user_id = self.user.id if self.user else "Unknown"
         logfire.info(f'Discord Bot logged in as {self.user} (ID: {user_id})')
 
-
         if is_work_hours and IS_LIVE:
             message = f'Bot connected {read_git_head()}'
             bot_utils.defer_message(self, bot_utils.Users.Leighton, message)
@@ -44,7 +46,6 @@ class HotReloadBot(commands.Bot):
         server = discord.utils.get(self.guilds, id=bot_utils.Guilds.Default)
         leaderboard = await bot_utils.get_timeout_data(server)
         await db_utils.init_database(leaderboard, AVAILABLE_STOCKS)
-
 
         self.tree.error(self._handle_error)
         await self.hot_reload_cogs()
@@ -157,6 +158,7 @@ def read_git_head() -> tuple[str | None, str | None]:
     else:
         # Detached HEAD contains the hash directly
         return head, None
+
 
 
 def main() -> None:
