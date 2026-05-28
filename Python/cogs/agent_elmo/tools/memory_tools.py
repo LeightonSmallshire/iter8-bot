@@ -1,5 +1,7 @@
 from typing import Any
+
 from langchain_core.tools import tool
+
 
 @tool
 async def remember(content: str, mem0_client: Any, channel_id: int) -> str:
@@ -19,7 +21,8 @@ async def recall(query: str, mem0_client: Any, channel_id: int) -> str:
         return "Error: mem0 not configured."
     try:
         results = mem0_client.search(query, filters={"user_id": str(channel_id)})
-        if not results: return f"No memories found for: {query}"
+        if not results:
+            return f"No memories found for: {query}"
         return "Memories:\n" + "\n".join([f"- {r}" for r in results])
     except Exception as e:
         return f"Error searching memories: {str(e)}"

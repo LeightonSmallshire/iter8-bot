@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
+
 from discord.ext import commands
+
 
 @dataclass
 class AgentDeps:

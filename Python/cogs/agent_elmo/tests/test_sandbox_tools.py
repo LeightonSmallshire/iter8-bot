@@ -1,13 +1,16 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from cogs.agent_elmo.tools import sandbox_tools
+
+import pytest
+
 from cogs.agent_elmo.sandbox.manager import Sandbox
+from cogs.agent_elmo.tools import sandbox_tools
+
 
 @pytest.mark.asyncio
 async def test_bash_error():
     mock_sandbox = MagicMock(spec=Sandbox)
     mock_sandbox.exec_command = AsyncMock(return_value=MagicMock(exit_code=1, output="Error occurred"))
-    
+
     result = await sandbox_tools.bash.ainvoke({"command": "fail", "sandbox": mock_sandbox, "channel_id": 123})
     assert "Exit code: 1" in result
 
@@ -23,7 +26,7 @@ async def test_file_ops_errors():
     mock_sandbox.find_files = AsyncMock(return_value="Error finding")
     mock_sandbox.make_dir = AsyncMock(return_value="Error mkdir")
     mock_sandbox.delete_file = AsyncMock(return_value="Error deleting")
-    
+
     assert "Error reading" in await sandbox_tools.read_file.ainvoke({"path": "path", "sandbox": mock_sandbox, "channel_id": 123})
     assert "Error writing" in await sandbox_tools.write_file.ainvoke({"path": "path", "content": "c", "sandbox": mock_sandbox, "channel_id": 123})
     assert "Error editing" in await sandbox_tools.edit_file.ainvoke({"path": "path", "old_text": "o", "new_text": "n", "sandbox": mock_sandbox, "channel_id": 123})
@@ -39,7 +42,7 @@ async def test_run_python_error():
     # Test type checking error
     result = await sandbox_tools.run_python.ainvoke({"code": "x: int = 'not int'"})
     assert "Type checking failed" in result
-    
+
     # Test execution error
     result = await sandbox_tools.run_python.ainvoke({"code": "raise Exception('Boom')"})
     assert "Execution Failed" in result

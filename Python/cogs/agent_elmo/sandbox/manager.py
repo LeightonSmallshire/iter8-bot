@@ -6,12 +6,13 @@ import os
 import re
 import shlex
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 import docker
 import logfire
 import modal
 from docker.models.containers import Container
+
 
 @dataclass
 class ExecResult:
@@ -112,7 +113,7 @@ class DockerSandbox:
             container = self.ensure_container(channel_id)
         except Exception as e:
             return ExecResult(exit_code=-1, output=f"Error: {str(e)}")
-            
+
         try:
             exit_code, output = await asyncio.to_thread(container.exec_run, cmd, workdir="/workspace")
             decoded_output = output.decode("utf-8", errors="ignore") if isinstance(output, bytes) else str(output)
@@ -168,15 +169,18 @@ class DockerSandbox:
             if recursive:
                 for root, dirs, files in os.walk(host_path):
                     rel_root = os.path.relpath(root, host_path)
-                    if rel_root == ".": rel_root = ""
-                    for d in sorted(dirs): result_lines.append(f"d {os.path.join(rel_root, d)}/")
-                    for f in sorted(files): result_lines.append(f"  {os.path.join(rel_root, f)}")
+                    if rel_root == ".":
+                        rel_root = ""
+                    for d in sorted(dirs):
+                        result_lines.append(f"d {os.path.join(rel_root, d)}/")
+                    for f in sorted(files):
+                        result_lines.append(f"  {os.path.join(rel_root, f)}")
             else:
                 entries = os.listdir(host_path)
                 for entry in sorted(entries):
                     full_path = os.path.join(host_path, entry)
                     result_lines.append(f"d {entry}/" if os.path.isdir(full_path) else f"  {entry}")
-            
+
             prefix = path.rstrip("/")
             return "\n".join(f"{prefix}/{line}" if not line.startswith(prefix) else line for line in result_lines)
         except Exception as e:
@@ -206,12 +210,17 @@ class DockerSandbox:
                         for line_num, line in enumerate(f, 1):
                             if regex.search(line):
                                 results.append(FileMatch(path=os.path.relpath(file_path, host_path), line_number=line_num, content=line.rstrip()))
-                                if len(results) >= max_results: break
-                except Exception: continue
-                if len(results) >= max_results: break
-            if not results: return f"No matches for '{pattern}' in {path}"
+                                if len(results) >= max_results:
+                                    break
+                except Exception:
+                    continue
+                if len(results) >= max_results:
+                    break
+            if not results:
+                return f"No matches for '{pattern}' in {path}"
             output = [f"Found {len(results)} match(es) for '{pattern}':"]
-            for m in results: output.append(f"  {m.path}:{m.line_number} {m.content}")
+            for m in results:
+                output.append(f"  {m.path}:{m.line_number} {m.content}")
             return "\n".join(output)
         except Exception as e:
             return f"Error in grep search: {str(e)}"
@@ -222,9 +231,11 @@ class DockerSandbox:
             matches = []
             for root, dirs, files in os.walk(host_path):
                 for f in files:
-                    if fnmatch.fnmatch(f, name_pattern): matches.append(os.path.relpath(os.path.join(root, f), host_path))
+                    if fnmatch.fnmatch(f, name_pattern):
+                        matches.append(os.path.relpath(os.path.join(root, f), host_path))
                 for d in dirs:
-                    if fnmatch.fnmatch(d, name_pattern): matches.append(os.path.relpath(os.path.join(root, d), host_path) + "/")
+                    if fnmatch.fnmatch(d, name_pattern):
+                        matches.append(os.path.relpath(os.path.join(root, d), host_path) + "/")
             return "\n".join(sorted(matches)) if matches else f"No files matching '{name_pattern}' in {path}"
         except Exception as e:
             return f"Error in find: {str(e)}"
@@ -257,7 +268,7 @@ class DockerSandbox:
                 container.remove()
                 del self.containers[channel_id]
         else:
-            for cid, container in list(self.containers.items()):
+            for _cid, container in list(self.containers.items()):
                 container.stop()
                 container.remove()
             self.containers.clear()
@@ -282,8 +293,10 @@ class ModalSandbox:
         if channel_id in self.sandboxes:
             sandbox = self.sandboxes[channel_id]
             try:
-                if sandbox.returncode is None: return sandbox
-            except Exception: pass
+                if sandbox.returncode is None:
+                    return sandbox
+            except Exception:
+                pass
             del self.sandboxes[channel_id]
 
         app = self._get_app()
@@ -297,14 +310,15 @@ class ModalSandbox:
             base_cmd = cmd_parts[0].split("/")[-1]
             if base_cmd in self.denied_commands:
                 return ExecResult(exit_code=-1, output=f"Error: Command '{base_cmd}' is not allowed.")
-        
+
         sandbox = self.ensure_sandbox(channel_id)
         try:
             # Use a lambda to resolve the type mismatch for to_thread
             exec_result = await asyncio.to_thread(lambda: sandbox.exec("bash", "-c", cmd, timeout=timeout))
             exec_result.wait()
             output = exec_result.stdout.read() if exec_result.stdout else ""
-            if exec_result.stderr: output += f"\nSTDERR: {exec_result.stderr.read()}"
+            if exec_result.stderr:
+                output += f"\nSTDERR: {exec_result.stderr.read()}"
             return ExecResult(exit_code=exec_result.returncode or 0, output=output)
         except Exception as e:
             return ExecResult(exit_code=-1, output=f"Error: {str(e)}")
@@ -363,7 +377,8 @@ class ModalSandbox:
                 self.sandboxes[channel_id].terminate()
                 del self.sandboxes[channel_id]
         else:
-            for sandbox in self.sandboxes.values(): sandbox.terminate()
+            for sandbox in self.sandboxes.values():
+                sandbox.terminate()
             self.sandboxes.clear()
 
 class SandboxManager:

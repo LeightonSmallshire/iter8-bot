@@ -1,6 +1,7 @@
 from typing import cast
+
 from .database import DATABASE_NAME, Database, OrderParam, WhereParam
-from .model import User, IsDatabaseTable
+from .model import IsDatabaseTable, User
 
 
 async def get_timeout_leaderboard() -> list[User]:

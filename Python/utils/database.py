@@ -13,19 +13,15 @@ from .model import (
     DatabaseVersion,
     GambleWin,
     Gift,
+    HasIdTable,
+    IsDatabaseTable,
     Log,
     Purchase,
+    SingleValueTable,
     Stock,
-    T,
-    T_id,
-    T_single,
     Timestamps,
     Trade,
-    U,
     User,
-    IsDatabaseTable,
-    HasIdTable,
-    SingleValueTable,
     is_nullable,
     python_to_sql_type,
     python_to_table_name,
@@ -210,15 +206,15 @@ class Database:
             col_def = f"{f.name} {sql_type}"
             if f.name == "id":
                 col_def += " PRIMARY KEY"
- 
+
             if "fk" in meta:
                 fk = meta["fk"]
                 fk_table = fk["table"]
                 fk_field = fk.get("column", "id")
                 col_def += f" REFERENCES {fk_table}({fk_field})"
- 
+
             cols.append(col_def)
- 
+
         sql = f"CREATE TABLE IF NOT EXISTS {python_to_table_name(model)} ({', '.join(cols)})"
         await self.con.execute(sql)
 
@@ -227,20 +223,20 @@ class Database:
         exists = await self.table_exists(python_to_table_name(model))
         if exists:
             return False
- 
+
         is_single = getattr(model, "__single_value_table__", False)
         if is_single:
             await self.create_single_value_table(model)
         else:
             await self.create_id_table(model)
- 
+
         return True
 
 
     async def insert[T: IsDatabaseTable](self, obj: T) -> int:
         is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
- 
+
         if is_single:
             # Insert once only. If a row already exists the UNIQUE(guard) constraint fires.
             table = python_to_table_name(type(obj))
@@ -253,17 +249,17 @@ class Database:
                 # Violates UNIQUE(guard) → singleton already exists
                 raise ValueError(f"Insert refused: {table} already has a row") from e
             return 1
- 
+
         # Treat missing/None/0 as "no id provided"
         unset = ("id" not in data) or (data.get("id") is None) or (data.get("id") == 0)
         if unset and "id" in data:
             data.pop("id")
- 
+
         keys = ", ".join(data.keys())
         qs = ", ".join("?" for _ in data)
         sql = f"INSERT INTO {python_to_table_name(type(obj))} ({keys}) VALUES ({qs})"
         cur = await self.con.execute(sql, tuple(data.values()))
- 
+
         # If id was auto-generated, propagate it to the object and return it
         if unset:
             new_id = cur.lastrowid
@@ -275,7 +271,7 @@ class Database:
             if new_id is None:
                 return 0
             return new_id
- 
+
         if isinstance(obj, HasIdTable):
             val = obj.id
             return int(val) if val is not None else 0
@@ -285,35 +281,35 @@ class Database:
 
     @overload
     async def select[T_single: SingleValueTable](self, model: type[T_single], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> T_single: ...
- 
+
     @overload
     async def select[T_id: HasIdTable](self, model: type[T_id], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> list[T_id]: ...
- 
+
     async def select[T: IsDatabaseTable](self, model: type[T], where: WhereClause | None = None, order: list[OrderParam] | None = None, limit: int | None = None) -> T | list[T]:
         if where is None:
             where = []
         if order is None:
             order = []
- 
+
         is_single = getattr(model, "__single_value_table__", False)
- 
+
         sql = f"SELECT * FROM {python_to_table_name(model)}"
- 
+
         where_sql, params = build_where_clause(where)
         sql += where_sql
- 
+
         for idx, param in enumerate(order):
             sql += " ORDER BY " if idx == 0 else ", "
             sql += f"{param.field} {'DESC' if param.descending else ''}"
- 
+
         cur = await self.con.execute(sql, params)
         rows = cast(list[aiosqlite.Row], await cur.fetchmany(limit) if limit else await cur.fetchall())
         data_rows: list[dict[str, Any]] = [dict(row) for row in rows]
- 
+
         if is_single:
             for row in data_rows:
                 row.pop("guard", None)
- 
+
         results: list[T] = [cast(T, model(**row)) for row in data_rows]
         return results[0] if is_single else results
 
@@ -321,33 +317,33 @@ class Database:
     async def update[T: IsDatabaseTable](self, obj: T, where: WhereClause | None = None) -> None:
         if where is None:
             where = []
- 
+
         data = asdict(obj)
         data = {k: v for k, v in data.items() if v is not None}
- 
+
         assigns = ", ".join(f"{k}=?" for k in data)
         sql = f"UPDATE {python_to_table_name(type(obj))} SET {assigns}"
- 
+
         id_set = ("id" in data) and (data.get("id") is not None) and (data.get("id") != 0)
         if id_set:
             where += [WhereParam("id", data.get("id"))]
- 
+
         where_sql, where_params = build_where_clause(where)
         sql += where_sql
- 
+
         await self.con.execute(sql, list(data.values()) + where_params)
- 
+
     async def delete[T: IsDatabaseTable](self, model: type[T], where: WhereClause | None = None) -> None:
         if where is None:
             where = []
- 
+
         sql = f"DELETE FROM {python_to_table_name(model)}"
- 
+
         where_sql, where_params = build_where_clause(where)
         sql += where_sql
- 
+
         await self.con.execute(sql, where_params)
- 
+
     async def insert_or_update[T: IsDatabaseTable](self, obj: T, where: WhereClause | None = None) -> int:
         """
         Insert a row. If a row with the same primary key exists, update it instead.
@@ -355,13 +351,13 @@ class Database:
         """
         if where is None:
             where = []
- 
+
         is_single = getattr(type(obj), "__single_value_table__", False)
         data = asdict(obj)
         table = python_to_table_name(type(obj))
         keys = list(data.keys())
         non_keys = keys.copy()
- 
+
         if is_single:
             set_clause = ", ".join(f"{k}=excluded.{k}" for k in non_keys)
             sql = (
@@ -370,21 +366,21 @@ class Database:
             )
             await self.con.execute(sql, [data[k] for k in keys])
             return 1
- 
+
         non_id = [k for k in keys if k != "id"]
         columns = ", ".join(keys)
         placeholders = ", ".join("?" for _ in keys)
- 
+
         # update to incoming values (excluded.*)
         set_clause = ", ".join(f"{k}=excluded.{k}" for k in non_id)
- 
+
         where_sql, where_params = build_where_clause(where)
- 
+
         sql = (
             f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) "
             f"ON CONFLICT(id) DO UPDATE SET {set_clause}{where_sql}"
         )
- 
+
         params = [data[k] for k in keys] + where_params
         await self.con.execute(sql, params)
         if isinstance(obj, HasIdTable):
@@ -406,26 +402,26 @@ class Database:
             where = []
         if order is None:
             order = []
- 
+
         la, ra = "l", "r"
         lt, rt = python_to_table_name(left), python_to_table_name(right)
- 
+
         # infer join
         side, fk_field, pk_field = _find_relationship(left, right)
         join_expr = f"{la}.{fk_field} = {ra}.{pk_field}" if side == "left" else f"{la}.{pk_field} = {ra}.{fk_field}"
- 
+
         # alias-qualified columns
         select_cols = _alias_cols(left, la) + _alias_cols(right, ra)
- 
+
         sql = [
             f"SELECT {', '.join(select_cols)}",
             f"FROM {lt} {la}",
             f"INNER JOIN {rt} {ra} ON {join_expr}",
         ]
- 
+
         left_fields = {f.name for f in fields(left)}
         right_fields = {f.name for f in fields(right)}
- 
+
         def qualify(name: str) -> str:
             # unqualified name → search both tables
             if "." in name:
@@ -435,28 +431,28 @@ class Database:
             if name in right_fields:
                 return f"{ra}.{name}"
             raise ValueError(f"{name!r} is not a field of {left.__name__} or {right.__name__}")
- 
+
         params: list[Any] = []
- 
+
         where_sql, where_params = build_where_clause(where)
         sql.append(where_sql)
         params += where_params
- 
+
         if order:
             sql.append("ORDER BY")
             for i, p in enumerate(order):
                 if i:
                     sql.append(", ")
                 sql.append(f"{qualify(p.field)} {'DESC' if p.descending else 'ASC'}")
- 
+
         if limit is not None:
             sql.append("LIMIT ?")
             params.append(limit)
- 
+
         query = " ".join(sql)
         cur = await self.con.execute(query, params)
         rows = await cur.fetchall()
- 
+
         out: list[tuple[T, U]] = []
         for row in rows:
             left_obj = _row_to(left, row, la)
@@ -475,10 +471,8 @@ DATABASE_NAME = "data/storage.db"
 
 async def init_database(timeout_data: list[User], stock_list: list[Stock]) -> None:
     async with Database(DATABASE_NAME) as db:
-        await db.drop_table(cast(type[IsDatabaseTable], User))
         await db.create_table(cast(type[IsDatabaseTable], User))
 
-        await db.drop_table(cast(type[IsDatabaseTable], Log))
         await db.create_table(cast(type[IsDatabaseTable], Log))
 
         await db.create_table(cast(type[IsDatabaseTable], Purchase))

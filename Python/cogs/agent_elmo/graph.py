@@ -1,16 +1,17 @@
+import inspect
 import os
-from typing import Literal, Any
+from typing import Any, Literal
 
-import logfire
-from langchain_openai import ChatOpenAI # type: ignore
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langgraph.graph import StateGraph, END, START
+from langchain_openai import ChatOpenAI  # type: ignore
+from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from .state import AgentState
 from .deps import AgentDeps
-from .tools import web_tools, discord_tools, memory_tools, sandbox_tools
+from .state import AgentState
+from .tools import discord_tools, memory_tools, sandbox_tools, web_tools
+
 
 # --- LLM Setup ---
 def get_llm() -> Any:
@@ -46,7 +47,7 @@ async def call_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
         raise ValueError("AgentDeps missing or invalid in config")
 
     llm = get_llm().bind_tools(all_tools)
-    
+
     # Persona system prompt
     system_message = {
         "role": "system",
@@ -56,7 +57,7 @@ async def call_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
             "Don't apologize, don't over-explain. Execute the task."
         )
     }
-    
+
     messages = [system_message] + state["messages"]
     response = await llm.ainvoke(messages)
     return {"messages": [response]}
@@ -67,11 +68,11 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
     if not isinstance(deps, AgentDeps):
         raise ValueError("AgentDeps missing or invalid in config")
     channel_id = state["channel_id"]
-    
+
     # We wrap the tool node's execution to inject dependencies into tool arguments
     # LangGraph tools can be designed to take 'config' or we can modify the tools
     # For now, we manually map the tools and inject deps
-    
+
     last_message = state["messages"][-1]
     if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
         return {"messages": []}
@@ -80,27 +81,31 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
     for tool_call in last_message.tool_calls:
         tool_name = tool_call["name"]
         args = tool_call["args"]
-        
-        # Inject deps into args
-        if "bot" in tool_name or "discord" in tool_name:
-            args["bot"] = deps.bot
-        if "sandbox" in tool_name or "file" in tool_name or "bash" in tool_name:
-            args["sandbox"] = deps.sandbox_manager
-        if "memory" in tool_name or "remember" in tool_name or "recall" in tool_name:
-            args["mem0_client"] = deps.mem0_client
-        
-        args["channel_id"] = channel_id
 
         # Find the tool function
         tool_func = next((t for t in all_tools if t.name == tool_name), None)
-        if tool_func:
-            try:
-                res = await tool_func.ainvoke(args)
-                tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=str(res)))
-            except Exception as e:
-                tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=f"Error executing {tool_name}: {str(e)}"))
-        else:
+        if not tool_func:
             tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=f"Tool {tool_name} not found."))
+            continue
+
+        # Inject deps based on function signature
+        func = tool_func.func if hasattr(tool_func, "func") else tool_func
+        sig = inspect.signature(func)
+        for param in sig.parameters.values():
+            if param.name == "bot":
+                args["bot"] = deps.bot
+            elif param.name == "sandbox":
+                args["sandbox"] = deps.sandbox_manager
+            elif param.name == "mem0_client":
+                args["mem0_client"] = deps.mem0_client
+            elif param.name == "channel_id":
+                args["channel_id"] = channel_id
+
+        try:
+            res = await tool_func.ainvoke(args)
+            tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=str(res)))
+        except Exception as e:
+            tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=f"Error executing {tool_name}: {str(e)}"))
 
     return {"messages": tool_results}
 

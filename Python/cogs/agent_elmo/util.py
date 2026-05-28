@@ -1,5 +1,7 @@
 import re
+
 import discord
+
 
 def split_message_for_discord(message: str) -> list[str]:
     """Splits a message into chunks of max 1900 chars, preserving code blocks and spoilers."""

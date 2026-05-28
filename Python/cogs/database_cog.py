@@ -70,17 +70,17 @@ class DatabaseCog(commands.Cog):
         query = (await file.read()).decode('utf-8', 'ignore')
 
         _log.info(f"{interaction.user.name} executed a SQL query file: [{query}]")
- 
+
         try:
             headers, rows = await db_utils.execute_raw_script(query)
         except Exception as e:
             await interaction.followup.send(f"Error: `{type(e).__name__}: {e}`", ephemeral=True)
             return
- 
+
         if headers is None:  # non-SELECT
             await interaction.followup.send("Query executed.", ephemeral=True)
             return
- 
+
         text = _format_rows(headers, cast(Iterable[tuple[Any, ...]], rows))
         if len(text) <= 1900:
             await interaction.followup.send(text, ephemeral=True)

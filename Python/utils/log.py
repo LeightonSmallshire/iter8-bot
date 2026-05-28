@@ -1,10 +1,9 @@
 from typing import cast
-from collections.abc import Sequence
 
-from .database import DATABASE_NAME, Database, OrderParam, WhereParam, WhereClause
+from .database import DATABASE_NAME, Database, OrderParam, WhereClause, WhereParam
 from .model import Log
- 
- 
+
+
 async def read_logs(limit: int = 100, level: str | None = None) -> list[Log]:
     async with Database(DATABASE_NAME) as db:
         where = cast(WhereClause, [WhereParam("level", level)] if level is not None else [])

@@ -1,20 +1,17 @@
 import asyncio
 import contextlib
-import os
-import logfire
 from typing import Any
 
 import discord
+import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, HumanMessage
 
-from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.checkpoint.sqlite import SqliteSaver
-
-from .agent_elmo.graph import create_agent_graph
 from .agent_elmo.deps import AgentDeps
-from .agent_elmo.sandbox.manager import SandboxManager
+from .agent_elmo.graph import create_agent_graph
 from .agent_elmo.memory.store import AgentMemoryStore
+from .agent_elmo.sandbox.manager import SandboxManager
 from .agent_elmo.util import easy_send
 
 # --- Configuration ---
@@ -95,12 +92,12 @@ class AgentCog(commands.Cog):
                 sandbox_manager=sandbox_manager,
                 mem0_client=None, # Add if MEM0_API_KEY is used
             )
-            
+
             # 2. Prepare Input state
             # We bootstrap current messages into LangChain format if no history exists
             # But LangGraph checkpointer handles history automatically if we provide thread_id.
             # We only need to provide the latest user message.
-            
+
             # Find the last message that triggered the run
             # Since pending_messages was popped, we need to fetch it or pass it.
             # Actually, we can just fetch the last message from the channel.
@@ -114,7 +111,7 @@ class AgentCog(commands.Cog):
                 "messages": [HumanMessage(content=user_prompt)],
                 "channel_id": cid,
             }
-            
+
             config = {
                 "configurable": {
                     "thread_id": str(cid),
@@ -125,7 +122,7 @@ class AgentCog(commands.Cog):
             try:
                 # Run the graph
                 final_state = await graph.ainvoke(state, config=config)
-                
+
                 # Get the final AI message
                 last_msg = final_state["messages"][-1]
                 if isinstance(last_msg, AIMessage):

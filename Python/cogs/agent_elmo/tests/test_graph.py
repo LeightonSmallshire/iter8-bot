@@ -1,10 +1,12 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
-from cogs.agent_elmo.graph import create_agent_graph
+
 from cogs.agent_elmo.deps import AgentDeps
+from cogs.agent_elmo.graph import create_agent_graph
 from cogs.agent_elmo.sandbox.manager import SandboxManager
+
 
 @pytest.fixture
 def agent_graph():
@@ -25,10 +27,10 @@ async def test_graph_simple_response(agent_graph, mock_deps) -> None:
         mock_llm.bind_tools.return_value = mock_llm
         mock_llm.ainvoke = AsyncMock(return_value=AIMessage(content="Hello!"))
         mock_get_llm.return_value = mock_llm
-        
+
         state = {"messages": [HumanMessage(content="Hi")], "channel_id": 123}
         config = {"configurable": {"deps": mock_deps}}
-        
+
         result = await agent_graph.ainvoke(state, config=config)
         assert result["messages"][-1].content == "Hello!"
 
@@ -42,21 +44,21 @@ async def test_graph_tool_execution(agent_graph, mock_deps) -> None:
             AIMessage(content="The search result was great!")
         ])
         mock_get_llm.return_value = mock_llm
-        
+
         # Mock web_search tool to return a value
         # We patch the actual tool function in the module
         with patch("cogs.agent_elmo.tools.web_tools.web_search", new_callable=AsyncMock) as mock_search:
             mock_search.return_value = "Search result: test"
-            
+
             # We also need to ensure the tool in all_tools is this mock
             # because all_tools is initialized at module load.
             import cogs.agent_elmo.graph as graph_mod
             original_tools = graph_mod.all_tools
             graph_mod.all_tools = [mock_search] + original_tools[1:]
-            
+
             state = {"messages": [HumanMessage(content="Search for test")], "channel_id": 123}
             config = {"configurable": {"deps": mock_deps}}
-            
+
             try:
                 result = await agent_graph.ainvoke(state, config=config)
                 assert "The search result was great!" in result["messages"][-1].content
@@ -67,7 +69,7 @@ async def test_graph_tool_execution(agent_graph, mock_deps) -> None:
 async def test_graph_missing_deps(agent_graph):
     state = {"messages": [HumanMessage(content="Hi")], "channel_id": 123}
     config = {"configurable": {}} # No deps
-    
+
     with pytest.raises(ValueError, match="AgentDeps missing"):
         await agent_graph.ainvoke(state, config=config)
 
@@ -81,18 +83,18 @@ async def test_graph_tool_error(agent_graph, mock_deps):
             AIMessage(content="Fixed it!")
         ])
         mock_get_llm.return_value = mock_llm
-        
+
         with patch("cogs.agent_elmo.tools.web_tools.web_search", new_callable=AsyncMock) as mock_search:
             mock_search.name = "web_search"
             mock_search.ainvoke.side_effect = Exception("Search failed")
-            
+
             import cogs.agent_elmo.graph as graph_mod
             original_tools = graph_mod.all_tools
             graph_mod.all_tools = [mock_search] + original_tools[1:]
-            
+
             state = {"messages": [HumanMessage(content="Search")], "channel_id": 123}
             config = {"configurable": {"deps": mock_deps}}
-            
+
             result = await agent_graph.ainvoke(state, config=config)
             # The tool error should be captured in a ToolMessage and sent back to LLM
             assert any(isinstance(m, ToolMessage) and "Error executing web_search" in m.content for m in result["messages"])

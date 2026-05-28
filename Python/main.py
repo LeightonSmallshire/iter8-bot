@@ -8,7 +8,6 @@ from discord.ext import commands
 
 import utils.bot as bot_utils
 import utils.database as db_utils
-import utils.stocks.stock_db as stock_utils
 from utils.stocks.stock_control_params import AVAILABLE_STOCKS
 
 # --- Configuration ---

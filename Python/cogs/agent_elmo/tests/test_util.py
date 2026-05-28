@@ -1,6 +1,9 @@
+from unittest.mock import AsyncMock
+
 import pytest
-from cogs.agent_elmo.util import split_message_for_discord, easy_send
-from unittest.mock import AsyncMock, MagicMock
+
+from cogs.agent_elmo.util import easy_send, split_message_for_discord
+
 
 def test_split_message_short():
     msg = "Hello world"

@@ -2,9 +2,9 @@ import datetime
 import re
 from dataclasses import dataclass, field, fields
 from typing import Any, ClassVar, Literal, Protocol, TypeVar, get_args, get_origin, runtime_checkable
- 
+
 from packaging.version import Version
- 
+
 # --- type mapping ---
 TYPE_MAP = {
     int: "INTEGER",
@@ -26,7 +26,7 @@ def single_value_table(cls: type[Any]) -> type[Any]:
 class HasIdTable(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
     id: int | None
- 
+
 @runtime_checkable
 class SingleValueTable(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]

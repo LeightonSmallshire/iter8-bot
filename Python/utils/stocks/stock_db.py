@@ -12,7 +12,7 @@ from utils.stocks.stock_controls import (
 )
 
 from ..database import DATABASE_NAME, Database, WhereParam
-from ..model import Stock, Timestamps, Trade, IsDatabaseTable, SingleValueTable
+from ..model import IsDatabaseTable, SingleValueTable, Stock, Timestamps, Trade
 
 
 async def get_all_stocks() -> list[Stock]:
@@ -74,13 +74,13 @@ async def do_stock_market_directions_update(db: Database, iterations: int) -> No
 async def update_market_since_last_action(autosell_callback: Callable[[str], Awaitable[Any]]) -> None:
     async with Database(DATABASE_NAME) as db:
         timestamps = cast(Timestamps, await db.select(cast(type[SingleValueTable], Timestamps)))
- 
+
         five_min_diff = math.floor(datetime.datetime.now().minute / 15) - math.floor(timestamps.last_market_update.minute / 15)
         await do_stock_market_directions_update(db, five_min_diff)
- 
+
         dt = (datetime.datetime.now() - timestamps.last_market_update).total_seconds()
         dt = await do_stock_market_update(db, dt, autosell_callback)
- 
+
         timestamps.last_market_update = datetime.datetime.now() - datetime.timedelta(seconds=dt)
         await db.update(cast(IsDatabaseTable, timestamps))
 

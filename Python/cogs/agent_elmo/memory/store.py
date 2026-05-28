@@ -1,7 +1,9 @@
 import sqlite3
-import logfire
 from datetime import datetime, timedelta
-from langgraph.checkpoint.sqlite import SqliteSaver # type: ignore
+
+import logfire
+from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore
+
 
 class AgentMemoryStore:
     def __init__(self, db_path: str = "data/agent_storage.db"):
@@ -18,8 +20,8 @@ class AgentMemoryStore:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             week_ago = (datetime.now() - timedelta(days=7)).isoformat()
-            
-            # LangGraph checkpointers use various tables; this is a simplified 
+
+            # LangGraph checkpointers use various tables; this is a simplified
             # cleanup that targets the main checkpoint blobs
             cursor.execute("DELETE FROM checkpoints WHERE timestamp < ?", [week_ago])
             conn.commit()

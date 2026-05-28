@@ -1,6 +1,8 @@
+
 import pytest
-import os
+
 from cogs.agent_elmo.memory.store import AgentMemoryStore
+
 
 @pytest.fixture
 def memory_store(tmp_path) -> AgentMemoryStore:

@@ -1,6 +1,9 @@
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from cogs.agent_elmo.tools import memory_tools
+
 
 @pytest.mark.asyncio
 async def test_remember_success():

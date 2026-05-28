@@ -1,7 +1,8 @@
 import datetime
 from typing import cast
+
 from .database import DATABASE_NAME, Database, WhereParam
-from .model import Purchase, Timestamps, IsDatabaseTable, SingleValueTable
+from .model import IsDatabaseTable, Purchase, SingleValueTable, Timestamps
 from .shop import AdminRerollItem
 
 

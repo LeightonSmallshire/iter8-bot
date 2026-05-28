@@ -1,6 +1,8 @@
 import pydantic_monty
 from langchain_core.tools import tool
+
 from ..sandbox.manager import Sandbox
+
 
 @tool
 async def bash(command: str, sandbox: Sandbox, channel_id: int, timeout: int = 30) -> str:
