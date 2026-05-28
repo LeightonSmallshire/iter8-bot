@@ -32,26 +32,26 @@ async def test_execute_tools_tool_not_found():
 
 @pytest.mark.asyncio
 async def test_execute_tools_execution_error():
-    # We need to mock a tool that exists but fails
-    with pytest.MonkeyPatch.context():
-        # Force the tool to raise an exception
-        mock_tool = AsyncMock(side_effect=Exception("Boom!"))
-        mock_tool.name = "web_search"
-        mock_tool.ainvoke = mock_tool
+    import cogs.agent_elmo.graph as graph
+    original_tools = graph.all_tools
 
-        # Patch all_tools in graph
-        import cogs.agent_elmo.graph as graph
-        graph.all_tools = [mock_tool]
+    mock_tool = AsyncMock(side_effect=Exception("Boom!"))
+    mock_tool.name = "web_search"
+    mock_tool.ainvoke = mock_tool
+    graph.all_tools = [mock_tool]
 
-        state = {
-            "messages": [
-                AIMessage(content="", tool_calls=[{"name": "web_search", "args": {"query": "test"}, "id": "1"}])
-            ],
-            "channel_id": 123
-        }
-        config = {"configurable": {"deps": MagicMock(spec=AgentDeps)}}
+    state = {
+        "messages": [
+            AIMessage(content="", tool_calls=[{"name": "web_search", "args": {"query": "test"}, "id": "1"}])
+        ],
+        "channel_id": 123
+    }
+    config = {"configurable": {"deps": MagicMock(spec=AgentDeps)}}
+    try:
         result = await execute_tools(state, config)
         assert "Error executing web_search: Boom!" in result["messages"][0].content
+    finally:
+        graph.all_tools = original_tools
 
 def test_memory_cleanup():
     import os

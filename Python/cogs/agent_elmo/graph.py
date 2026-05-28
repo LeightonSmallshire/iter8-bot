@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI  # type: ignore
+from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -14,17 +14,18 @@ from .tools import discord_tools, memory_tools, sandbox_tools, web_tools
 
 
 # --- LLM Setup ---
-def get_llm() -> Any:
-    """Returns the LLM configured for OpenRouter."""
+def get_llm() -> ChatOpenAI:
+    """Returns the base LLM configured for OpenRouter (no retry wrapper)."""
     return ChatOpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=os.environ.get("OPENROUTER_API_KEY") or "", # type: ignore
         model="openrouter/free",
         temperature=0.7,
-    ).with_retry(
-        # Use a generic retry policy for transient API errors
-        stop_after_attempt=3,
     )
+
+def get_llm_with_tools() -> Any:
+    """Returns the LLM with tools bound, wrapped with retry."""
+    return get_llm().bind_tools(all_tools).with_retry(stop_after_attempt=3)
 
 # --- Tool Setup ---
 # Collect all tools
@@ -46,7 +47,7 @@ async def call_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
     if not isinstance(deps, AgentDeps):
         raise ValueError("AgentDeps missing or invalid in config")
 
-    llm = get_llm().bind_tools(all_tools)
+    llm = get_llm_with_tools()
 
     # Persona system prompt
     system_message = {
@@ -89,7 +90,12 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
             continue
 
         # Inject deps based on function signature
-        func = tool_func.func if hasattr(tool_func, "func") else tool_func
+        if hasattr(tool_func, "func") and tool_func.func is not None:
+            func = tool_func.func
+        elif hasattr(tool_func, "coroutine") and tool_func.coroutine is not None:
+            func = tool_func.coroutine
+        else:
+            func = tool_func
         sig = inspect.signature(func)
         for param in sig.parameters.values():
             if param.name == "bot":
