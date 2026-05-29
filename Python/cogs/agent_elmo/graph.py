@@ -86,7 +86,7 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
     tool_results = []
     for tool_call in last_message.tool_calls:
         tool_name = tool_call["name"]
-        args = tool_call["args"]
+        args = tool_call["args"].copy()
 
         # Find the tool function
         tool_func = next((t for t in all_tools if t.name == tool_name), None)
