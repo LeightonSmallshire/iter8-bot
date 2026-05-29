@@ -20,12 +20,6 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN_LIVE"] if IS_LIVE else os.environ["DIS
 
 os.makedirs('data', exist_ok=True)
 
-# --- Logfire Setup ---
-logfire.configure(
-    environment='Live' if IS_LIVE else 'Testing',
-    console=logfire.ConsoleOptions(min_log_level="debug")
-)
-
 now = datetime.datetime.now().time()
 is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
 
@@ -168,4 +162,8 @@ def main() -> None:
 
 
 if __name__ == '__main__':
+    logfire.configure(
+        environment='Live' if IS_LIVE else 'Testing',
+        console=logfire.ConsoleOptions(min_log_level="debug")
+    )
     main()

@@ -31,10 +31,16 @@ class AgentMemoryStore:
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
 
-            # LangGraph checkpointers use various tables; this is a simplified
-            # cleanup that targets the main checkpoint blobs
+            # Only clean up if the checkpoints table exists (first run has none)
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='checkpoints'"
+            )
+            if cursor.fetchone() is None:
+                conn.close()
+                return
+
+            week_ago = (datetime.now() - timedelta(days=7)).isoformat()
             cursor.execute("DELETE FROM checkpoints WHERE timestamp < ?", [week_ago])
             conn.commit()
             conn.close()

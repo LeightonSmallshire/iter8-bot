@@ -284,12 +284,12 @@ class ModalSandbox:
             "systemctl", "service", "init", "shutdown", "reboot",
         })
 
-    def _get_app(self) -> modal.App:
+    async def _get_app(self) -> modal.App:
         if self._app is None:
-            self._app = modal.App.lookup("iter8-bot-sandbox", create_if_missing=True)
+            self._app = await modal.App.lookup.aio("iter8-bot-sandbox", create_if_missing=True)
         return self._app
 
-    def ensure_sandbox(self, channel_id: int) -> modal.Sandbox:
+    async def ensure_sandbox(self, channel_id: int) -> modal.Sandbox:
         if channel_id in self.sandboxes:
             sandbox = self.sandboxes[channel_id]
             try:
@@ -299,8 +299,8 @@ class ModalSandbox:
                 pass
             del self.sandboxes[channel_id]
 
-        app = self._get_app()
-        sandbox = modal.Sandbox.create("python3", "-c", "import time; time.sleep(3600)", app=app, memory=512, cpu=0.5, timeout=3600)
+        app = await self._get_app()
+        sandbox = await modal.Sandbox.create.aio("python3", "-c", "import time; time.sleep(3600)", app=app, memory=512, cpu=0.5, timeout=3600)
         self.sandboxes[channel_id] = sandbox
         return sandbox
 
@@ -311,14 +311,13 @@ class ModalSandbox:
             if base_cmd in self.denied_commands:
                 return ExecResult(exit_code=-1, output=f"Error: Command '{base_cmd}' is not allowed.")
 
-        sandbox = self.ensure_sandbox(channel_id)
+        sandbox = await self.ensure_sandbox(channel_id)
         try:
-            # Use a lambda to resolve the type mismatch for to_thread
             exec_result = await asyncio.to_thread(lambda: sandbox.exec("bash", "-c", cmd, timeout=timeout))
-            exec_result.wait()
-            output = exec_result.stdout.read() if exec_result.stdout else ""
+            await exec_result.wait.aio()
+            output = await exec_result.stdout.read.aio() if exec_result.stdout else ""
             if exec_result.stderr:
-                output += f"\nSTDERR: {exec_result.stderr.read()}"
+                output += f"\nSTDERR: {await exec_result.stderr.read.aio()}"
             return ExecResult(exit_code=exec_result.returncode or 0, output=output)
         except Exception as e:
             return ExecResult(exit_code=-1, output=f"Error: {str(e)}")

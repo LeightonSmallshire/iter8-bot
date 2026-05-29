@@ -18,7 +18,6 @@ from cogs.agent_elmo.deps import AgentDeps
 from cogs.agent_elmo.graph import all_tools, create_agent_graph, execute_tools
 from cogs.agent_elmo.sandbox.manager import SandboxManager
 
-
 # ---------------------------------------------------------------------------
 # fixtures
 # ---------------------------------------------------------------------------
@@ -198,9 +197,11 @@ class TestFullGraphWithDiTools:
         """Full graph run: send_gif tool → must not crash on second call_agent."""
         with patch("cogs.agent_elmo.graph.get_llm") as mock_get_llm:
             mock_get_llm.return_value = _mock_llm([
+                AIMessage(content="I should send a cat GIF"),            # think
                 AIMessage(content="", tool_calls=[
                     {"name": "send_gif", "args": {"query": "cat"}, "id": "call_1"},
                 ]),
+                AIMessage(content="GIF sent, now respond"),              # think
                 AIMessage(content="Sent a cat GIF!"),
             ])
 
@@ -216,9 +217,11 @@ class TestFullGraphWithDiTools:
         """Full graph run: bash tool (sandbox injection) → must not crash."""
         with patch("cogs.agent_elmo.graph.get_llm") as mock_get_llm:
             mock_get_llm.return_value = _mock_llm([
+                AIMessage(content="I should list files"),                # think
                 AIMessage(content="", tool_calls=[
                     {"name": "bash", "args": {"command": "ls"}, "id": "call_1"},
                 ]),
+                AIMessage(content="Files listed, now respond"),          # think
                 AIMessage(content="Listed files!"),
             ])
 
@@ -242,9 +245,11 @@ class TestFullGraphWithDiTools:
 
         with patch("cogs.agent_elmo.graph.get_llm") as mock_get_llm:
             mock_get_llm.return_value = _mock_llm([
+                AIMessage(content="I should remember the answer"),       # think
                 AIMessage(content="", tool_calls=[
                     {"name": "remember", "args": {"content": "the answer is 42"}, "id": "call_1"},
                 ]),
+                AIMessage(content="Remembered, now respond"),            # think
                 AIMessage(content="Remembered!"),
             ])
 
@@ -260,9 +265,11 @@ class TestFullGraphWithDiTools:
         """After a full graph run with a DI tool, the final state must be serializable."""
         with patch("cogs.agent_elmo.graph.get_llm") as mock_get_llm:
             mock_get_llm.return_value = _mock_llm([
+                AIMessage(content="I should run pwd"),                   # think
                 AIMessage(content="", tool_calls=[
                     {"name": "bash", "args": {"command": "pwd"}, "id": "call_1"},
                 ]),
+                AIMessage(content="Done, now respond"),                  # think
                 AIMessage(content="Done"),
             ])
 
@@ -280,12 +287,15 @@ class TestFullGraphWithDiTools:
         """Two consecutive tool call cycles must not corrupt state."""
         with patch("cogs.agent_elmo.graph.get_llm") as mock_get_llm:
             mock_get_llm.return_value = _mock_llm([
+                AIMessage(content="I should run two commands"),          # think
                 AIMessage(content="", tool_calls=[
                     {"name": "bash", "args": {"command": "echo 1"}, "id": "call_1"},
                 ]),
+                AIMessage(content="First done, run second"),             # think
                 AIMessage(content="", tool_calls=[
                     {"name": "bash", "args": {"command": "echo 2"}, "id": "call_2"},
                 ]),
+                AIMessage(content="All done, now respond"),              # think
                 AIMessage(content="All done"),
             ])
 

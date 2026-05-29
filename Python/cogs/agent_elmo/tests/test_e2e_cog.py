@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import discord
 import pytest
 from discord.ext import commands
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 from cogs.elmo_cog import AgentCog, ChannelState
 
@@ -79,7 +79,12 @@ async def test_do_work_with_bot_history():
     cog = AgentCog(bot=bot)
     with patch("cogs.elmo_cog.graph") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value={
-            "messages": [AIMessage(content="Here is the follow-up answer")]
+            "messages": [
+                AIMessage(content="I should respond", tool_calls=[
+                    {"name": "respond", "args": {"content": "Here is the follow-up answer"}, "id": "r1"},
+                ]),
+                ToolMessage(content="Here is the follow-up answer", tool_call_id="r1"),
+            ],
         })
         await cog._do_work(channel_id)
 
@@ -107,7 +112,12 @@ async def test_do_work_no_bot_history():
     cog = AgentCog(bot=bot)
     with patch("cogs.elmo_cog.graph") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value={
-            "messages": [AIMessage(content="Response")]
+            "messages": [
+                AIMessage(content="I should respond", tool_calls=[
+                    {"name": "respond", "args": {"content": "Response"}, "id": "r2"},
+                ]),
+                ToolMessage(content="Response", tool_call_id="r2"),
+            ],
         })
         await cog._do_work(channel_id)
 
@@ -191,7 +201,12 @@ async def test_do_work_multimodal_response():
     cog = AgentCog(bot=bot)
     with patch("cogs.elmo_cog.graph") as mock_graph:
         mock_graph.ainvoke = AsyncMock(return_value={
-            "messages": [AIMessage(content=[{"type": "text", "text": "Hello"}, {"type": "text", "text": "world"}])]
+            "messages": [
+                AIMessage(content="I should respond", tool_calls=[
+                    {"name": "respond", "args": {"content": "Hello world"}, "id": "r3"},
+                ]),
+                ToolMessage(content="Hello world", tool_call_id="r3"),
+            ],
         })
         await cog._do_work(channel_id)
 

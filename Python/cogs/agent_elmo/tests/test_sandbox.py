@@ -1,6 +1,6 @@
 import os
 import tempfile
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -75,16 +75,17 @@ async def test_docker_sandbox_container_lifecycle(mock_docker_client) -> None:
 
 @pytest.mark.asyncio
 async def test_modal_sandbox_exec() -> None:
-    with patch("modal.App.lookup") as mock_lookup:
-        mock_app = MagicMock()
-        mock_lookup.return_value = mock_app
-        with patch("modal.Sandbox.create") as mock_create:
+    with patch("cogs.agent_elmo.sandbox.manager.modal.App.lookup.aio", new_callable=AsyncMock) as mock_lookup:
+        mock_lookup.return_value = MagicMock()
+        with patch("cogs.agent_elmo.sandbox.manager.modal.Sandbox.create.aio", new_callable=AsyncMock) as mock_create:
             mock_sandbox = MagicMock()
-            mock_sandbox.exec.return_value = MagicMock()
-            mock_sandbox.exec.return_value.wait = MagicMock()
-            mock_sandbox.exec.return_value.stdout.read.return_value = "Hello Modal"
-            mock_sandbox.exec.return_value.returncode = 0
             mock_create.return_value = mock_sandbox
+            exec_result = MagicMock()
+            exec_result.wait.aio = AsyncMock()
+            exec_result.stdout.read.aio = AsyncMock(return_value="Hello Modal")
+            exec_result.stderr = None
+            exec_result.returncode = 0
+            mock_sandbox.exec.return_value = exec_result
             manager = ModalSandbox()
             result = await manager.exec_command("echo Hello", channel_id=123)
             assert result.exit_code == 0
@@ -100,11 +101,16 @@ async def test_modal_sandbox_denied_command() -> None:
 @pytest.mark.asyncio
 async def test_modal_sandbox_exec_error():
     with patch("modal.App.lookup") as mock_lookup:
-        mock_lookup.return_value = MagicMock()
+        mock_lookup.aio = AsyncMock(return_value=MagicMock())
         with patch("modal.Sandbox.create") as mock_create:
             mock_sandbox = MagicMock()
+            mock_create.aio = AsyncMock(return_value=mock_sandbox)
+            exec_result = MagicMock()
+            exec_result.wait.aio = AsyncMock()
+            exec_result.stdout.read.aio = AsyncMock()
+            exec_result.stderr = None
+            mock_sandbox.exec.return_value = exec_result
             mock_sandbox.exec.side_effect = Exception("Modal Error")
-            mock_create.return_value = mock_sandbox
             manager = ModalSandbox()
             result = await manager.exec_command("echo Hello", channel_id=123)
             assert result.exit_code == -1
@@ -261,14 +267,16 @@ async def test_docker_sandbox_dir_ops(mock_docker_client) -> None:
 @pytest.mark.asyncio
 async def test_modal_sandbox_file_ops():
     with patch("modal.App.lookup") as mock_lookup:
-        mock_lookup.return_value = MagicMock()
+        mock_lookup.aio = AsyncMock(return_value=MagicMock())
         with patch("modal.Sandbox.create") as mock_create:
             mock_sandbox = MagicMock()
-            mock_sandbox.exec.return_value = MagicMock()
-            mock_sandbox.exec.return_value.wait = MagicMock()
-            mock_sandbox.exec.return_value.stdout.read.return_value = "success"
-            mock_sandbox.exec.return_value.returncode = 0
-            mock_create.return_value = mock_sandbox
+            mock_create.aio = AsyncMock(return_value=mock_sandbox)
+            exec_result = MagicMock()
+            exec_result.wait.aio = AsyncMock()
+            exec_result.stdout.read.aio = AsyncMock(return_value="success")
+            exec_result.stderr = None
+            exec_result.returncode = 0
+            mock_sandbox.exec.return_value = exec_result
             manager = ModalSandbox()
             assert "success" in await manager.read_file("path", 123)
             assert "File written" in await manager.write_file("path", "content", 123)

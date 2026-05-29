@@ -7,7 +7,7 @@ import discord
 import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 
 from .agent_elmo.deps import AgentDeps
@@ -16,13 +16,31 @@ from .agent_elmo.memory.store import AgentMemoryStore
 from .agent_elmo.sandbox.manager import SandboxManager
 from .agent_elmo.util import easy_send
 
+
+def _extract_response_content(messages: list) -> str | None:
+    """Return the final response content from the agent's message list.
+
+    The agent must call respond() to deliver its answer — plain AIMessage
+    text is internal reasoning and MUST NOT reach the user.
+    """
+    respond_ids: set[str] = set()
+    for msg in messages:
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.get("name") == "respond":
+                    respond_ids.add(tc["id"])
+
+    for msg in reversed(messages):
+        if isinstance(msg, ToolMessage) and msg.tool_call_id in respond_ids:
+            return str(msg.content)
+    return None
+
+
 # --- Configuration ---
 TRUSTED_USERS: set[int] = {1416017385596653649, 1326156803108503566}
 
 load_dotenv("data/.env")
 load_dotenv()
-
-logfire.configure(console=logfire.ConsoleOptions(min_log_level="debug"))
 
 # Global agent state
 memory_store = AgentMemoryStore()
@@ -51,8 +69,11 @@ class AgentCog(commands.Cog):
         if message.author.bot:
             return
 
+        is_dm = isinstance(message.channel, discord.DMChannel)
         channel_id: int | None = getattr(message.channel, "id", None)
-        if channel_id is None or channel_id not in self.allowed_channels:
+        if channel_id is None:
+            return
+        if not is_dm and channel_id not in self.allowed_channels:
             return
 
         is_mentioned = self.bot.user is not None and self.bot.user.mentioned_in(message)
@@ -64,7 +85,7 @@ class AgentCog(commands.Cog):
 
         state = self.channel_states.setdefault(channel_id, ChannelState())
 
-        if is_mentioned or is_reply:
+        if is_dm or is_mentioned or is_reply:
             state.should_run = True
             state.last_activity = time.monotonic()
             state.event.set()
@@ -117,27 +138,30 @@ class AgentCog(commands.Cog):
             logfire.warn("channel_not_found", channel_id=channel_id)
             return
 
-        if not isinstance(channel, (discord.TextChannel, discord.Thread)):
+        if not isinstance(channel, (discord.TextChannel, discord.Thread, discord.DMChannel)):
             logfire.warn("unsupported_channel_type", channel_id=channel_id)
             return
 
         # Find the last bot message in this channel
         last_bot_msg = None
-        async for msg in channel.history(limit=100):
+        async for msg in channel.history(limit=200):
             if self.bot.user and msg.author.id == self.bot.user.id:
                 last_bot_msg = msg
                 break
 
-        # Collect user messages since last bot message
+        # Collect user messages since last bot message.
+        # Using the Message object for `after` gives snowflake-precision ordering
+        # (vs second-precision with .created_at), and setting id=str(msg.id)
+        # lets add_messages deduplicate by Discord message ID instead of always appending.
         kwargs: dict[str, Any] = {"limit": 200}
         if last_bot_msg is not None:
-            kwargs["after"] = last_bot_msg.created_at
+            kwargs["after"] = last_bot_msg
 
         new_messages: list[HumanMessage] = []
         async for msg in channel.history(**kwargs):
             if msg.author.bot:
                 continue
-            new_messages.append(HumanMessage(content=msg.clean_content))
+            new_messages.append(HumanMessage(content=msg.clean_content, id=str(msg.id)))
 
         if not new_messages:
             logfire.info("no_new_messages", channel_id=channel_id)
@@ -151,11 +175,6 @@ class AgentCog(commands.Cog):
             sandbox_manager=sandbox_manager,
         )
 
-        state = {
-            "messages": new_messages,
-            "channel_id": channel_id,
-        }
-
         config: RunnableConfig = {
             "configurable": {
                 "thread_id": str(channel_id),
@@ -163,21 +182,29 @@ class AgentCog(commands.Cog):
             }
         }
 
+        # Load existing checkpoint messages so Logfire captures the full
+        # message history in the trace input (instead of only new_messages,
+        # which makes the trace look like the latest message is duplicated).
+        all_messages: list = list(new_messages)
+        if graph:
+            try:
+                checkpoint = await graph.aget_state(config)
+                if checkpoint and checkpoint.values.get("messages"):
+                    all_messages = [*checkpoint.values["messages"], *new_messages]
+            except Exception:
+                pass
+
+        state = {
+            "messages": all_messages,
+            "channel_id": channel_id,
+        }
+
         async with channel.typing():
             try:
                 final_state = await graph.ainvoke(state, config=config)
-                last_msg = final_state["messages"][-1]
-                if isinstance(last_msg, AIMessage):
-                    content = last_msg.content
-                    if isinstance(content, list):
-                        text_content = " ".join(
-                            block["text"]
-                            for block in content
-                            if isinstance(block, dict) and "text" in block
-                        )
-                        await easy_send(channel, text_content)
-                    else:
-                        await easy_send(channel, str(content))
+                content = _extract_response_content(final_state["messages"])
+                if content:
+                    await easy_send(channel, content)
                 else:
                     await channel.send("System: Agent failed to return a valid response.")
             except Exception as e:
