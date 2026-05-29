@@ -106,7 +106,7 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
             if param.name == "bot":
                 args["bot"] = deps.bot
             elif param.name == "sandbox":
-                args["sandbox"] = deps.sandbox_manager
+                args["sandbox"] = deps.sandbox_manager.get_sandbox()
             elif param.name == "mem0_client":
                 args["mem0_client"] = deps.mem0_client
             elif param.name == "channel_id":
