@@ -21,6 +21,7 @@ logfire~=4.32
 pydantic_ai~=1.90
 ddgs~=9.14
 docker~=7.1
+trafilatura~=2.0
 python-dotenv~=1.2
 duckdb~=1.5
 pydantic-monty
