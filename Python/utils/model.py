@@ -72,7 +72,9 @@ def unwrap_optional(tp: Any) -> Any:
 def python_to_sql_type(py_type: Any) -> str:
     return TYPE_MAP.get(unwrap_optional(py_type), "TEXT")
 
-def python_to_table_name[T: IsDatabaseTable](model: type[T]) -> str:
+_TModel = TypeVar("_TModel", bound=IsDatabaseTable)
+
+def python_to_table_name(model: type[_TModel]) -> str:
     def pascal_to_snake(name: str) -> str:
         return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
     return f"{pascal_to_snake(model.__name__)}{'' if getattr(model, '__single_value_table__', False) is True else 's'}"
