@@ -1,19 +1,17 @@
-import asyncio
-import operator
+
+import datetime
+import io
+import sys
+import traceback
+from typing import Any
 
 import discord
-from discord.ext import commands
+import logfire
 from discord import app_commands
-import traceback
-import sys
-import datetime
-import subprocess
-import os
-import io
+from discord.ext import commands
 
 import utils.bot as bot_utils
 import utils.timeout as timeout_utils
-import logfire
 
 _log = logfire
 
@@ -28,10 +26,10 @@ class TimeoutsCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_member_update(self, before: discord.Member, after: discord.Member):
+    async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         """Handles member updates, specifically looking for timeout changes."""
 
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
 
         before_timed_out = (before.timed_out_until is not None) and (before.timed_out_until > now)
         after_timed_out = (after.timed_out_until is not None) and (after.timed_out_until > now)
@@ -45,11 +43,11 @@ class TimeoutsCog(commands.Cog):
                            (before.timed_out_until < after.timed_out_until)
 
         duration_to_add = datetime.timedelta(seconds=0)
-        if timeout_applied:
+        if timeout_applied and after.timed_out_until is not None:
             duration_to_add = after.timed_out_until - now
-        elif timeout_removed:
+        elif timeout_removed and before.timed_out_until is not None:
             duration_to_add = now - before.timed_out_until
-        elif timeout_extended:
+        elif timeout_extended and after.timed_out_until is not None and before.timed_out_until is not None:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
         # Do not count timeouts by server owner (but do count removals)
@@ -70,20 +68,21 @@ class TimeoutsCog(commands.Cog):
             else:
                 _log.debug("Moderator/Reason not found in recent audit logs.")
 
-            add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed) 
+            add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed)
             if add_to_db:
                 await timeout_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
             if timeout_applied or timeout_extended:
-                await self.on_member_timeout(after, after.timed_out_until, moderator, reason)
+                if after.timed_out_until is not None:
+                    await self.on_member_timeout(after, after.timed_out_until, moderator if isinstance(moderator, discord.Member) else None, reason)
             else:
-                await self.on_member_untimeout(after, moderator, reason)
+                await self.on_member_untimeout(after, moderator if isinstance(moderator, discord.Member) else None, reason)
 
     @staticmethod
     async def on_member_timeout(member: discord.Member,
                                 until: datetime.datetime,
                                 moderator: discord.Member | None,
-                                reason: str | None):
+                                reason: str | None) -> None:
         """Handles the event after a member is timed out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -91,7 +90,7 @@ class TimeoutsCog(commands.Cog):
         channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
 
         if channel is None:
-            _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
+            _log.error("Couldn't find channel 'clockwork-bot' to post in")
             return
 
         if (moderator is None) or (reason is None):
@@ -107,8 +106,8 @@ class TimeoutsCog(commands.Cog):
 
     @staticmethod
     async def on_member_untimeout(member: discord.Member,
-                                moderator: discord.Member | None,
-                                reason: str | None):
+                                 moderator: discord.Member | None,
+                                 reason: str | None) -> None:
         """Handles the event after a member is released from a time out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -116,7 +115,7 @@ class TimeoutsCog(commands.Cog):
         channel = discord.utils.get(guild.text_channels, id=bot_utils.Channels.ParadiseClockwork)
 
         if channel is None:
-            _log.critical(f"Couldn't find channel 'clockwork-bot' to post in")
+            _log.error("Couldn't find channel 'clockwork-bot' to post in")
             return
 
         if (moderator is None) or (reason is None):
@@ -131,7 +130,7 @@ class TimeoutsCog(commands.Cog):
                 silent=True)
 
     @commands.Cog.listener()
-    async def on_error(self, event, *args, **kwargs):
+    async def on_error(self, event: Any, *args: Any, **kwargs: Any) -> None:
         """
         Listener for unhandled errors that occur during event processing.
         This provides a catch-all for logic errors not caught by a command error handler.
@@ -152,13 +151,9 @@ class TimeoutsCog(commands.Cog):
 
     # --- Slash Command ---
 
-    # @app_commands.command(
-    #     name="show_leaderboard",
-    #     description="Displays the current server XP/level leaderboard."
-    # )
     @app_commands.command(name='leaderboard', description='Show timeout leaderboards')
     @commands.check(bot_utils.is_guild_paradise)
-    async def command_show_leaderboard(self, interaction: discord.Interaction):
+    async def command_show_leaderboard(self, interaction: discord.Interaction) -> None:
         """Generates and displays the timeout leaderboard from audit logs."""
 
         # Getting leaderboard might take time
@@ -171,13 +166,18 @@ class TimeoutsCog(commands.Cog):
             color=discord.Color.red()
         )
 
+        guild = interaction.guild
+        if guild is None:
+            await interaction.followup.send("Guild not found.", ephemeral=True)
+            return
+
         for rank, timeout in enumerate(leaderboard, start=1):
             value = (f"**{timeout.count}** Timeout{'s' if timeout.count != 1 else ''}"
                      + f' {datetime.timedelta(seconds=round(timeout.duration))}')
 
             try:
-                user = await interaction.guild.fetch_member(timeout.id)
-            except:
+                user = await guild.fetch_member(timeout.id)
+            except Exception:
                 await timeout_utils.erase_timeout_user(timeout.id)
 
             if rank == 1:
@@ -203,7 +203,7 @@ class TimeoutsCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -219,5 +219,5 @@ class TimeoutsCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(TimeoutsCog(bot))

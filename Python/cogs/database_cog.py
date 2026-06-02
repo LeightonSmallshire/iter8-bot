@@ -1,32 +1,31 @@
-import operator
+
+import io
+from collections.abc import Iterable
+from typing import Any, cast
 
 import discord
-from discord.ext import commands
+import logfire
 from discord import app_commands
-import traceback
-import io
-import datetime
+from discord.ext import commands
+
 import utils.bot as bot_utils
 import utils.database as db_utils
-from typing import Iterable
-import logfire
 
 _log = logfire
 
-def _format_rows(headers: list[str], rows: Iterable[tuple]) -> str:
+def _format_rows(headers: list[str], rows: Iterable[tuple[Any, ...]]) -> str:
     cols = [headers] + [list(map(lambda x: "" if x is None else str(x), r)) for r in rows]
     if not cols:  # no headers and no rows
         return "No results."
     widths = [max(len(row[i]) for row in cols) for i in range(len(cols[0]))]
-    def fmt(row): return " | ".join(val.ljust(widths[i]) for i, val in enumerate(row))
+    def fmt(row: list[str]) -> str: return " | ".join(val.ljust(widths[i]) for i, val in enumerate(row))
     sep = "-+-".join("-" * w for w in widths)
     lines = [fmt(cols[0]), sep] + [fmt(r) for r in cols[1:]]
     return "```\n" + "\n".join(lines) + "\n```"
 
-    
 
 class DatabaseCog(commands.Cog):
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: discord.Client) -> None:
         self.bot_ = client
         super().__init__()
         _log.info(f"Cog '{self.qualified_name}' initialized.")
@@ -34,9 +33,10 @@ class DatabaseCog(commands.Cog):
     # --- Slash Command ---
 
     @app_commands.command(name="sql", description="SQL database operations")
-    async def sql_group(self, interaction: discord.Interaction, query: str):
+    async def sql_group(self, interaction: discord.Interaction, query: str) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No squeal 4 U")
+            await interaction.response.send_message("No squeal 4 U")
+            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -56,14 +56,14 @@ class DatabaseCog(commands.Cog):
         if len(text) <= 1900:
             await interaction.followup.send(text, ephemeral=True)
         else:
-            buf = io.StringIO(text.strip("`"))
-            file = discord.File(fp=io.BytesIO(buf.getvalue().encode("utf-8")), filename="results.txt")
-            await interaction.followup.send(file=file, ephemeral=True)
+            discord_file = discord.File(fp=io.BytesIO(text.strip("`").encode("utf-8")), filename="results.txt")
+            await interaction.followup.send(file=discord_file, ephemeral=True)
 
     @app_commands.command(name="sqlfile", description="SQL database operations")
-    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment):
+    async def sqlfile_group(self, interaction: discord.Interaction, file: discord.Attachment) -> None:
         if not bot_utils.is_trusted_developer(interaction):
-            return await interaction.response.send_message("No squeal 4 U")
+            await interaction.response.send_message("No squeal 4 U")
+            return
 
         await interaction.response.defer(ephemeral=True)
 
@@ -81,13 +81,13 @@ class DatabaseCog(commands.Cog):
             await interaction.followup.send("Query executed.", ephemeral=True)
             return
 
-        text = _format_rows(headers, rows)
+        text = _format_rows(headers, cast(Iterable[tuple[Any, ...]], rows))
         if len(text) <= 1900:
             await interaction.followup.send(text, ephemeral=True)
         else:
-            buf = io.StringIO(text.strip("`"))
-            file = discord.File(fp=io.BytesIO(buf.getvalue().encode("utf-8")), filename="results.txt")
-            await interaction.followup.send(file=file, ephemeral=True)
+            discord_file = discord.File(fp=io.BytesIO(text.strip("`").encode("utf-8")), filename="results.txt")
+            await interaction.followup.send(file=discord_file, ephemeral=True)
+
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---
 
@@ -98,7 +98,7 @@ class DatabaseCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -113,7 +113,7 @@ class DatabaseCog(commands.Cog):
 
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(DatabaseCog(bot))
 
 

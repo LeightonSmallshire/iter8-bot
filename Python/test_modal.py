@@ -4,7 +4,10 @@ Requires MODAL_TOKEN_ID and MODAL_TOKEN_SECRET to be set in .env.
 """
 import os
 import sys
+
 from dotenv import load_dotenv
+
+from cogs.agent_elmo.modal_manager import ExecResult, ModalManager
 
 # Load .env file
 load_dotenv()
@@ -12,11 +15,10 @@ load_dotenv()
 # Add Python directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from cogs.agent_elmo.modal_manager import ModalManager, ExecResult
 
-def test_modal():
+def test_modal() -> bool:
     print("Testing ModalManager operations...")
-    
+
     # Initialize ModalManager (will crash if Modal credentials missing)
     try:
         manager = ModalManager()
@@ -24,7 +26,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Failed to initialize ModalManager: {e}")
         return False
-    
+
     # Test 1: Ensure sandbox
     print("\nTest 1: Ensuring sandbox...")
     try:
@@ -33,7 +35,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Error creating sandbox: {e}")
         return False
-    
+
     # Test 2: Execute a simple command
     print("\nTest 2: Executing command...")
     try:
@@ -46,7 +48,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Error executing command: {e}")
         return False
-    
+
     # Test 3: Write and read a file
     print("\nTest 3: Writing file...")
     try:
@@ -55,7 +57,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Error writing file: {e}")
         return False
-    
+
     print("\nTest 4: Reading file...")
     try:
         content = manager.read_file("/workspace/test.txt", channel_id=999)
@@ -63,7 +65,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Error reading file: {e}")
         return False
-    
+
     # Test 5: List directory
     print("\nTest 5: Listing directory...")
     try:
@@ -72,7 +74,7 @@ def test_modal():
     except Exception as e:
         print(f"[FAIL] Error listing directory: {e}")
         return False
-    
+
     # Cleanup
     print("\nCleaning up...")
     try:
@@ -80,7 +82,7 @@ def test_modal():
         print("[OK] Sandbox stopped")
     except Exception as e:
         print(f"[WARN] Error stopping sandbox: {e}")
-    
+
     print("\n[OK] All ModalManager tests passed!")
     return True
 

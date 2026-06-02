@@ -1,28 +1,22 @@
-import asyncio
-import operator
+
+import datetime
 
 import discord
-from discord.ext import commands
+import logfire
 from discord import app_commands
-import traceback
-import sys
-import datetime
-import subprocess
-import os
-import io
+from discord.ext import commands
 
 import utils.bot as bot_utils
 import utils.gifts as gift_utils
 import utils.shop as shop_utils
-import logfire
 
 _log = logfire
 
 GIFT_EMOJI_VALUES: dict[str, int] = {
-    "🥇": 600, 
-    "🥈": 300, 
+    "🥇": 600,
+    "🥈": 300,
     "🥉": 60
-} 
+}
 
 
 class GiftingCog(commands.Cog):
@@ -35,24 +29,27 @@ class GiftingCog(commands.Cog):
 
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
-    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.user_id == self.bot_.user.id:
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 
+        assert payload.guild_id is not None
         guild = self.bot_.get_guild(payload.guild_id) or await self.bot_.fetch_guild(payload.guild_id)
         channel = guild.get_channel(payload.channel_id) or await guild.fetch_channel(payload.channel_id)
+        if not isinstance(channel, discord.abc.Messageable):
+            return
         message = await channel.fetch_message(payload.message_id)
 
         if (message.author.bot or message.author.id == guild.owner_id):
             return
-        
+
         if (payload.user_id == message.author.id):
             return
 
         emoji_str = str(payload.emoji)
         if emoji_str not in GIFT_EMOJI_VALUES:
             return
-        
+
         gift_value = GIFT_EMOJI_VALUES[emoji_str]
 
         if not await shop_utils.can_afford_purchase(payload.user_id, gift_value):
@@ -61,21 +58,24 @@ class GiftingCog(commands.Cog):
         await gift_utils.add_gift(payload.user_id, message.author.id, gift_value)
 
         await channel.send(f"<@{payload.user_id}> gifted <@{message.author.id}> {datetime.timedelta(seconds=gift_value)} for this message.", reference=message, mention_author=False)
-        
+
 
     @commands.Cog.listener()
-    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent):
-        if payload.user_id == self.bot_.user.id:
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 
+        assert payload.guild_id is not None
         guild = self.bot_.get_guild(payload.guild_id) or await self.bot_.fetch_guild(payload.guild_id)
         channel = guild.get_channel(payload.channel_id) or await guild.fetch_channel(payload.channel_id)
+        if not isinstance(channel, discord.abc.Messageable):
+            return
         message = await channel.fetch_message(payload.message_id)
 
         emoji_str = str(payload.emoji)
         if emoji_str not in GIFT_EMOJI_VALUES:
             return
-        
+
         gift_value = GIFT_EMOJI_VALUES[emoji_str]
 
         if not await gift_utils.did_gift(payload.user_id, message.author.id, gift_value):
@@ -95,7 +95,7 @@ class GiftingCog(commands.Cog):
         For slash commands, errors are often handled via `on_app_command_error`.
         """
         if isinstance(error, commands.MissingPermissions):
-            await interaction.response.send_message(f"You don't have the necessary permissions to run this command.")
+            await interaction.response.send_message("You don't have the necessary permissions to run this command.")
         elif isinstance(error, commands.CommandNotFound):
             # This generally won't happen if the command is correctly registered
             pass
@@ -111,5 +111,5 @@ class GiftingCog(commands.Cog):
 # --- Cog Setup Function (MANDATORY for extensions) ---
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(GiftingCog(bot))

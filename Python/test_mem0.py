@@ -4,7 +4,9 @@ Requires MEM0_API_KEY to be set in environment.
 """
 import os
 import sys
+
 from dotenv import load_dotenv
+from mem0 import MemoryClient
 
 # Load .env file
 load_dotenv()
@@ -12,16 +14,14 @@ load_dotenv()
 # Add Python directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from mem0 import MemoryClient
-from mem0.client.types import AddMemoryOptions
 
-def test_mem0():
+def test_mem0() -> bool:
     print("Testing mem0 read/write operations...")
-    
+
     # Initialize client (will crash if MEM0_API_KEY is missing)
     client = MemoryClient(api_key=os.environ["MEM0_API_KEY"])
     print("[OK] MemoryClient initialized")
-    
+
     # Test 1: Add a simple memory
     print("\nTest 1: Adding a memory...")
     try:
@@ -31,7 +31,7 @@ def test_mem0():
     except Exception as e:
         print(f"[FAIL] Error adding memory: {e}")
         return False
-    
+
     # Test 2: Search for the memory
     print("\nTest 2: Searching for memory...")
     try:
@@ -49,10 +49,7 @@ def test_mem0():
     except Exception as e:
         print(f"[FAIL] Error searching: {e}")
         return False
-    except Exception as e:
-        print(f"[FAIL] Error searching: {e}")
-        return False
-    
+
     # Test 3: Add structured conversation
     print("\nTest 3: Adding conversation messages...")
     try:
@@ -66,7 +63,7 @@ def test_mem0():
     except Exception as e:
         print(f"[FAIL] Error saving conversation: {e}")
         return False
-    
+
     print("\n[OK] All mem0 tests passed!")
     return True
 

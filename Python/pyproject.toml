@@ -31,3 +31,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["cogs"]
+
+[tool.mypy]
+ignore_missing_imports = true
+explicit_package_bases = true

@@ -1,8 +1,10 @@
-import utils.database as database
-import utils.model as model
 import asyncio
 
-async def migrate():
+import utils.database as database
+import utils.model as model
+
+
+async def migrate() -> None:
     async with database.Database(database.DATABASE_NAME) as db:
         await db.drop_table_with_name("timeouts")
 
