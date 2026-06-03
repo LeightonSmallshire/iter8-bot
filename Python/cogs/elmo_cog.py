@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import os
 import re
 import textwrap
@@ -129,74 +128,79 @@ class AgentCog(commands.Cog):
         self.docker_manager = docker_manager
         self.mem0_client = mem0_client
         self.allowed_channels: set[int] = {1498977340821209198, 1432698704191815680, 1439936991096737804}
-        # Wait-for-silence state per channel
         self.silence_tasks: dict[int, asyncio.Task[Any]] = {}
         self.run_tasks: dict[int, asyncio.Task[Any]] = {}
         self.pending_messages: dict[int, discord.Message] = {}
-        self.SILENCE_DELAY: float = 3.0  # Wait 3 seconds for silence
+        self.message_queues: dict[int, list[discord.Message]] = {}
+        self.is_processing: set[int] = set()
+        self.SILENCE_DELAY: float = 3.0
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:
             return
 
-        # Type-safe channel ID check
         channel_id: int | None = getattr(message.channel, "id", None)
         if channel_id is None or channel_id not in self.allowed_channels:
             return
 
-        # Check if bot is mentioned
         is_mentioned = self.bot.user is not None and self.bot.user.mentioned_in(message)
 
-        # Check if this is a reply to the bot
         is_reply = False
         if message.reference and message.reference.resolved:
             resolved = message.reference.resolved
             if isinstance(resolved, discord.Message) and self.bot.user:
                 is_reply = resolved.author.id == self.bot.user.id
 
-        if is_mentioned or is_reply:
-            cid = channel_id
+        if not (is_mentioned or is_reply):
+            return
 
-            # Store the latest message
-            self.pending_messages[cid] = message
+        cid = channel_id
 
-            # Cancel any existing silence task (re-trigger)
-            if cid in self.silence_tasks:
-                self.silence_tasks[cid].cancel()
+        # If processing, queue for immediate processing after current response
+        if cid in self.is_processing:
+            self.message_queues.setdefault(cid, []).append(message)
+            return
 
-            # Start a new silence task
-            async def wait_for_silence() -> None:
-                try:
-                    await asyncio.sleep(self.SILENCE_DELAY)
-                    # Silence achieved - get the pending message
-                    if cid in self.pending_messages:
-                        msg = self.pending_messages.pop(cid)
-                        # Wait for current run to finish if any
-                        if cid in self.run_tasks:
-                            with contextlib.suppress(BaseException):
-                                await self.run_tasks[cid]
-                        # Start new run
-                        task = asyncio.create_task(self.run_agent(msg.channel))
-                        self.run_tasks[cid] = task
-                        try:
-                            await task
-                        finally:
-                            if cid in self.run_tasks:
-                                del self.run_tasks[cid]
-                except asyncio.CancelledError:
-                    pass  # Re-triggered by new message
-                finally:
-                    # Clean up silence task reference
-                    if cid in self.silence_tasks and self.silence_tasks[cid].done():
-                        del self.silence_tasks[cid]
+        # Otherwise, (re)start the silence timer
+        self.pending_messages[cid] = message
+        if cid in self.silence_tasks:
+            self.silence_tasks[cid].cancel()
 
-            self.silence_tasks[cid] = asyncio.create_task(wait_for_silence())
+        async def wait_for_silence() -> None:
+            try:
+                await asyncio.sleep(self.SILENCE_DELAY)
+                if cid in self.pending_messages:
+                    msg = self.pending_messages.pop(cid)
+                    await self._process_queue(cid, msg)
+            except asyncio.CancelledError:
+                pass
+            finally:
+                if cid in self.silence_tasks and self.silence_tasks[cid].done():
+                    del self.silence_tasks[cid]
+
+        self.silence_tasks[cid] = asyncio.create_task(wait_for_silence())
+
+    async def _process_queue(self, cid: int, initial_msg: discord.Message) -> None:
+        self.is_processing.add(cid)
+        msg = initial_msg
+        try:
+            while msg:
+                task = asyncio.create_task(self.run_agent(msg.channel, user_message=msg))
+                self.run_tasks[cid] = task
+                await task
+                queue = self.message_queues.get(cid, [])
+                msg = queue.pop(0) if queue else None
+        finally:
+            self.is_processing.discard(cid)
+            if cid in self.run_tasks and self.run_tasks[cid].done():
+                del self.run_tasks[cid]
 
     @logfire.instrument
-    async def run_agent(self, channel: discord.abc.Messageable) -> None:
+    async def run_agent(self, channel: discord.abc.Messageable, user_message: discord.Message | None = None) -> None:
         history: list[ModelMessage] = []
-        async for msg in channel.history(limit=20):
+        before = discord.Object(id=user_message.id) if user_message else None
+        async for msg in channel.history(limit=20, before=before):
             if self.bot.user and msg.author.id == self.bot.user.id:
                 history.append(ModelResponse(parts=[TextPart(content=msg.clean_content)]))
             else:
@@ -204,11 +208,9 @@ class AgentCog(commands.Cog):
                 history.append(ModelRequest(parts=[UserPromptPart(content=f"{author_name}: {msg.clean_content}")]))
         history.reverse()
 
-        # Inject TODO list as a message in history (not system prompt)
-        # todos = self.db.get_todos()
-        # if todos and "No active tasks" not in todos:
-        #     todo_msg = ModelRequest(parts=[UserPromptPart(content=f"[System: Current TODO list:\n{todos}")])
-        #     history.insert(0, todo_msg)
+        author_name = user_message.author.name if user_message and user_message.author else "Unknown"
+        user_prompt = f"{author_name}: {user_message.clean_content}" if user_message else ""
+        message_history = history if history else []
 
         async with channel.typing():
             deps = MainDeps(
@@ -219,34 +221,29 @@ class AgentCog(commands.Cog):
                 mem0_client=self.mem0_client,
             )
 
-            # Get the last message content safely
-            last_message = history[-1] if history else None
-            user_prompt: str = ""
-            if last_message and isinstance(last_message, ModelRequest):
-                parts = last_message.parts
-                if parts and isinstance(parts[0], UserPromptPart):
-                    user_prompt = str(parts[0].content)
+            for attempt in range(3):
+                try:
+                    result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
+                    break
+                except Exception as e:
+                    logfire.error("model_attempt_failed", attempt=attempt, error=e)
+                    if attempt < 2:
+                        await asyncio.sleep(2 ** attempt * 2)
+                    else:
+                        traceback.print_exception(e)
+                        await easy_send(channel, f"Model failed after 3 attempts:\n{e}")
+                        raise
 
-            message_history = history[:-1] if len(history) > 1 else []
+            if result.output:
+                await easy_send(channel, result.output)
+            else:
+                await easy_send(channel, "(no output)")
 
-            try:
-                result = await AGENT_MAIN.run(user_prompt, deps=deps, message_history=message_history)
-                if result.output:
-                    await easy_send(channel, result.output)
-                else:
-                    await easy_send(channel, "(no output)")
-
-                    # Save just the user's message and agent's response
-                    messages_to_save = [
-                        {"role": "user", "content": user_prompt},
-                        {"role": "assistant", "content": result.output if result.output else "(no output)"},
-                    ]
-                    # Pass user_id as kwarg (not in filters)
-                    mem0_client.add(messages_to_save, user_id=str(getattr(channel, "id", 0)))
-            except Exception as e:
-                traceback.print_exception(e)
-                logfire.error("agent_error", error=e)
-                await easy_send(channel, "".join(traceback.format_exception(e)))
+            messages_to_save = [
+                {"role": "user", "content": user_prompt},
+                {"role": "assistant", "content": result.output if result.output else "(no output)"},
+            ]
+            mem0_client.add(messages_to_save, user_id=str(getattr(channel, "id", 0)))
 
 
 if __name__ == "__main__":
