@@ -62,6 +62,7 @@ class AgentCog(commands.Cog):
         self.bot = bot
         self.allowed_channels: set[int] = {1498977340821209198, 1432698704191815680, 1439936991096737804}
         self.channel_states: dict[int, ChannelState] = {}
+        self.processed_boundaries: dict[int, int] = {}  # channel_id → last processed message ID
         self.SILENCE_DELAY: float = 3.0
 
     @commands.Cog.listener()
@@ -142,20 +143,19 @@ class AgentCog(commands.Cog):
             logfire.warn("unsupported_channel_type", channel_id=channel_id)
             return
 
-        # Find the last bot message in this channel
-        last_bot_msg = None
-        async for msg in channel.history(limit=200):
-            if self.bot.user and msg.author.id == self.bot.user.id:
-                last_bot_msg = msg
-                break
+        # Use stored boundary, or find the last bot message as initial anchor
+        boundary_id = self.processed_boundaries.get(channel_id)
+        if boundary_id is None:
+            async for msg in channel.history(limit=200):
+                if self.bot.user and msg.author.id == self.bot.user.id:
+                    boundary_id = msg.id
+                    break
 
-        # Collect user messages since last bot message.
-        # Using the Message object for `after` gives snowflake-precision ordering
-        # (vs second-precision with .created_at), and setting id=str(msg.id)
-        # lets add_messages deduplicate by Discord message ID instead of always appending.
-        kwargs: dict[str, Any] = {"limit": 200}
-        if last_bot_msg is not None:
-            kwargs["after"] = last_bot_msg
+        # Fetch unprocessed user messages after the boundary.
+        # oldest_first=False ensures newest-first order regardless of whether after is set.
+        kwargs: dict[str, Any] = {"limit": 200, "oldest_first": False}
+        if boundary_id is not None:
+            kwargs["after"] = discord.Object(id=boundary_id)
 
         new_messages: list[HumanMessage] = []
         async for msg in channel.history(**kwargs):
@@ -167,8 +167,8 @@ class AgentCog(commands.Cog):
             logfire.info("no_new_messages", channel_id=channel_id)
             return
 
-        # history() returns newest first, reverse to chronological
         new_messages.reverse()
+        latest_id = int(new_messages[-1].id)
 
         deps = AgentDeps(
             bot=self.bot,
@@ -182,9 +182,6 @@ class AgentCog(commands.Cog):
             }
         }
 
-        # Load existing checkpoint messages so Logfire captures the full
-        # message history in the trace input (instead of only new_messages,
-        # which makes the trace look like the latest message is duplicated).
         all_messages: list = list(new_messages)
         if graph:
             try:
@@ -200,16 +197,24 @@ class AgentCog(commands.Cog):
         }
 
         async with channel.typing():
-            try:
-                final_state = await graph.ainvoke(state, config=config)
-                content = _extract_response_content(final_state["messages"])
-                if content:
-                    await easy_send(channel, content)
-                else:
-                    await channel.send("System: Agent failed to return a valid response.")
-            except Exception as e:
-                logfire.error("agent_run_error", error=e)
-                await channel.send(f"System: Agent error — {type(e).__name__}")
+            for attempt in range(3):
+                try:
+                    final_state = await graph.ainvoke(state, config=config)
+                    break
+                except Exception as e:
+                    logfire.error("model_attempt_failed", attempt=attempt, error=e)
+                    if attempt < 2:
+                        await asyncio.sleep(2 ** attempt * 2)
+                    else:
+                        raise
+
+            content = _extract_response_content(final_state["messages"])
+            if content:
+                await easy_send(channel, content)
+            else:
+                await channel.send("System: Agent failed to return a valid response.")
+
+            self.processed_boundaries[channel_id] = latest_id
 
     async def cog_unload(self) -> None:
         for state in self.channel_states.values():
