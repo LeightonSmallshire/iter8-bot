@@ -30,5 +30,6 @@ pydantic-monty
 mem0ai
 modal
 langgraph~=0.2.39
+langgraph-checkpoint-sqlite
 langchain-core~=0.3.15
 langchain-openai>=0.3.30,<0.4.0
