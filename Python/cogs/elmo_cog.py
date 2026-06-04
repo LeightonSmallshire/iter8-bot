@@ -7,7 +7,7 @@ import discord
 import logfire
 from discord.ext import commands
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from .agent_elmo.deps import AgentDeps
@@ -18,21 +18,16 @@ from .agent_elmo.util import easy_send
 
 
 def _extract_response_content(messages: list) -> str | None:
-    """Return the final response content from the agent's message list.
-
-    The agent must call respond() to deliver its answer — plain AIMessage
-    text is internal reasoning and MUST NOT reach the user.
-    """
-    respond_ids: set[str] = set()
-    for msg in messages:
-        if isinstance(msg, AIMessage) and msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.get("name") == "respond":
-                    respond_ids.add(tc["id"])
-
+    """Return the last AIMessage content (the agent's final answer)."""
     for msg in reversed(messages):
-        if isinstance(msg, ToolMessage) and msg.tool_call_id in respond_ids:
-            return str(msg.content)
+        if isinstance(msg, AIMessage) and msg.content and not msg.tool_calls:
+            content = msg.content
+            if isinstance(content, list):
+                return " ".join(
+                    block["text"] for block in content
+                    if isinstance(block, dict) and "text" in block
+                )
+            return str(content)
     return None
 
 
