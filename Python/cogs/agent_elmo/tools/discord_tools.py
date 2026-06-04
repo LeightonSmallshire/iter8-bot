@@ -21,7 +21,7 @@ async def send_gif(query: str, bot: Any, channel_id: int) -> str:
         return "Error: Tenor API key not configured."
     try:
         url = "https://tenor.googleapis.com/v2/search"
-        params = {"query": query, "key": TENOR_KEY, "media_filter": "gif,mediumgif", "limit": "10"}
+        params = {"q": query, "key": TENOR_KEY, "media_filter": "gif,mediumgif", "limit": "10"}
         async with aiohttp.ClientSession() as s, s.get(url, params=params) as r:
             data = await r.json()
         results = data.get("results", [])
