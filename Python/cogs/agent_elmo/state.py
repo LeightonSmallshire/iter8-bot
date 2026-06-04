@@ -9,5 +9,4 @@ class AgentState(TypedDict):
     # add_messages is a reducer that appends new messages to the list
     messages: Annotated[list[BaseMessage], add_messages]
     channel_id: int
-    responded: bool
     reasoning: str

@@ -123,10 +123,9 @@ async def call_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any
             "You are Iter8, a utility agent with sandboxed filesystem access, bash execution, web search, and Discord controls.\n\n"
             "Be brief. Use your tools proactively. Favor direct answers over explanation.\n"
             "Don't apologize, don't over-explain. Execute the task.\n\n"
-            "Your text output is internal reasoning — it is NEVER shown to the user. "
-            "When you are ready to give the final answer, call respond() with that answer. "
-            "The respond() content is what the user sees — make it complete and self-contained.\n"
-            "Never respond to the user directly as text. Always use respond()."
+            "When you have enough information, provide your final answer directly in your response — "
+            "that text IS what the user sees. Do not output partial or intermediate reasoning: "
+            "use the think node for that. Only output text when you are ready to answer."
             f"{reasoning_block}"
         )
     }
@@ -149,8 +148,6 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
     last_message = state["messages"][-1]
     if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
         return {"messages": []}
-
-    responded = any(tc["name"] == "respond" for tc in last_message.tool_calls)
 
     tool_results = []
     for tool_call in last_message.tool_calls:
@@ -187,7 +184,7 @@ async def execute_tools(state: AgentState, config: RunnableConfig) -> dict[str, 
         except Exception as e:
             tool_results.append(ToolMessage(tool_call_id=tool_call["id"], content=f"Error executing {tool_name}: {str(e)}"))
 
-    return {"messages": tool_results, "responded": responded}
+    return {"messages": tool_results}
 
 def route_after_agent(state: AgentState) -> Literal["tools", "end"]:
     """Conditional edge to decide whether to execute tools or finish."""
@@ -197,9 +194,7 @@ def route_after_agent(state: AgentState) -> Literal["tools", "end"]:
     return "end"
 
 def route_after_tools(state: AgentState) -> Literal["think", "end"]:
-    """After tool execution, re-think unless the agent already called respond()."""
-    if state.get("responded"):
-        return "end"
+    """After tool execution, always re-think to let the LLM process results."""
     return "think"
 
 # --- Graph Construction ---
