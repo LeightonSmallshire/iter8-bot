@@ -104,7 +104,7 @@ class GifCog(commands.Cog):
     async def ffs(self, interaction: discord.Interaction):
         embed = discord.Embed()
         embed.set_image(url="https://c.tenor.com/ffnJ2kHOKF8AAAAd/tenor.gif")
-        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")  
+        embed.set_footer(text="GIFs powered by Tenor", icon_url="https://tenor.com/assets/img/tenor-app-icon.png")
         await interaction.response.send_message(embed=embed)
 
     # --- Local Command Error Handler (Overrides the global handler for this cog's commands) ---

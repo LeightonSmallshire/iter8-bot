@@ -3,12 +3,10 @@ import sqlite3
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import asdict, dataclass, fields
-from typing import Any, cast, get_type_hints, overload
+from typing import Any, TypeVar, cast, get_type_hints, overload
 
 import aiosqlite
 from packaging.version import Version
-
-from typing import TypeVar
 
 from .model import (
     AdminBet,
@@ -94,9 +92,9 @@ class OrderParam:
 def _alias_cols(cls: type, alias: str) -> list[str]:
     return [f'{alias}.{f.name} AS "{alias}.{f.name}"' for f in fields(cls)]
 
-def _row_to(cls: type[_T], row: aiosqlite.Row, alias: str) -> _T:
+def _row_to[T: IsDatabaseTable](cls: type[T], row: aiosqlite.Row, alias: str) -> T:
     data = {f.name: row[f"{alias}.{f.name}"] for f in fields(cls)}
-    return cast(_T, cls(**data))
+    return cast(T, cls(**data))
 
 def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
     """
