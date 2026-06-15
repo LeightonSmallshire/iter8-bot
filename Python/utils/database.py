@@ -92,9 +92,9 @@ class OrderParam:
 def _alias_cols(cls: type, alias: str) -> list[str]:
     return [f'{alias}.{f.name} AS "{alias}.{f.name}"' for f in fields(cls)]
 
-def _row_to[T: IsDatabaseTable](cls: type[T], row: aiosqlite.Row, alias: str) -> T:
+def _row_to(cls: type[_T], row: aiosqlite.Row, alias: str) -> _T:
     data = {f.name: row[f"{alias}.{f.name}"] for f in fields(cls)}
-    return cast(T, cls(**data))
+    return cast(_T, cls(**data))
 
 def _find_relationship(left: type, right: type) -> tuple[str, str, str]:
     """

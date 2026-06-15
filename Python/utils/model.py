@@ -74,7 +74,7 @@ def python_to_sql_type(py_type: Any) -> str:
 
 _TModel = TypeVar("_TModel", bound=IsDatabaseTable)
 
-def python_to_table_name[T: IsDatabaseTable](model: type[T]) -> str:
+def python_to_table_name(model: type[_TModel]) -> str:
     def pascal_to_snake(name: str) -> str:
         return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
     return f"{pascal_to_snake(model.__name__)}{'' if getattr(model, '__single_value_table__', False) is True else 's'}"
