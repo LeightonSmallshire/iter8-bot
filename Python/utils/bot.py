@@ -4,7 +4,7 @@ import logging
 import os
 import random
 import secrets
-from typing import Any
+from typing import Any, Literal, Protocol, overload
 
 import discord
 import dotenv
@@ -85,10 +85,28 @@ def is_trusted_developer(ctx: discord.Interaction) -> bool:
     return ctx.user.id in [Users.Leighton, Users.Nathan]
 
 
-def get_non_bot_users(ctx: discord.Interaction) -> list[int]:
-    guild = ctx.guild
-    if guild is None:
-        return []
+class Announcer(Protocol):
+    @overload
+    async def send(
+        self,
+        content: str = ...,
+        *,
+        embed: discord.Embed = ...,
+        allowed_mentions: discord.AllowedMentions = ...,
+        wait: Literal[True],
+    ) -> discord.Message: ...
+    @overload
+    async def send(
+        self,
+        content: str = ...,
+        *,
+        embed: discord.Embed = ...,
+        allowed_mentions: discord.AllowedMentions = ...,
+        wait: Literal[False] = ...,
+    ) -> discord.Message | None: ...
+
+
+def get_non_bot_users(guild: discord.Guild) -> list[int]:
     return [x.id for x in guild.members if not x.bot and x.id != guild.owner_id]
 
 
@@ -123,15 +141,12 @@ def make_emoji_number(num: int) -> str:
     return "".join([f":number_{d}:" for d in str(num)])
 
 
-async def on_new_admin(interaction: discord.Interaction, new_admin: int) -> None:
-    guild = interaction.guild
-    if guild is None:
-        return
+async def on_new_admin(guild: discord.Guild, new_admin: int) -> None:
     new_admin_user = guild.get_member(new_admin) or await guild.fetch_member(new_admin)
     if new_admin_user.is_timed_out():
         await new_admin_user.timeout(None)
 
-    users = get_non_bot_users(interaction)
+    users = get_non_bot_users(guild)
     for user_id in users:
         user = await guild.fetch_member(user_id)
         user_role = discord.utils.get(guild.roles, name=user.name)
@@ -147,10 +162,7 @@ async def on_new_admin(interaction: discord.Interaction, new_admin: int) -> None
         await officer.remove_roles(officers)
 
 
-async def do_role_roll(interaction: discord.Interaction, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
-    guild = interaction.guild
-    if guild is None:
-        return 0
+async def do_role_roll(guild: discord.Guild, announcer: Announcer, role_id: int, roll_table: list[int], embed_title: str, response: tuple[str, str]) -> int:
     roll_gif_url = "https://media.tenor.com/XYkAxffY_PsAAAAM/dice-bae-dice.gif"
 
     role = guild.get_role(role_id) or await guild.fetch_role(role_id)
@@ -166,10 +178,10 @@ async def do_role_roll(interaction: discord.Interaction, role_id: int, roll_tabl
             inline=False,
         )
 
-    await interaction.followup.send(content="@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
+    await announcer.send(content="@everyone", embed=list_embed, allowed_mentions=discord.AllowedMentions(roles=True))
 
     if not roll_table:
-        await interaction.followup.send(content="There are no users for this roll.")
+        await announcer.send(content="There are no users for this roll.")
         return 0
 
     await asyncio.sleep(3)
@@ -177,7 +189,7 @@ async def do_role_roll(interaction: discord.Interaction, role_id: int, roll_tabl
     roll_embed = discord.Embed(title="Rolling...")
     roll_embed.set_image(url=roll_gif_url)
 
-    msg = await interaction.followup.send(embed=roll_embed, wait=True)
+    msg = await announcer.send(embed=roll_embed, wait=True)
 
     await asyncio.sleep(4)
 

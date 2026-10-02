@@ -6,6 +6,8 @@ services:
     read_only: true
     restart: always
     env_file: ../.env
+    ports:
+      - "8090:8090"
     volumes:
 #      - /var/run/docker.sock:/var/run/docker.sock
       - iter8-bot-data:/app/data:rw
@@ -20,16 +22,6 @@ services:
   #   volumes:
   #     - iter8-bot-data:/app/data:rw
   #     - /home/nonroot/.cache # anonymous
-
-  bot-web-server:
-    build: Web
-    restart: always
-    read_only: true
-    expose:
-      - "80" # internal only
-    tmpfs:
-      - /var/cache/nginx
-      - /run
 
 volumes:
   iter8-bot-data:

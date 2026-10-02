@@ -5,6 +5,7 @@ import logfire
 from discord import app_commands
 from discord.ext import commands
 
+import utils.allowlist as allowlist
 import utils.bot as bot_utils
 
 _log = logfire
@@ -51,6 +52,8 @@ class BotBrokenCog(commands.Cog):
     async def on_message(self, message: discord.Message) -> None:
         if message.author == self.bot_.user:
             return  # ignore self
+        if not allowlist.is_allowed(message.author.id):
+            return
         if 'bot broken' in message.content.lower():
             await message.reply('No U')
         if 'boot broekn' in message.content.lower():

@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
+from utils import allowlist
+
 from .agent_elmo.deps import AgentDeps
 from .agent_elmo.graph import create_agent_graph
 from .agent_elmo.memory.store import AgentMemoryStore
@@ -63,6 +65,9 @@ class AgentCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
         if message.author.bot:
+            return
+
+        if not allowlist.is_allowed(message.author.id):
             return
 
         is_dm = isinstance(message.channel, discord.DMChannel)

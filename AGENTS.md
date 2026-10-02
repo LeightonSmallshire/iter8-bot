@@ -33,6 +33,7 @@ Recommended order: `ruff → mypy → pytest`.
 
 - **Entrypoint**: `Python/entrypoint.py` — loads env files (`data/.env`, `../AutoDeploy/.env`, local), configures Logfire, then calls `main.main()`.
 - **Bot**: `HotReloadBot` in `Python/main.py` — command prefix `!`, all intents. Picks `DISCORD_TOKEN_LIVE` vs `DISCORD_TOKEN_DEV` from `MODE` env.
+- **Webapp**: `Python/webapp/` — aiohttp.web served by the bot on port `8090` (`WEBAPP_PORT`); hosts `/shop`, `/credits`, `/gigs` behind Discord OAuth2. Requires env: `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `WEBAPP_BASE_URL` (public origin, redirect URI is `{base}/auth/callback`), `WEBAPP_SESSION_SECRET`; optional: `SHOP_ANNOUNCE_CHANNEL_ID` (defaults to channel named `general-idiocy`), `SKIDDLE_API_KEY` (gig search; unauthenticated shows a config error until set). The old `Web/` container was removed from docker-compose; files are kept on disk for reference only.
 - **Cogs**: `Python/cogs/` — auto-discovered and hot-reloaded on startup; any new `.py` file placed there is loaded automatically (no registration step).
 - **LangGraph agent**: `Python/cogs/agent_elmo/` — state machine (`think → agent → tools → loop → end`) using OpenRouter via `ChatOpenAI`, SQLite checkpointing (`data/agent_storage.db`), and a sandbox abstraction supporting both Docker and Modal backends. See `agent_v2_plan.md` for design.
 - **DB**: SQLite via aiosqlite. Persistent Docker volume `iter8-bot-data` mounted at `/app/data` (must be created separately as an external volume).

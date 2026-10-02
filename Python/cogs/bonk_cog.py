@@ -6,6 +6,7 @@ import logfire
 from discord import app_commands
 from discord.ext import commands
 
+import utils.allowlist as allowlist
 import utils.bot as bot_utils
 import utils.profanity as profanity_utils
 
@@ -72,6 +73,9 @@ class BonkCog(commands.Cog):
             return
 
         if message.author.id == self.bot_.user.id:
+            return
+
+        if not allowlist.is_allowed(message.author.id):
             return
 
         if await self._is_exempt(message):

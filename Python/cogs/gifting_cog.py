@@ -6,6 +6,7 @@ import logfire
 from discord import app_commands
 from discord.ext import commands
 
+import utils.allowlist as allowlist
 import utils.bot as bot_utils
 import utils.gifts as gift_utils
 import utils.shop as shop_utils
@@ -30,6 +31,9 @@ class GiftingCog(commands.Cog):
     @commands.Cog.listener()
     @commands.check(bot_utils.is_guild_paradise)
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        if not allowlist.is_allowed(payload.user_id):
+            return
+
         if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 
@@ -62,6 +66,9 @@ class GiftingCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        if not allowlist.is_allowed(payload.user_id):
+            return
+
         if self.bot_.user and payload.user_id == self.bot_.user.id:
             return
 

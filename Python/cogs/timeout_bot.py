@@ -1,4 +1,5 @@
 
+import asyncio
 import datetime
 import io
 import sys
@@ -15,6 +16,23 @@ import utils.timeout as timeout_utils
 
 _log = logfire
 
+_AUDIT_TIMEOUT_ACTIONS: tuple[discord.AuditLogAction, ...] = (
+    discord.AuditLogAction.automod_timeout_member,
+    discord.AuditLogAction.automod_quarantine_user,
+    discord.AuditLogAction.member_update,
+)
+_AUDIT_WINDOW = datetime.timedelta(minutes=2)
+_AUDIT_ATTEMPTS = 3
+_AUDIT_RETRY_DELAY = 1.5
+
+
+def _actor_label(actor: discord.User | discord.Member | None, is_automod: bool) -> str | None:
+    if is_automod:
+        return "AutoMod"
+    if actor is not None:
+        return actor.mention
+    return None
+
 
 class TimeoutsCog(commands.Cog):
     def __init__(self, client: discord.Client):
@@ -25,9 +43,10 @@ class TimeoutsCog(commands.Cog):
     # --- Listeners (Events) ---
 
     @commands.Cog.listener()
-    @commands.check(bot_utils.is_guild_paradise)
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
         """Handles member updates, specifically looking for timeout changes."""
+        if after.guild.id != bot_utils.Guilds.Default:
+            return
 
         now = datetime.datetime.now(datetime.UTC)
 
@@ -50,39 +69,66 @@ class TimeoutsCog(commands.Cog):
         elif timeout_extended and after.timed_out_until is not None and before.timed_out_until is not None:
             duration_to_add = after.timed_out_until - before.timed_out_until
 
-        # Do not count timeouts by server owner (but do count removals)
         has_changed = timeout_applied or timeout_extended or timeout_removed
 
         if has_changed:
             _log.info(f'Timeout in {after.guild.name} : {after.name} : until {after.timed_out_until}')
 
-            moderator = None
-            reason = None
-
-            async for entry in after.guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
-                if entry.target and entry.target.id == after.id and entry.changes.after and hasattr(entry.changes.after,
-                                                                                                    'timed_out_until'):
-                    moderator = entry.user
-                    reason = entry.reason if entry.reason else "Fun!"
-                    break
-            else:
+            found, actor, reason, is_automod = await self._find_timeout_actor(after)
+            if not found:
                 _log.debug("Moderator/Reason not found in recent audit logs.")
 
-            add_to_db = moderator is not None and (moderator != after.guild.owner or timeout_removed)
-            if add_to_db:
+            # Do not count timeouts by server owner (but do count removals)
+            actor_is_owner = actor is not None and actor.id == after.guild.owner_id
+            if found and (not actor_is_owner or timeout_removed):
                 await timeout_utils.update_timeout_leaderboard(after.id, duration_to_add.total_seconds())
 
             if timeout_applied or timeout_extended:
                 if after.timed_out_until is not None:
-                    await self.on_member_timeout(after, after.timed_out_until, moderator if isinstance(moderator, discord.Member) else None, reason)
+                    await self.on_member_timeout(after, after.timed_out_until, actor, reason, is_automod)
             else:
-                await self.on_member_untimeout(after, moderator if isinstance(moderator, discord.Member) else None, reason)
+                await self.on_member_untimeout(after, actor, is_automod)
+
+    @staticmethod
+    async def _find_timeout_actor(
+        member: discord.Member,
+    ) -> tuple[bool, discord.User | discord.Member | None, str | None, bool]:
+        cutoff = datetime.datetime.now(datetime.UTC) - _AUDIT_WINDOW
+        for attempt in range(_AUDIT_ATTEMPTS):
+            best: discord.AuditLogEntry | None = None
+            best_is_automod = False
+            for action in _AUDIT_TIMEOUT_ACTIONS:
+                try:
+                    async for entry in member.guild.audit_logs(limit=50, action=action):
+                        if entry.created_at < cutoff:
+                            break
+                        if entry._target_id != member.id:
+                            continue
+                        if action is discord.AuditLogAction.member_update and not hasattr(
+                            entry.changes.after, "timed_out_until"
+                        ):
+                            continue
+                        if best is None or entry.created_at > best.created_at:
+                            best = entry
+                            best_is_automod = action is not discord.AuditLogAction.member_update
+                except discord.Forbidden:
+                    _log.warning("audit_log_access_denied")
+                    return False, None, None, False
+                except discord.HTTPException as e:
+                    _log.warning("audit_log_fetch_failed", error=str(e))
+            if best is not None:
+                reason = best.reason or ("Fun!" if not best_is_automod else None)
+                return True, best.user, reason, best_is_automod
+            if attempt + 1 < _AUDIT_ATTEMPTS:
+                await asyncio.sleep(_AUDIT_RETRY_DELAY)
+        return False, None, None, False
 
     @staticmethod
     async def on_member_timeout(member: discord.Member,
-                                until: datetime.datetime,
-                                moderator: discord.Member | None,
-                                reason: str | None) -> None:
+                                 until: datetime.datetime,
+                                 actor: discord.User | discord.Member | None,
+                                 reason: str | None,
+                                 is_automod: bool) -> None:
         """Handles the event after a member is timed out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -93,21 +139,21 @@ class TimeoutsCog(commands.Cog):
             _log.error("Couldn't find channel 'clockwork-bot' to post in")
             return
 
-        if (moderator is None) or (reason is None):
-            # Fallback message
-            await channel.send(f'{member.mention} was timed out <t:{int(until.timestamp())}:R>',
-                               silent=True)
-
+        label = _actor_label(actor, is_automod)
+        stamp = f'<t:{int(until.timestamp())}:R>'
+        if label is None:
+            content = f'{member.mention} was timed out {stamp}'
+        elif reason is None:
+            content = f'{member.mention} was timed out by {label} {stamp}'
         else:
-            # Full message with moderator and reason
-            await channel.send(
-                f'{member.mention} was timed out by {moderator.mention} for **{reason}** <t:{int(until.timestamp())}:R>',
-                silent=True)
+            content = f'{member.mention} was timed out by {label} for **{reason}** {stamp}'
+
+        await channel.send(content, silent=True)
 
     @staticmethod
     async def on_member_untimeout(member: discord.Member,
-                                 moderator: discord.Member | None,
-                                 reason: str | None) -> None:
+                                  actor: discord.User | discord.Member | None,
+                                  is_automod: bool) -> None:
         """Handles the event after a member is released from a time out."""
         guild = member.guild
         # Using client.get_channel for potential better performance/caching if ID is known,
@@ -118,16 +164,13 @@ class TimeoutsCog(commands.Cog):
             _log.error("Couldn't find channel 'clockwork-bot' to post in")
             return
 
-        if (moderator is None) or (reason is None):
-            # Fallback message
-            await channel.send(f'{member.mention} was freed from their time out.',
-                               silent=True)
-
+        label = _actor_label(actor, is_automod)
+        if label is None:
+            content = f'{member.mention} was freed from their time out.'
         else:
-            # Full message with moderator and reason
-            await channel.send(
-                f'{member.mention} was freed from their time out by {moderator.mention}.',
-                silent=True)
+            content = f'{member.mention} was freed from their time out by {label}.'
+
+        await channel.send(content, silent=True)
 
     @commands.Cog.listener()
     async def on_error(self, event: Any, *args: Any, **kwargs: Any) -> None:

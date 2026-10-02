@@ -35,7 +35,7 @@ class GamblingCog(commands.Cog):
 
         guild = interaction.guild
         assert guild is not None
-        users = bot_utils.get_non_bot_users(interaction)
+        users = bot_utils.get_non_bot_users(guild)
 
         counts = Counter(users)
 

@@ -1,18 +1,42 @@
 import datetime
+import re
 import secrets
-from typing import Any, cast
+from dataclasses import dataclass
+from typing import Any, Literal, cast
 
 import discord
-import discord.ui
 import discord.utils
 
-from view.components import ColourSelect, DurationSelect, TextSelect, UserSelect
-
-from .bot import Roles, do_role_roll, get_non_bot_users, on_new_admin
+from .bot import Announcer, Roles, do_role_roll, get_non_bot_users, on_new_admin
 from .database import DATABASE_NAME, Database, OrderParam, WhereParam
 from .model import AdminBet, GambleWin, Gift, Purchase, User
 
 SHOP_ITEMS = list[type['ShopItem']]()
+
+DURATION_CHOICES: tuple[int, ...] = (1, 2, 5, 10, 15, 30, 60)
+COLOUR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}){1,2}$")
+
+FormFieldKind = Literal["user", "duration", "text", "colour"]
+
+
+@dataclass(frozen=True)
+class FormField:
+    kind: FormFieldKind
+    label: str
+    required: bool = True
+    placeholder: str = ""
+    max_length: int | None = None
+
+
+class ShopError(Exception):
+    """Raised by handle_purchase to abort a purchase with a human-readable message (rolls back)."""
+
+
+@dataclass
+class ShopContext:
+    guild: discord.Guild
+    buyer: discord.Member
+    announce: Announcer
 
 
 class ShopItem:
@@ -21,6 +45,7 @@ class ShopItem:
     DESCRIPTION: str
     AUTO_USE: bool
     CATEGORY: str
+    WEB_FORM: tuple[FormField, ...] = ()
 
     def __init_subclass__(cls) -> None:
         assert hasattr(cls, 'ITEM_ID') and isinstance(cls.ITEM_ID, int)
@@ -28,30 +53,23 @@ class ShopItem:
         assert hasattr(cls, 'DESCRIPTION') and isinstance(cls.DESCRIPTION, str)
         assert hasattr(cls, 'AUTO_USE') and isinstance(cls.AUTO_USE, bool)
         assert hasattr(cls, 'CATEGORY') and isinstance(cls.CATEGORY, str)
+        assert isinstance(cls.WEB_FORM, tuple)
 
         SHOP_ITEMS.append(cls)
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
-        target = await guild.fetch_member(params['user'])
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
+        target = await ctx.guild.fetch_member(params['user'])
 
-        if target.id == ctx.user.id:
-            await ctx.edit_original_response(content='No timeout farming')
-            return
+        if target.id == ctx.buyer.id:
+            raise ShopError('No timeout farming')
 
         now = discord.utils.utcnow()
         start = max(now, target.timed_out_until) if target.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
         reason = params.get("text")
 
-        await target.timeout(until, reason=f"<@{ctx.user.id}> used the power of the shop{f' for {reason}' if reason else ''}.")
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [UserSelect(), DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
+        await target.timeout(until, reason=f"<@{ctx.buyer.id}> used the power of the shop{f' for {reason}' if reason else ''}.")
 
 
 class BullyTimeoutItem(ShopItem):
@@ -60,29 +78,25 @@ class BullyTimeoutItem(ShopItem):
     DESCRIPTION = "⏱️ Timeout bully target (price per minute)"
     AUTO_USE = True
     CATEGORY = "Timeouts"
+    WEB_FORM = (
+        FormField("duration", "Duration"),
+        FormField("text", "Reason", required=False, placeholder="Enter reason..."),
+    )
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
-        role = await guild.fetch_role(Roles.BullyTarget)
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
+        role = await ctx.guild.fetch_role(Roles.BullyTarget)
         member = role.members[0]
 
-        if member.id == ctx.user.id:
-            await ctx.edit_original_response(content='No timeout farming')
-            return
+        if member.id == ctx.buyer.id:
+            raise ShopError('No timeout farming')
 
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
         reason = params.get("text")
 
-        await role.members[0].timeout(until, reason=f"<@{ctx.user.id}> decided to bully the prey of the dice{f' for {reason}' if reason else ''}.")
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
+        await member.timeout(until, reason=f"<@{ctx.buyer.id}> decided to bully the prey of the dice{f' for {reason}' if reason else ''}.")
 
 
 class TimeoutRandomItem(ShopItem):
@@ -91,38 +105,33 @@ class TimeoutRandomItem(ShopItem):
     DESCRIPTION = "⏱️ Timeout a random target (price per minute)"
     AUTO_USE = True
     CATEGORY = "Timeouts"
+    WEB_FORM = (
+        FormField("duration", "Duration"),
+        FormField("text", "Reason", required=False, placeholder="Enter reason..."),
+    )
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
-        users = get_non_bot_users(ctx)
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
+        users = get_non_bot_users(ctx.guild)
 
         index = secrets.randbelow(len(users))
 
-        member = await guild.fetch_member(users[index])
+        member = await ctx.guild.fetch_member(users[index])
 
         now = discord.utils.utcnow()
         start = max(now, member.timed_out_until) if member.timed_out_until else now
         until = start + datetime.timedelta(minutes=params['duration'])
         reason = params.get("text")
 
-        await member.timeout(until, reason=f"<@{ctx.user.id}> decided to bully someone at random{f' for {reason}' if reason else ''}.")
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [DurationSelect(), TextSelect("Reason", "Enter reason:", "Enter reason...")]
+        await member.timeout(until, reason=f"<@{ctx.buyer.id}> decided to bully someone at random{f' for {reason}' if reason else ''}.")
 
 
-async def make_bully_reroll_table(ctx: discord.Interaction) -> list[int]:
+async def make_bully_reroll_table(ctx: ShopContext) -> list[int]:
     guild = ctx.guild
-    if guild is None:
-        return []
     admin_role = await guild.fetch_role(Roles.Admin)
     bully_role = await guild.fetch_role(Roles.BullyTarget)
-    filter_users = [u.id for u in admin_role.members] + [u.id for u in bully_role.members if u.id != ctx.user.id]
-    return [x for x in get_non_bot_users(ctx) if x not in filter_users]
+    filter_users = [u.id for u in admin_role.members] + [u.id for u in bully_role.members if u.id != ctx.buyer.id]
+    return [x for x in get_non_bot_users(guild) if x not in filter_users]
 
 
 class BullyRerollItem(ShopItem):
@@ -133,12 +142,13 @@ class BullyRerollItem(ShopItem):
     CATEGORY = "Timeouts"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         await do_role_roll(
-            ctx,
+            ctx.guild,
+            ctx.announce,
             Roles.BullyTarget,
             await make_bully_reroll_table(ctx),
-            f"🎲 {ctx.user.display_name} is re-rolling the bully target!",
+            f"🎲 {ctx.buyer.display_name} is re-rolling the bully target!",
             ("<@{}> is free! <@{}> is the new bully target. GET THEM!", "<@{}> is the new bully target. GET THEM!")
         )
 
@@ -149,26 +159,21 @@ class BullyChooseItem(ShopItem):
     DESCRIPTION = "🤕 Choose bully target"
     AUTO_USE = True
     CATEGORY = "Timeouts"
+    WEB_FORM = (FormField("user", "Target"),)
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         guild = ctx.guild
-        if guild is None:
-            return
         role = await guild.fetch_role(Roles.BullyTarget)
         new_target = await guild.fetch_member(params['user'])
         current_target = role.members[0]
 
         admin_role = await guild.fetch_role(Roles.Admin)
         if new_target in admin_role.members:
-            raise Exception("Can't make the admin the bully target.")
+            raise ShopError("Can't make the admin the bully target.")
 
         await current_target.remove_roles(role)
         await new_target.add_roles(role)
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [UserSelect()]
 
 
 class AdminTicketItem(ShopItem):
@@ -179,7 +184,7 @@ class AdminTicketItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         pass
 
 
@@ -191,27 +196,27 @@ class AdminRerollItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         guild = ctx.guild
-        if guild is None:
-            return
-        roll_table = get_non_bot_users(ctx)
+        roll_table = get_non_bot_users(guild)
 
         bully_role = await guild.fetch_role(Roles.BullyTarget)
         bully_targets = [u.id for u in bully_role.members]
 
         new_admin = await do_role_roll(
-            ctx,
+            guild,
+            ctx.announce,
             Roles.Admin,
             roll_table,
-            f"🚨 {ctx.user.display_name} called for a reroll! 🚨",
+            f"🚨 {ctx.buyer.display_name} called for a reroll! 🚨",
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
-        await on_new_admin(ctx, new_admin)
+        await on_new_admin(guild, new_admin)
 
         if new_admin in bully_targets:
             await do_role_roll(
-                ctx,
+                guild,
+                ctx.announce,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
                 "🎲 Admin landed on the bully target. Finding a new target...",
@@ -227,27 +232,26 @@ class MakeAdminItem(ShopItem):
     CATEGORY = "Admin"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         guild = ctx.guild
-        if guild is None:
-            return
         role = await guild.fetch_role(Roles.Admin)
-        new_target = await guild.fetch_member(ctx.user.id)
+        new_target = await guild.fetch_member(ctx.buyer.id)
 
         for member in role.members:
             await member.remove_roles(role)
 
         await new_target.add_roles(role)
-        await on_new_admin(ctx, new_target.id)
+        await on_new_admin(guild, new_target.id)
 
-        await ctx.followup.send(content=f"@everyone {ctx.user.mention} just made themselves an Admin!", allowed_mentions=discord.AllowedMentions(roles=True))
+        await ctx.announce.send(content=f"@everyone {ctx.buyer.mention} just made themselves an Admin!", allowed_mentions=discord.AllowedMentions(roles=True))
 
         bully_role = await guild.fetch_role(Roles.BullyTarget)
         bully_targets = [u.id for u in bully_role.members]
 
-        if ctx.user.id in bully_targets:
+        if ctx.buyer.id in bully_targets:
             await do_role_roll(
-                ctx,
+                guild,
+                ctx.announce,
                 Roles.BullyTarget,
                 await make_bully_reroll_table(ctx),
                 "🎲 Admin landed on the bully target. Finding a new target...",
@@ -261,19 +265,15 @@ class ChooseNicknameOwnItem(ShopItem):
     DESCRIPTION = "✏️ Change your own nickname"
     AUTO_USE = True
     CATEGORY = "Customise"
+    WEB_FORM = (
+        FormField("text", "Nickname", placeholder="Enter a nickname...", max_length=32),
+    )
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         new_nick = params['text']
-        member = await guild.fetch_member(ctx.user.id)
+        member = await ctx.guild.fetch_member(ctx.buyer.id)
         await member.edit(nick=new_nick)
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")]
 
 
 class ChooseNicknameOtherItem(ShopItem):
@@ -282,22 +282,16 @@ class ChooseNicknameOtherItem(ShopItem):
     DESCRIPTION = "✏️ Change another user's nickname"
     AUTO_USE = True
     CATEGORY = "Customise"
+    WEB_FORM = (
+        FormField("user", "Target"),
+        FormField("text", "Nickname", placeholder="Enter a nickname...", max_length=32),
+    )
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         new_nick = params['text']
-        target = await guild.fetch_member(params['user'])
+        target = await ctx.guild.fetch_member(params['user'])
         await target.edit(nick=new_nick)
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [
-            UserSelect(),
-            TextSelect(title="Enter a new nickame", label="Nickname", placeholder="Enter a username...")
-        ]
 
 
 def colour_from_hex(code: str) -> discord.Color:
@@ -307,10 +301,7 @@ def colour_from_hex(code: str) -> discord.Color:
     return discord.Color(int(code, 16))
 
 
-async def set_colour(ctx: discord.Interaction, target: discord.Member, params: dict[str, Any]) -> None:
-    guild = ctx.guild
-    if guild is None:
-        return
+async def set_colour(guild: discord.Guild, target: discord.Member, params: dict[str, Any]) -> None:
     colour = colour_from_hex(params['colour'])
 
     role = discord.utils.get(guild.roles, name=target.name)
@@ -328,16 +319,11 @@ class ChooseColourOwnItem(ShopItem):
     DESCRIPTION = "🖌️ Change your own colour"
     AUTO_USE = True
     CATEGORY = "Customise"
+    WEB_FORM = (FormField("colour", "Colour", placeholder="#ff8800"),)
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        if not isinstance(ctx.user, discord.Member):
-            return
-        await set_colour(ctx, ctx.user, params)
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [ColourSelect()]
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
+        await set_colour(ctx.guild, ctx.buyer, params)
 
 
 class ChooseColourOtherItem(ShopItem):
@@ -346,22 +332,15 @@ class ChooseColourOtherItem(ShopItem):
     DESCRIPTION = "🖌️ Change another user's colour"
     AUTO_USE = True
     CATEGORY = "Customise"
+    WEB_FORM = (
+        FormField("user", "Target"),
+        FormField("colour", "Colour", placeholder="#ff8800"),
+    )
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
-        guild = ctx.guild
-        if guild is None:
-            return
-        target = await guild.fetch_member(params['user'])
-        await set_colour(ctx, target, params)
-
-
-    @classmethod
-    def get_input_handlers(cls) -> list[discord.ui.Item[Any]]:
-        return [
-            UserSelect(),
-            ColourSelect(),
-        ]
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
+        target = await ctx.guild.fetch_member(params['user'])
+        await set_colour(ctx.guild, target, params)
 
 
 class BlackFridaySaleItem(ShopItem):
@@ -372,10 +351,8 @@ class BlackFridaySaleItem(ShopItem):
     CATEGORY = "Sale"
 
     @classmethod
-    async def handle_purchase(cls, ctx: discord.Interaction, params: dict[str, Any]) -> None:
+    async def handle_purchase(cls, ctx: ShopContext, params: dict[str, Any]) -> None:
         guild = ctx.guild
-        if guild is None:
-            return
         event_name = "Black Friday Sale!"
 
         existing_event = discord.utils.get(guild.scheduled_events, name=event_name)
@@ -399,8 +376,8 @@ class BlackFridaySaleItem(ShopItem):
             location=guild.name,
         )
 
-        await ctx.followup.send(
-            f"<@{ctx.user.id}> is starting a sale in 10 seconds! Get 50% off for the next 30 minutes!"
+        await ctx.announce.send(
+            f"<@{ctx.buyer.id}> is starting a sale in 10 seconds! Get 50% off for the next 30 minutes!"
         )
 
 

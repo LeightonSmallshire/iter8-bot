@@ -1,6 +1,5 @@
 import datetime
 import operator
-from itertools import groupby
 
 import discord
 import logfire
@@ -10,7 +9,6 @@ from discord.ext import commands
 import utils.bot as bot_utils
 import utils.misc
 import utils.shop as shop_utils
-from view.shop_view import ShopView
 
 _log = logfire
 
@@ -22,39 +20,6 @@ class ShopCog(commands.Cog):
         _log.info(f"Cog '{self.qualified_name}' initialized.")
 
     # --- Slash Command ---
-
-    @app_commands.command(name='shop', description='Let\'s see what the lovely shop has to offer')
-    @commands.check(bot_utils.is_guild_paradise)
-    async def command_display_shop(self, interaction: discord.Interaction) -> None:
-        """Generates and displays the timeout shop."""
-
-        await interaction.response.defer(ephemeral=True, thinking=True)
-
-        sale, end_date = await shop_utils.is_ongoing_sale()
-        discount = 0.5 if sale else 1
-        embed = discord.Embed(title="Timeout Shop 🛒", color=discord.Color.blue())
-
-        groups = [(cat, list(g)) for cat, g in groupby(shop_utils.SHOP_ITEMS, key=lambda x: x.CATEGORY)]
-        for (idx, (category, group)) in enumerate(groups, 1):
-            embed.add_field(name=f"{category}", value="────────────────────────────────────────────────────────", inline=False)
-
-            for item in group:
-                cost = item.COST * discount if item.ITEM_ID != shop_utils.BlackFridaySaleItem.ITEM_ID else item.COST
-
-                embed.add_field(
-                    name=item.DESCRIPTION,
-                    value=f"Price: {datetime.timedelta(seconds=cost)}",
-                    inline=False,
-                )
-
-            if (idx != len(groups)):
-                embed.add_field(name="", value="\u200b", inline=False)
-
-        if sale:
-            embed.set_footer(text=f"Sale ends at {end_date}")
-
-        view = ShopView()
-        await interaction.followup.send(embed=embed, view=view)
 
     @app_commands.command(name='credit', description='Find out how much shop credit everyone has')
     @commands.check(bot_utils.is_guild_paradise)

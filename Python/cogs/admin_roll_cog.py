@@ -54,27 +54,32 @@ class AdminRollCog(commands.Cog):
 
         await interaction.response.defer()
 
+        assert interaction.guild is not None
+        guild = interaction.guild
+
         await roll_utils.update_last_admin_roll()
 
-        roll_table = bot_utils.get_non_bot_users(interaction)
+        roll_table = bot_utils.get_non_bot_users(guild)
         roll_table += await roll_utils.get_extra_admin_rolls(consume=True)
 
         new_admin = await bot_utils.do_role_roll(
-            interaction,
+            guild,
+            interaction.followup,
             bot_utils.Roles.Admin,
             roll_table,
             "🎲 Let's roll the dice! 🎲",
             ("<@{}> is dead. Long live <@{}>.", "Long live <@{}>.")
         )
 
-        await bot_utils.on_new_admin(interaction, new_admin)
+        await bot_utils.on_new_admin(guild, new_admin)
 
         await asyncio.sleep(2)
 
-        roll_table = [x for x in bot_utils.get_non_bot_users(interaction) if x != new_admin]
+        roll_table = [x for x in bot_utils.get_non_bot_users(guild) if x != new_admin]
 
         await bot_utils.do_role_roll(
-            interaction,
+            guild,
+            interaction.followup,
             bot_utils.Roles.BullyTarget,
             roll_table,
             "🎲 Who's getting bullied? 🎲",

@@ -4,11 +4,14 @@ from typing import Any
 
 import discord
 import logfire
+from aiohttp import web
 from discord.ext import commands
 
+import utils.allowlist as allowlist
 import utils.bot as bot_utils
 import utils.database as db_utils
 from utils.stocks.stock_control_params import AVAILABLE_STOCKS
+from webapp.app import start_webapp, stop_webapp
 
 # --- Configuration ---
 COGS_DIR = "cogs"
@@ -27,6 +30,18 @@ is_work_hours = datetime.time(7, 30) <= now <= datetime.time(19, 0)
 class HotReloadBot(commands.Bot):
     def __init__(self) -> None:
         super().__init__(command_prefix="!", intents=discord.Intents.all())
+        self.webapp_runner: web.AppRunner | None = None
+
+    async def setup_hook(self) -> None:
+        self.tree.interaction_check = allowlist.deny_if_not_allowed  # type: ignore[method-assign]
+        self.add_check(allowlist.is_allowed_prefix)
+        self.webapp_runner = await start_webapp(self)
+
+    async def close(self) -> None:
+        if self.webapp_runner is not None:
+            await stop_webapp(self.webapp_runner)
+            self.webapp_runner = None
+        await super().close()
 
     async def on_ready(self) -> None:
         user_id = self.user.id if self.user else "Unknown"
