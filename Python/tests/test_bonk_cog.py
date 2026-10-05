@@ -6,7 +6,7 @@ import discord
 import pytest
 
 import utils.profanity as profanity_utils
-from cogs.bonk_cog import BonkCog
+from cogs.bonk_cog import BONK_EMOJI, BonkCog
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +27,7 @@ def _make_message(content: str, guild_id: int, author_bot: bool = False) -> Any:
     message.content = content
     message.author = author
     message.guild = guild
+    message.add_reaction = AsyncMock()
     return message
 
 
@@ -99,7 +100,47 @@ async def test_timeout_or_bonk_timeouts_author() -> None:
     message.guild.get_member = MagicMock(return_value=member)
     with patch.object(member, "timeout", new=AsyncMock()) as timeout:
         await cog._timeout_or_bonk(message)
-    timeout.assert_awaited_once_with(cog._timeout_duration(), reason="Bonk!")
+    timeout.assert_awaited_once_with(cog._timeout_duration(), reason=":bonk: Bonk!")
+
+
+async def test_timeout_or_bonk_reacts_with_bonk_emoji() -> None:
+    _force_active({"fuck"})
+    cog = BonkCog(MagicMock())
+    member = MagicMock(spec=discord.Member)
+    message = _make_message("I say fuck", guild_id=1416007094339113071)
+    message.guild.get_member = MagicMock(return_value=member)
+    with patch.object(member, "timeout", new=AsyncMock()):
+        await cog._timeout_or_bonk(message)
+    message.add_reaction.assert_awaited_once_with(BONK_EMOJI)
+
+
+async def test_timeout_or_bonk_reacts_even_when_timeout_forbidden() -> None:
+    _force_active({"fuck"})
+    cog = BonkCog(MagicMock())
+    member = MagicMock(spec=discord.Member)
+    message = _make_message("I say fuck", guild_id=1416007094339113071)
+    message.guild.get_member = MagicMock(return_value=member)
+    with patch.object(member, "timeout", new=AsyncMock(side_effect=discord.Forbidden(MagicMock(), MagicMock()))):
+        await cog._timeout_or_bonk(message)
+    message.add_reaction.assert_awaited_once_with(BONK_EMOJI)
+
+
+async def test_timeout_or_bonk_does_not_react_without_active_word() -> None:
+    _force_active({"fuck"})
+    cog = BonkCog(MagicMock())
+    member = MagicMock(spec=discord.Member)
+    message = _make_message("I am very polite", guild_id=1416007094339113071)
+    message.guild.get_member = MagicMock(return_value=member)
+    await cog._timeout_or_bonk(message)
+    message.add_reaction.assert_not_awaited()
+
+
+async def test_react_survives_http_failure() -> None:
+    cog = BonkCog(MagicMock())
+    message = _make_message("anything", guild_id=1416007094339113071)
+    message.add_reaction = AsyncMock(side_effect=discord.HTTPException(MagicMock(), MagicMock()))
+    await cog._react(message)
+    message.add_reaction.assert_awaited_once()
 
 
 async def test_on_message_skips_non_target_guild() -> None:

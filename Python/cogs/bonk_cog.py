@@ -12,7 +12,8 @@ import utils.profanity as profanity_utils
 
 _log = logfire
 
-BONK_MESSAGE = "Bonk!"
+BONK_MESSAGE = ":bonk: Bonk!"
+BONK_EMOJI = "<:bonk:1473609891263549533>"
 
 
 class BonkCog(commands.Cog):
@@ -43,6 +44,13 @@ class BonkCog(commands.Cog):
                 return pattern
         return None
 
+    async def _react(self, message: discord.Message) -> None:
+        """React to the offending message with the bonk emoji."""
+        try:
+            await message.add_reaction(BONK_EMOJI)
+        except discord.HTTPException as e:
+            _log.warning(f'Failed to react to message {message.id}: {e}')
+
     async def _timeout_or_bonk(self, message: discord.Message) -> None:
         """Timeout the message author for saying an active word."""
         author = message.author
@@ -52,6 +60,8 @@ class BonkCog(commands.Cog):
         word = await self._contains_active_word(message.content)
         if word is None:
             return
+
+        await self._react(message)
 
         try:
             await member.timeout(
