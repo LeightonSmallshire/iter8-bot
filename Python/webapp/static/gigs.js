@@ -71,8 +71,28 @@ function setStatus(text, ok) {
   statusEl.className = "status" + (ok === undefined ? "" : ok ? " ok" : " warn");
 }
 
-function gigCard(gig, sourceName) {
+function filterCategoryLabel() {
+  const code = categorySelect.value;
+  if (!code) return "";
+  const option = Array.from(categorySelect.options).find((o) => o.value === code);
+  return option ? option.textContent : "";
+}
+
+function gigCard(gig, sourceName, categoryLabel) {
   const card = el("article", "gig-card");
+
+  if (gig.image_url) {
+    const art = el("img", "gig-art");
+    art.src = gig.image_url;
+    art.alt = "";
+    art.loading = "lazy";
+    art.decoding = "async";
+    art.referrerPolicy = "no-referrer";
+    art.addEventListener("error", () => art.remove());
+    card.appendChild(art);
+  }
+
+  const body = el("div", "gig-body");
 
   const head = el("div", "gig-head");
   if (gig.url) {
@@ -85,7 +105,7 @@ function gigCard(gig, sourceName) {
     head.appendChild(el("span", "gig-title", gig.title));
   }
   if (gig.price) head.appendChild(el("span", "gig-price", gig.price));
-  card.appendChild(head);
+  body.appendChild(head);
 
   const meta = [];
   if (gig.date) {
@@ -93,13 +113,18 @@ function gigCard(gig, sourceName) {
   }
   const place = [gig.venue, gig.town].filter(Boolean).join(", ");
   if (place) meta.push("📍 " + place);
-  if (meta.length) card.appendChild(el("div", "gig-meta", meta.join("  ·  ")));
+  if (meta.length) body.appendChild(el("div", "gig-meta", meta.join("  ·  ")));
 
   if (gig.artists && gig.artists.length) {
-    card.appendChild(el("div", "gig-artists", "🎤 " + gig.artists.join(", ")));
+    body.appendChild(el("div", "gig-artists", "🎤 " + gig.artists.join(", ")));
   }
 
-  card.appendChild(el("span", "source-badge", "🎫 " + sourceName));
+  const pills = el("div", "pills");
+  pills.appendChild(el("span", "source-badge", "🎫 " + sourceName));
+  if (categoryLabel) pills.appendChild(el("span", "source-badge cat", "🏷️ " + categoryLabel));
+  body.appendChild(pills);
+
+  card.appendChild(body);
   return card;
 }
 
@@ -170,12 +195,13 @@ function render() {
   const compare = COMPARATORS[sortSelect.value] || COMPARATORS.date;
   entries.sort(compare);
 
+  const categoryLabel = filterCategoryLabel();
   resultsEl.innerHTML = "";
   if (!entries.length) {
     resultsEl.appendChild(el("p", "empty", "🔍 No gigs found. Try widening your search."));
   }
   for (const entry of entries) {
-    resultsEl.appendChild(gigCard(entry.gig, entry.source));
+    resultsEl.appendChild(gigCard(entry.gig, entry.source, categoryLabel || entry.gig.category || ""));
   }
 
   attributionEl.innerHTML = "";

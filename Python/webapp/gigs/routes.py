@@ -124,16 +124,12 @@ async def api_gigs(request: web.Request) -> web.StreamResponse:
     payload = _results_payload(results)
 
     errors = [f"{r.source}: {r.error}{' (stale)' if r.stale else ''}" for r in results if r.error]
+    near = f"{query.latitude:.4f},{query.longitude:.4f}" if query.latitude else "country-wide"
     logfire.info(
-        "gig search",
-        keyword=query.keyword,
-        near=f"{query.latitude:.4f},{query.longitude:.4f}" if query.latitude else "country-wide",
-        radius=query.radius,
-        category=query.category,
-        window=f"{query.min_date or 'any'}..{query.max_date or 'any'}",
-        gigs=sum(len(r["gigs"]) for r in payload),
-        errors=errors or None,
-        seconds=round(time.monotonic() - started, 2),
+        f"gig search near={near} radius={query.radius}mi category={query.category or 'any'} "
+        f"keyword={query.keyword!r} window={query.min_date or 'any'}..{query.max_date or 'any'} "
+        f"-> {sum(len(r['gigs']) for r in payload)} gigs in {time.monotonic() - started:.2f}s"
+        + (f" | {'; '.join(errors)}" if errors else "")
     )
     return web.json_response({"results": payload})
 

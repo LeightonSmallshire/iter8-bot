@@ -127,6 +127,57 @@ def test_parse_artists_variants() -> None:
     assert parse(as_dicts)[0].artists == ("Ann",)
 
 
+def test_parse_prefers_large_artwork() -> None:
+    payload: dict[str, object] = {
+        "results": [
+            {
+                "eventname": "A",
+                "imageurl": "https://cdn.example.com/thumb.jpg",
+                "largeimageurl": "https://cdn.example.com/large.jpg",
+                "xlargeimageurl": "https://cdn.example.com/xlarge.jpg",
+            }
+        ]
+    }
+    assert parse(payload)[0].image_url == "https://cdn.example.com/large.jpg"
+
+
+def test_parse_image_falls_back_and_rejects_non_http() -> None:
+    thumb: dict[str, object] = {"results": [{"eventname": "A", "imageurl": "https://cdn.example.com/thumb.jpg"}]}
+    assert parse(thumb)[0].image_url == "https://cdn.example.com/thumb.jpg"
+
+    unsafe: dict[str, object] = {"results": [{"eventname": "A", "largeimageurl": "javascript:alert(1)"}]}
+    assert parse(unsafe)[0].image_url == ""
+
+    missing: dict[str, object] = {"results": [{"eventname": "A"}]}
+    assert parse(missing)[0].image_url == ""
+
+
+def test_parse_first_genre_as_category() -> None:
+    payload: dict[str, object] = {
+        "results": [
+            {
+                "eventname": "A",
+                "genres": [
+                    {"genreid": "5", "name": "Rock"},
+                    {"genreid": "26", "name": "Indie"},
+                ],
+            }
+        ]
+    }
+    assert parse(payload)[0].category == "Rock"
+
+
+def test_parse_category_variants() -> None:
+    as_strings: dict[str, object] = {"results": [{"eventname": "A", "genres": ["Folk"]}]}
+    assert parse(as_strings)[0].category == "Folk"
+
+    empty: dict[str, object] = {"results": [{"eventname": "A", "genres": [{"genreid": "1", "name": " "}]}]}
+    assert parse(empty)[0].category == ""
+
+    missing: dict[str, object] = {"results": [{"eventname": "A"}]}
+    assert parse(missing)[0].category == ""
+
+
 def test_parse_skips_empty_title_and_junk() -> None:
     payload: dict[str, object] = {"results": [{"eventname": ""}, "junk", {"eventname": "Kept"}]}
     assert [g.title for g in parse(payload)] == ["Kept"]

@@ -137,8 +137,11 @@ def _parse_image(raw: dict[str, object]) -> str:
     """Prefer the ~8KB large artwork over the thumbnail and the ~100KB xlarge."""
     for field in ("largeimageurl", "imageurl", "xlargeimageurl"):
         value = str(raw.get(field) or "").strip()
-        if value.startswith(("http://", "https://")):
-            return value
+        if not value.startswith(("http://", "https://")):
+            continue
+        if "/assets/default" in value:
+            continue
+        return value
     return ""
 
 
