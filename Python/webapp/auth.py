@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import time
@@ -28,7 +29,19 @@ NEXT_COOKIE = "iter8_next"
 SESSION_TTL_SECONDS = 7 * 24 * 3600
 STATE_TTL_SECONDS = 600
 
-OPEN_PATHS = frozenset({"/", "/healthz", "/auth/login", "/auth/callback", "/auth/logout", "/go.html", "/tictactoe.html"})
+OPEN_PATHS = frozenset({
+    "/",
+    "/healthz",
+    "/auth/login",
+    "/auth/callback",
+    "/auth/logout",
+    # Discord's frame calls this before it holds any session, so it has to be open.
+    # Safe for the same reason /auth/callback is: the code is only ever issued to the
+    # signed-in user by the Embedded App SDK, and Discord validates it here.
+    "/auth/exchange",
+    "/go.html",
+    "/tictactoe.html",
+})
 
 # Prefixes served without a session: our own assets plus the legacy static pages.
 OPEN_PREFIXES = ("/static/", "/legacy/")
@@ -42,6 +55,7 @@ class AuthConfig:
     client_secret: str
     base_url: str
     session_secret: str
+    activity_url: str = ""
 
     @classmethod
     def from_env(cls) -> "AuthConfig":
@@ -50,6 +64,7 @@ class AuthConfig:
             client_secret=os.environ.get("DISCORD_CLIENT_SECRET", ""),
             base_url=os.environ.get("WEBAPP_BASE_URL", ""),
             session_secret=os.environ.get("WEBAPP_SESSION_SECRET", ""),
+            activity_url=os.environ.get("WEBAPP_ACTIVITY_URL", ""),
         )
 
     @property
@@ -73,6 +88,28 @@ class AuthConfig:
     @property
     def secure_cookies(self) -> bool:
         return self.base_url.startswith("https://")
+
+    @property
+    def same_site(self) -> str:
+        """Cookie SameSite attribute.
+
+        Discord proxies the Activity through ``<application id>.discordsays.com`` and
+        frames it inside ``discord.com``, which makes requests to our origin cross-site,
+        so the session cookie has to be ``SameSite=None`` to be sent at all. Browsers
+        reject ``SameSite=None`` without ``Secure``, so only use it over https and keep
+        ``Lax`` for plain-http local development.
+        """
+        return "None" if self.secure_cookies else "Lax"
+
+    @property
+    def activity_redirect_uri(self) -> str:
+        """The URL registered as the Activity URL in the Discord developer portal.
+
+        Discord serves the Activity through its own origin but requires the token
+        exchange to present the registered URL as ``redirect_uri``, so it must match
+        exactly. Defaults to the public origin.
+        """
+        return (self.activity_url or self.base_url).rstrip("/")
 
 
 AUTH_KEY: web.AppKey[AuthConfig] = web.AppKey("auth", AuthConfig)
@@ -148,31 +185,22 @@ async def login_handler(request: web.Request) -> web.StreamResponse:
 
     response = web.HTTPFound(f"{DISCORD_AUTHORIZE_URL}?{query}")
     response.set_cookie(
-        STATE_COOKIE, state, max_age=STATE_TTL_SECONDS, httponly=True, samesite="Lax",
+        STATE_COOKIE, state, max_age=STATE_TTL_SECONDS, httponly=True, samesite=auth.same_site,
         secure=auth.secure_cookies, path="/",
     )
     response.set_cookie(
-        NEXT_COOKIE, next_path, max_age=STATE_TTL_SECONDS, httponly=True, samesite="Lax",
+        NEXT_COOKIE, next_path, max_age=STATE_TTL_SECONDS, httponly=True, samesite=auth.same_site,
         secure=auth.secure_cookies, path="/",
     )
     raise response
 
 
-async def callback_handler(request: web.Request) -> web.StreamResponse:
-    auth: AuthConfig = request.app[AUTH_KEY]
-    if not auth.configured:
-        raise web.HTTPServiceUnavailable(text="Login is not configured yet.")
+async def _discord_user_id(auth: AuthConfig, http: aiohttp.ClientSession, code: str, redirect_uri: str) -> int:
+    """Trade an OAuth authorization code for the Discord user id behind it.
 
-    state = request.query.get("state", "")
-    expected_state = request.cookies.get(STATE_COOKIE, "")
-    if not state or not expected_state or not hmac.compare_digest(state, expected_state):
-        raise web.HTTPBadRequest(text="Invalid OAuth state.")
-
-    code = request.query.get("code")
-    if not code:
-        raise web.HTTPBadRequest(text="Missing authorization code.")
-
-    http: aiohttp.ClientSession = request.app[HTTP_KEY]
+    Shared by the classic redirect callback and the Discord Activity exchange, which
+    differ only in the ``redirect_uri`` they present.
+    """
 
     try:
         async with http.post(
@@ -182,7 +210,7 @@ async def callback_handler(request: web.Request) -> web.StreamResponse:
                 "client_secret": auth.client_secret,
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": auth.redirect_uri,
+                "redirect_uri": redirect_uri,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         ) as token_response:
@@ -205,9 +233,28 @@ async def callback_handler(request: web.Request) -> web.StreamResponse:
         raise web.HTTPBadGateway(text="Could not reach Discord.") from exc
 
     try:
-        user_id = int(user_data["id"])
+        return int(user_data["id"])
     except (KeyError, TypeError, ValueError) as exc:
         raise web.HTTPBadGateway(text="Unexpected Discord user payload.") from exc
+
+
+async def callback_handler(request: web.Request) -> web.StreamResponse:
+    auth: AuthConfig = request.app[AUTH_KEY]
+    if not auth.configured:
+        raise web.HTTPServiceUnavailable(text="Login is not configured yet.")
+
+    state = request.query.get("state", "")
+    expected_state = request.cookies.get(STATE_COOKIE, "")
+    if not state or not expected_state or not hmac.compare_digest(state, expected_state):
+        raise web.HTTPBadRequest(text="Invalid OAuth state.")
+
+    code = request.query.get("code")
+    if not code:
+        raise web.HTTPBadRequest(text="Missing authorization code.")
+
+    http: aiohttp.ClientSession = request.app[HTTP_KEY]
+
+    user_id = await _discord_user_id(auth, http, code, auth.redirect_uri)
 
     if not allowlist.is_allowed(user_id):
         raise web.HTTPForbidden(text="You're not on the list. Ask a Paradise member to add you.")
@@ -219,11 +266,50 @@ async def callback_handler(request: web.Request) -> web.StreamResponse:
     response = web.HTTPFound(next_path)
     response.set_cookie(
         SESSION_COOKIE, make_session_value(auth, user_id), max_age=SESSION_TTL_SECONDS,
-        httponly=True, samesite="Lax", secure=auth.secure_cookies, path="/",
+        httponly=True, samesite=auth.same_site, secure=auth.secure_cookies, path="/",
     )
     response.del_cookie(STATE_COOKIE, path="/")
     response.del_cookie(NEXT_COOKIE, path="/")
     raise response
+
+
+async def exchange_handler(request: web.Request) -> web.StreamResponse:
+    """Complete a Discord Activity sign-in.
+
+    Discord frames the Activity through ``<application id>.discordsays.com`` and refuses
+    to have its own authorize page framed, so the classic redirect cannot work in there.
+    Instead the embedded SDK runs inside the iframe and hands us an authorization code,
+    which we exchange here. Because this request originates inside the iframe, the
+    ``Set-Cookie`` below is attributed to Discord's proxy host rather than our domain,
+    which is what makes the session usable for subsequent in-frame requests.
+    """
+    auth: AuthConfig = request.app[AUTH_KEY]
+    if not auth.configured:
+        raise web.HTTPServiceUnavailable(text="Login is not configured yet.")
+
+    try:
+        payload: object = await request.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise web.HTTPBadRequest(text="Expected a JSON body.") from exc
+    if not isinstance(payload, dict):
+        raise web.HTTPBadRequest(text="Expected a JSON body.")
+
+    code = payload.get("code")
+    if not isinstance(code, str) or not code.strip():
+        raise web.HTTPBadRequest(text="Missing authorization code.")
+
+    http: aiohttp.ClientSession = request.app[HTTP_KEY]
+    user_id = await _discord_user_id(auth, http, code.strip(), auth.activity_redirect_uri)
+
+    if not allowlist.is_allowed(user_id):
+        raise web.HTTPForbidden(text="You're not on the list. Ask a Paradise member to add you.")
+
+    response = web.json_response({"ok": True})
+    response.set_cookie(
+        SESSION_COOKIE, make_session_value(auth, user_id), max_age=SESSION_TTL_SECONDS,
+        httponly=True, samesite=auth.same_site, secure=auth.secure_cookies, path="/",
+    )
+    return response
 
 
 async def logout_handler(request: web.Request) -> web.StreamResponse:

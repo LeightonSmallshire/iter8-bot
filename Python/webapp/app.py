@@ -1,5 +1,6 @@
 """aiohttp webapp hosted inside the Discord bot process."""
 
+import json
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
@@ -48,12 +49,19 @@ async def _index(request: web.Request) -> web.StreamResponse:
     auth_config = request.app[auth.AUTH_KEY]
     user_id = auth.verify_session(auth_config, request)
     if user_id is None:
+        # Also the Discord Activity entry point: activity.js detects the iframe and
+        # swaps the plain login link for an SDK sign-in, which is the only kind that
+        # works there.
         body = (
-            "<!doctype html><html><head><title>Clockwork</title></head><body>"
-            "<h1>Clockwork</h1><p>Not logged in.</p>"
+            "<!doctype html><html><head><title>Clockwork</title>"
+            "<link rel='stylesheet' href='/static/shop.css'></head><body>"
+            "<h1>Clockwork</h1>"
+            "<p class='activity-status' id='activity-status'>Not logged in.</p>"
             "<p><a href='/auth/login'>Log in with Discord</a></p>"
+            "<script>window.WEBAPP = __CONFIG__;</script>"
+            "<script type='module' src='/static/activity.js'></script>"
             "</body></html>"
-        )
+        ).replace("__CONFIG__", json.dumps({"client_id": auth_config.client_id}).replace("<", "\\u003c"))
     else:
         body = (
             f"<!doctype html><html><head><title>Clockwork</title></head><body>"
@@ -74,6 +82,7 @@ def create_app() -> web.Application:
     app.router.add_get("/auth/login", auth.login_handler)
     app.router.add_get("/auth/callback", auth.callback_handler)
     app.router.add_get("/auth/logout", auth.logout_handler)
+    app.router.add_post("/auth/exchange", auth.exchange_handler)
     app.router.add_static("/static/", STATIC_DIR)
     for path, filename in LEGACY_PAGES.items():
         app.router.add_get(path, _legacy_handler(filename))

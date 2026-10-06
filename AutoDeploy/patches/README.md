@@ -16,6 +16,11 @@ not on either machine:
 https://trejon.smallshire.co.uk/auth/callback
 ```
 
+The Discord **Activity URL** is a fourth, and is a hard prerequisite for the Activity:
+until it is registered for application `1425483577587531886`, the frame fails with HTTP
+522 and nothing reaches the Pi. It is set to the public origin, `https://trejon.smallshire.co.uk`
+(see `AutoDeploy/WEBAPP_DEPLOY.md` §4).
+
 ## nginx-bitmmo-root-target.patch
 
 Two changes to the public proxy's config:

@@ -121,7 +121,29 @@ https://trejon.smallshire.co.uk/auth/callback
 Discord rejects non-https redirect URIs (except `localhost`), and the value must match
 byte for byte.
 
-## 4. Docker network
+## 4. Discord Activity
+
+The site root is also the Discord Activity entry point. The Activity URL must be
+registered in the developer portal for application `1425483577587531886`, under
+**Activities**. Set it to the public origin:
+
+```
+https://trejon.smallshire.co.uk
+```
+
+Discord serves the Activity through `<application id>.discordsays.com`. If that hostname
+has no provisioned origin — wrong URL, or none set — the frame fails with **HTTP 522**
+(`server: cloudflare`, `retry-after`), which looks like our site being down but is not:
+nothing reaches the Pi at all. Once the URL is registered it resolves and the frame loads.
+
+The same URL is the `redirect_uri` presented when trading the SDK's authorization code, so
+it must match byte for byte. Set `WEBAPP_ACTIVITY_URL` only if the Activity is registered
+somewhere other than the public origin; otherwise it defaults to `WEBAPP_BASE_URL`.
+
+Verify by loading the Activity in a real Discord client. This cannot be tested from a
+script: Discord's authorize and RPC endpoints reject non-browser clients.
+
+## 5. Docker network
 
 The public nginx container sits on **two** networks and needs both:
 
@@ -132,7 +154,7 @@ The public nginx container sits on **two** networks and needs both:
 
 `iter8-deployer` is on `autodeploy_default` only. Verified live on the Pi.
 
-## 5. Verify after deploy
+## 6. Verify after deploy
 
 ```bash
 curl -sI https://trejon.smallshire.co.uk/healthz          # {"status":"ok"}
