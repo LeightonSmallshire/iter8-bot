@@ -8,11 +8,13 @@
 // Discord and issues a session, and because that request is made from inside the iframe
 // the cookie is set on Discord's proxy host where the rest of the app can read it.
 //
-// Note the SDK v2 shape: `authorize` (not `authenticate`) lives on sdk.commands, takes
-// { scopes: [...] }, and resolves to { code }. `authenticate` is the opposite direction --
-// it accepts an existing access token and will not mint one, so calling it with
-// { access_token: null } makes Discord answer "No access token provided". The code is then
-// traded for a session by /auth/exchange, server-side.
+// Note the SDK v2 shape, per the Embedded App SDK reference:
+//   * `authorize` lives on sdk.commands and its AuthorizeRequest REQUIRES `client_id`,
+//     with the scopes in a singular `scope` array. Omitting client_id makes Discord
+//     answer "No client id provided"; `scopes` (plural) is silently wrong.
+//   * it resolves to { code }, which the backend trades for a session.
+//   * `authenticate` is the opposite direction -- it accepts an EXISTING access_token and
+//     will not mint one, and neither command exists on the SDK instance itself.
 //
 // In a normal browser tab nothing here runs and the page's own login link is used.
 
@@ -38,7 +40,16 @@ async function startActivity() {
     await sdk.ready();
 
     status("Signing in…");
-    const auth = await sdk.commands.authorize({ scopes: ["identify"] });
+    // Documented shape (AuthorizeRequest): client_id is required, the scope field is
+    // singular and an array, and it resolves to { code }.
+    //
+    // `prompt` is deliberately omitted so Discord can show consent the first time a user
+    // authorises and stay silent afterwards; passing "none" fails outright on a first run.
+    const auth = await sdk.commands.authorize({
+      client_id: WEBAPP.client_id,
+      response_type: "code",
+      scope: ["identify"],
+    });
     const code = auth && auth.code;
     if (!code) throw new Error("Discord returned no authorization code.");
 

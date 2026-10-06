@@ -20,6 +20,14 @@ export class DiscordSDK {
       authorize: async (args) => {
         globalThis.__activityTest.calls.push("commands.authorize");
         globalThis.__activityTest.authArgs = args;
+        // Mirror Discord's validation: AuthorizeRequest requires client_id and a
+        // singular `scope` array, and resolves to { code }.
+        if (!args || !args.client_id) {
+          throw new Error("No client id provided");
+        }
+        if (!Array.isArray(args.scope)) {
+          throw new Error("scope must be an array");
+        }
         if (globalThis.__activityTest.fail === "authorize") {
           throw new Error("no handshake");
         }

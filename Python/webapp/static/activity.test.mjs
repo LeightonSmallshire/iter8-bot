@@ -115,9 +115,14 @@ test("signs in through the SDK when framed, then opens the shop in-frame", async
   const { record } = await runActivity();
 
   assert.deepEqual(record.sdks, ["12345"]);
-  // SDK v2: authenticate lives on sdk.commands, not on the instance.
+  // SDK v2: authorize lives on sdk.commands, not on the instance.
   assert.deepEqual(record.calls, ["ready", "commands.authorize"]);
-  assert.deepEqual(record.authArgs, { scopes: ["identify"] });
+  // AuthorizeRequest requires client_id; the scopes live in a singular `scope` array.
+  assert.deepEqual(record.authArgs, {
+    client_id: "12345",
+    response_type: "code",
+    scope: ["identify"],
+  });
 
   assert.equal(record.fetchCalls.length, 1);
   const call = record.fetchCalls[0];

@@ -239,6 +239,13 @@ async def _discord_user_id(auth: AuthConfig, http: aiohttp.ClientSession, code: 
             raise web.HTTPBadGateway(text="Discord user fetch failed.")
     except aiohttp.ClientError as exc:
         raise web.HTTPBadGateway(text="Could not reach Discord.") from exc
+    except ValueError as exc:
+        # A body that is not JSON means something between us and Discord answered --
+        # typically a CDN bot check on the request. Say so, rather than reporting a
+        # generic failure that sends you hunting in the wrong place.
+        raise web.HTTPBadGateway(
+            text="Discord returned a non-JSON response; it may be blocking this host.",
+        ) from exc
 
     try:
         return int(user_data["id"])
