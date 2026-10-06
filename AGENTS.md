@@ -22,6 +22,20 @@ python -m pytest --tb=short
 python -m pytest tests/test_tools.py::test_function_name -v
 ```
 
+The webapp's Activity bootstrap also has JavaScript tests. There is no JS build step, so
+these run on the bundled Node's test runner, from the repo root:
+
+```bash
+node --test "Python/webapp/static/*.test.mjs"
+```
+
+Two pre-existing suite quirks worth knowing:
+
+- `tests/test_startup.py` boots the real bot, so it needs port `8090` free. Stop the dev
+  bot first or it fails with `winerror 10048`.
+- `tests/test_tools.py` has a broken `BaseDeps` import and must be ignored
+  (`--ignore=tests/test_tools.py`); everything else passes.
+
 Recommended order: `ruff → mypy → pytest`.
 
 ## Linting
