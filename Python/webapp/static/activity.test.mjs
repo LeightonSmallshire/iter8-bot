@@ -41,7 +41,7 @@ async function runActivity(env = {}) {
     framed = true,
     clientId = "12345",
     fail = null,
-    exposeLegacyAuthenticate = false,
+    
     exchangeStatus = 200,
     exchangeBody = '{"ok":true}',
   } = env;
@@ -53,8 +53,8 @@ async function runActivity(env = {}) {
     authArgs: null,
     navigations: [],
     fail,
-    exposeLegacyAuthenticate,
-    token: "token-from-sdk",
+
+    code: "code-from-sdk",
     exchangeStatus,
     exchangeBody,
   };
@@ -116,8 +116,8 @@ test("signs in through the SDK when framed, then opens the shop in-frame", async
 
   assert.deepEqual(record.sdks, ["12345"]);
   // SDK v2: authenticate lives on sdk.commands, not on the instance.
-  assert.deepEqual(record.calls, ["ready", "commands.authenticate"]);
-  assert.deepEqual(record.authArgs, { access_token: null });
+  assert.deepEqual(record.calls, ["ready", "commands.authorize"]);
+  assert.deepEqual(record.authArgs, { scopes: ["identify"] });
 
   assert.equal(record.fetchCalls.length, 1);
   const call = record.fetchCalls[0];
@@ -126,21 +126,21 @@ test("signs in through the SDK when framed, then opens the shop in-frame", async
   // The cookie has to travel; the iframe is a cross-site context.
   assert.equal(call.options.credentials, "include");
   assert.equal(call.options.headers["Content-Type"], "application/json");
-  // v2 returns a bearer token, not an authorization code.
-  assert.deepEqual(JSON.parse(call.options.body), { access_token: "token-from-sdk" });
+  // authorize yields a code; the token is minted server-side.
+  assert.deepEqual(JSON.parse(call.options.body), { code: "code-from-sdk" });
 
   // Stays in the frame: the session cookie belongs to this origin.
   assert.deepEqual(record.navigations, ["/shop"]);
 });
 
-test("never calls the v1 instance-level authenticate", async () => {
-  // The stub exposes a legacy instance method that throws. Reaching for it is the exact
-  // bug that shipped as "sdk.authenticate is not a function".
-  const { record, statusEl } = await runActivity({ exposeLegacyAuthenticate: true });
+test("never calls authenticate, which cannot mint a token", async () => {
+  // The stub's authenticate throws. Reaching for it is exactly the bug that shipped as
+  // "sdk.authenticate is not a function" and then "No access token provided".
+  const { record, statusEl } = await runActivity();
 
-  assert.deepEqual(record.calls, ["ready", "commands.authenticate"]);
+  assert.deepEqual(record.calls, ["ready", "commands.authorize"]);
   assert.equal(record.navigations.at(-1), "/shop");
-  assert.doesNotMatch(statusEl.textContent, /instance-level/);
+  assert.doesNotMatch(statusEl.textContent, /authenticate/);
 });
 
 test("surfaces the server's rejection instead of navigating", async () => {
@@ -162,7 +162,7 @@ test("falls back to the status code when the server sends no detail", async () =
 });
 
 test("surfaces an SDK handshake failure instead of navigating", async () => {
-  const { record, statusEl } = await runActivity({ fail: "authenticate" });
+  const { record, statusEl } = await runActivity({ fail: "authorize" });
 
   assert.deepEqual(record.navigations, []);
   assert.match(statusEl.textContent, /Sign-in failed/);
@@ -171,16 +171,16 @@ test("surfaces an SDK handshake failure instead of navigating", async () => {
   assert.deepEqual(record.fetchCalls, []);
 });
 
-test("treats a missing access token as a failure", async () => {
+test("treats a missing authorization code as a failure", async () => {
   const { record, statusEl } = await runActivity({ fail: "emptycode" });
 
   assert.deepEqual(record.navigations, []);
   assert.deepEqual(record.fetchCalls, []);
-  assert.match(statusEl.textContent, /no access token/);
+  assert.match(statusEl.textContent, /no authorization code/);
 });
 
 test("marks the status element as an error on failure", async () => {
-  const { statusEl } = await runActivity({ fail: "authenticate" });
+  const { statusEl } = await runActivity({ fail: "authorize" });
   assert.equal(statusEl.className, "activity-error");
 });
 

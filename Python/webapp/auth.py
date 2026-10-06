@@ -55,6 +55,7 @@ class AuthConfig:
     client_secret: str
     base_url: str
     session_secret: str
+    activity_url: str = ""
 
     @classmethod
     def from_env(cls) -> "AuthConfig":
@@ -63,6 +64,7 @@ class AuthConfig:
             client_secret=os.environ.get("DISCORD_CLIENT_SECRET", ""),
             base_url=os.environ.get("WEBAPP_BASE_URL", ""),
             session_secret=os.environ.get("WEBAPP_SESSION_SECRET", ""),
+            activity_url=os.environ.get("WEBAPP_ACTIVITY_URL", ""),
         )
 
     @property
@@ -98,6 +100,17 @@ class AuthConfig:
         ``Lax`` for plain-http local development.
         """
         return "None" if self.secure_cookies else "Lax"
+
+    @property
+    def activity_redirect_uri(self) -> str:
+        """The Activity URL registered in the Discord developer portal.
+
+        The Activity SDK's ``authorize`` returns an authorization code, and trading it
+        for a token requires presenting the registered URL as ``redirect_uri``, so it has
+        to match exactly. Defaults to the public origin, which is what the Activity is
+        registered as; override with ``WEBAPP_ACTIVITY_URL`` only if it differs.
+        """
+        return (self.activity_url or self.base_url).rstrip("/")
 
 
 AUTH_KEY: web.AppKey[AuthConfig] = web.AppKey("auth", AuthConfig)
@@ -184,10 +197,11 @@ async def login_handler(request: web.Request) -> web.StreamResponse:
 
 
 async def _discord_user_id(auth: AuthConfig, http: aiohttp.ClientSession, code: str, redirect_uri: str) -> int:
-    """Trade an OAuth authorization code for the Discord user id behind it.
+    """Trade an authorization code for the Discord user id behind it.
 
-    Used by the classic top-level redirect flow. The Activity flow does not come through
-    here: its SDK hands us a bearer token directly, see :func:`_discord_user_from_token`.
+    Used by both the classic top-level redirect flow and the Activity flow: the Activity
+    SDK's ``authorize`` also yields a code, so both present a ``redirect_uri`` that Discord
+    has to have registered.
     """
 
     try:
@@ -208,7 +222,13 @@ async def _discord_user_id(auth: AuthConfig, http: aiohttp.ClientSession, code: 
             or not isinstance(token_data, dict)
             or "access_token" not in token_data
         ):
-            raise web.HTTPBadGateway(text="Discord token exchange failed.")
+            # Surface Discord's own complaint. A generic message here hides the actual
+            # cause (bad redirect_uri, reused code, missing scope) behind a 502.
+            detail = ""
+            if isinstance(token_data, dict):
+                detail = str(token_data.get("error_description") or token_data.get("error") or "")
+            suffix = f": {detail}" if detail else ""
+            raise web.HTTPBadGateway(text=f"Discord token exchange failed{suffix}")
 
         async with http.get(
             DISCORD_ME_URL,
@@ -261,46 +281,16 @@ async def callback_handler(request: web.Request) -> web.StreamResponse:
     raise response
 
 
-async def _discord_user_from_token(auth: AuthConfig, http: aiohttp.ClientSession, access_token: str) -> int:
-    """Resolve a Discord bearer token to a user id.
-
-    The Activity SDK authenticates the user and hands us the resulting access token, so
-    there is no authorization code to exchange. The id is resolved here rather than taken
-    from the client, which also means a token the caller made up cannot be used to
-    impersonate anyone.
-    """
-    del auth
-
-    try:
-        async with http.get(
-            DISCORD_ME_URL,
-            headers={"Authorization": f"Bearer {access_token}"},
-        ) as me_response:
-            user_data: object = await me_response.json(content_type=None)
-    except aiohttp.ClientError as exc:
-        raise web.HTTPBadGateway(text="Could not reach Discord.") from exc
-
-    if me_response.status == 401:
-        raise web.HTTPBadGateway(text="Discord rejected the access token.")
-    if me_response.status != 200 or not isinstance(user_data, dict):
-        raise web.HTTPBadGateway(text="Discord user fetch failed.")
-
-    try:
-        return int(user_data["id"])
-    except (KeyError, TypeError, ValueError) as exc:
-        raise web.HTTPBadGateway(text="Unexpected Discord user payload.") from exc
-
-
 async def exchange_handler(request: web.Request) -> web.StreamResponse:
     """Complete a Discord Activity sign-in.
 
     Discord frames the Activity through ``<application id>.discordsays.com`` and refuses
     to have its own authorize page framed, so the classic redirect cannot work in there.
-    Instead the embedded SDK authenticates inside the iframe and posts us the resulting
-    access token, which we verify against Discord before issuing a session. Because this
-    request originates inside the iframe, the ``Set-Cookie`` below is attributed to
-    Discord's proxy host rather than our domain, which is what makes the session usable
-    for subsequent in-frame requests.
+    Instead the embedded SDK's ``authorize`` runs inside the iframe and posts us the
+    authorization code, which we trade for a session here. Because this request originates
+    inside the iframe, the ``Set-Cookie`` below is attributed to Discord's proxy host
+    rather than our domain, which is what makes the session usable for later in-frame
+    requests.
     """
     auth: AuthConfig = request.app[AUTH_KEY]
     if not auth.configured:
@@ -313,12 +303,12 @@ async def exchange_handler(request: web.Request) -> web.StreamResponse:
     if not isinstance(payload, dict):
         raise web.HTTPBadRequest(text="Expected a JSON body.")
 
-    token = payload.get("access_token")
+    token = payload.get("code")
     if not isinstance(token, str) or not token.strip():
-        raise web.HTTPBadRequest(text="Missing access token.")
+        raise web.HTTPBadRequest(text="Missing authorization code.")
 
     http: aiohttp.ClientSession = request.app[HTTP_KEY]
-    user_id = await _discord_user_from_token(auth, http, token.strip())
+    user_id = await _discord_user_id(auth, http, token.strip(), auth.activity_redirect_uri)
 
     if not allowlist.is_allowed(user_id):
         raise web.HTTPForbidden(text="You're not on the list. Ask a Paradise member to add you.")

@@ -143,9 +143,11 @@ Set it to the public origin, with no port:
 https://trejon.smallshire.co.uk
 ```
 
-Once registered it resolves and the frame loads. The Activity URL is *not* used as an OAuth
-`redirect_uri`: SDK v2 hands the webapp a bearer token rather than an authorization code, so
-nothing has to match byte for byte.
+Once registered it resolves and the frame loads. The Activity URL is **not** cosmetic: SDK v2's `authorize` returns an authorization code, and
+trading it at Discord's token endpoint requires presenting the registered URL as
+`redirect_uri`. It must therefore match byte for byte, including no trailing slash. By
+default the app uses `WEBAPP_BASE_URL`; set `WEBAPP_ACTIVITY_URL` only if the Activity is
+registered somewhere else.
 
 Verify by loading the Activity in a real Discord client. This cannot be tested from a
 script: Discord's authorize and RPC endpoints reject non-browser clients.

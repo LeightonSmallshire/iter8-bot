@@ -38,9 +38,10 @@ LOCAL_CONFIG = auth.AuthConfig(
 
 
 def _stub_identity(app: object, user_id: int) -> None:
-    """Let GET /users/@me succeed for the given user."""
+    """Let the token exchange and GET /users/@me both succeed."""
     from unittest.mock import MagicMock
 
+    http_of(app).post = MagicMock(return_value=FakeResponse(200, {"access_token": "at"}))
     http_of(app).get = MagicMock(return_value=FakeResponse(200, {"id": str(user_id)}))
 
 
@@ -71,7 +72,7 @@ async def test_exchange_sets_a_usable_session_cookie() -> None:
     _stub_identity(app, ALLOWED_UID)
 
     async with TestClient(TestServer(app)) as client:
-        response = await client.post("/auth/exchange", json={"access_token": "tok"})
+        response = await client.post("/auth/exchange", json={"code": "the-code"})
         assert response.status == 200
         assert (await response.json())["ok"] is True
 
@@ -86,31 +87,58 @@ async def test_exchange_sets_a_usable_session_cookie() -> None:
     assert auth.verify_session(CONFIG, _cookie_request(signed)) == ALLOWED_UID
 
 
-async def test_exchange_presents_the_token_as_a_bearer_credential() -> None:
+async def test_exchange_presents_the_activity_url_as_the_redirect_uri() -> None:
+    """Discord has to have the redirect_uri registered, or it rejects the code."""
     app = make_auth_app(CONFIG)
     _stub_identity(app, ALLOWED_UID)
 
     async with TestClient(TestServer(app)) as client:
-        await client.post("/auth/exchange", json={"access_token": "tok"})
+        await client.post("/auth/exchange", json={"code": "the-code"})
 
-    get = http_of(app).get
-    get.assert_called_once()
-    assert get.call_args.kwargs["headers"]["Authorization"] == "Bearer tok"
-    # v2 hands us a token, so there is no authorization code to exchange: the token
-    # endpoint must never be touched.
-    http_of(app).post.assert_not_called()
+    form = http_of(app).post.call_args.kwargs["data"]
+    assert form["grant_type"] == "authorization_code"
+    assert form["code"] == "the-code"
+    # Defaults to the public origin, which is what the Activity is registered as.
+    assert form["redirect_uri"] == "https://trejon.smallshire.co.uk"
 
 
 @pytest.mark.parametrize(
     "payload",
-    [{}, {"access_token": ""}, {"access_token": "   "}, {"access_token": 42}, {"access_token": None}],
+    [{}, {"code": ""}, {"code": "   "}, {"code": 42}, {"code": None}],
 )
-async def test_exchange_rejects_a_bad_token(payload: dict[str, object]) -> None:
+async def test_exchange_rejects_a_bad_code(payload: dict[str, object]) -> None:
     app = make_auth_app(CONFIG)
     _stub_identity(app, ALLOWED_UID)
 
     async with TestClient(TestServer(app)) as client:
         assert (await client.post("/auth/exchange", json=payload)).status == 400
+
+
+async def test_exchange_surfaces_discords_own_complaint() -> None:
+    """A generic 502 hides bad redirect_uri / reused code / missing scope."""
+    from unittest.mock import MagicMock
+
+    app = make_auth_app(CONFIG)
+    http_of(app).post = MagicMock(
+        return_value=FakeResponse(400, {"error": "invalid_grant", "error_description": "code expired"}),
+    )
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/auth/exchange", json={"code": "stale"})
+        assert response.status == 502
+        assert "code expired" in await response.text()
+
+
+async def test_exchange_falls_back_to_the_error_code_when_no_description() -> None:
+    from unittest.mock import MagicMock
+
+    app = make_auth_app(CONFIG)
+    http_of(app).post = MagicMock(return_value=FakeResponse(400, {"error": "invalid_request"}))
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/auth/exchange", json={"code": "x"})
+        assert response.status == 502
+        assert "invalid_request" in await response.text()
 
 
 async def test_exchange_rejects_a_non_json_body() -> None:
@@ -127,20 +155,21 @@ async def test_exchange_rejects_a_non_allowlisted_user() -> None:
     _stub_identity(app, DENIED_UID)
 
     async with TestClient(TestServer(app)) as client:
-        response = await client.post("/auth/exchange", json={"access_token": "tok"})
+        response = await client.post("/auth/exchange", json={"code": "the-code"})
         assert response.status == 403
         assert auth.SESSION_COOKIE not in "\n".join(response.headers.getall("Set-Cookie", []))
 
 
-async def test_exchange_refuses_a_token_discord_rejects() -> None:
-    """A forged or expired token must not produce a session."""
-    app = make_auth_app(CONFIG)
+async def test_exchange_refuses_a_code_that_yields_no_identity() -> None:
+    """Even if the token exchange answers, a rejected identity lookup must not session."""
     from unittest.mock import MagicMock
 
+    app = make_auth_app(CONFIG)
+    http_of(app).post = MagicMock(return_value=FakeResponse(200, {"access_token": "at"}))
     http_of(app).get = MagicMock(return_value=FakeResponse(401, {"message": "401: Unauthorized"}))
 
     async with TestClient(TestServer(app)) as client:
-        response = await client.post("/auth/exchange", json={"access_token": "forged"})
+        response = await client.post("/auth/exchange", json={"code": "forged"})
         assert response.status == 502
         assert auth.SESSION_COOKIE not in "\n".join(response.headers.getall("Set-Cookie", []))
 
@@ -150,7 +179,7 @@ async def test_exchange_surfaces_a_discord_outage_as_502() -> None:
     stub_me_failure(app)
 
     async with TestClient(TestServer(app)) as client:
-        response = await client.post("/auth/exchange", json={"access_token": "tok"})
+        response = await client.post("/auth/exchange", json={"code": "the-code"})
         assert response.status == 502
         assert auth.SESSION_COOKIE not in "\n".join(response.headers.getall("Set-Cookie", []))
 
@@ -160,14 +189,14 @@ async def test_exchange_wraps_network_errors_as_502() -> None:
     stub_unreachable(app)
 
     async with TestClient(TestServer(app)) as client:
-        assert (await client.post("/auth/exchange", json={"access_token": "tok"})).status == 502
+        assert (await client.post("/auth/exchange", json={"code": "the-code"})).status == 502
 
 
 async def test_exchange_503s_when_auth_is_unconfigured() -> None:
     app = make_auth_app(auth.AuthConfig(client_id="", client_secret="", base_url="", session_secret=""))
 
     async with TestClient(TestServer(app)) as client:
-        assert (await client.post("/auth/exchange", json={"access_token": "tok"})).status == 503
+        assert (await client.post("/auth/exchange", json={"code": "the-code"})).status == 503
 
 
 async def test_exchange_is_reachable_without_a_session() -> None:
@@ -176,7 +205,7 @@ async def test_exchange_is_reachable_without_a_session() -> None:
     _stub_identity(app, ALLOWED_UID)
 
     async with TestClient(TestServer(app)) as client:
-        assert (await client.post("/auth/exchange", json={"access_token": "tok"})).status == 200
+        assert (await client.post("/auth/exchange", json={"code": "the-code"})).status == 200
 
 
 # --- Activity entry point ----------------------------------------------------

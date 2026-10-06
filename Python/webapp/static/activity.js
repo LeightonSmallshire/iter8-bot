@@ -8,9 +8,11 @@
 // Discord and issues a session, and because that request is made from inside the iframe
 // the cookie is set on Discord's proxy host where the rest of the app can read it.
 //
-// Note the SDK v2 shape: authenticate lives on sdk.commands, takes
-// { access_token: null } to request a fresh token (there is no scope argument), and
-// resolves to { access_token, user, scopes } -- a token, not an authorization code.
+// Note the SDK v2 shape: `authorize` (not `authenticate`) lives on sdk.commands, takes
+// { scopes: [...] }, and resolves to { code }. `authenticate` is the opposite direction --
+// it accepts an existing access token and will not mint one, so calling it with
+// { access_token: null } makes Discord answer "No access token provided". The code is then
+// traded for a session by /auth/exchange, server-side.
 //
 // In a normal browser tab nothing here runs and the page's own login link is used.
 
@@ -36,15 +38,15 @@ async function startActivity() {
     await sdk.ready();
 
     status("Signing in…");
-    const auth = await sdk.commands.authenticate({ access_token: null });
-    const accessToken = auth && auth.access_token;
-    if (!accessToken) throw new Error("Discord returned no access token.");
+    const auth = await sdk.commands.authorize({ scopes: ["identify"] });
+    const code = auth && auth.code;
+    if (!code) throw new Error("Discord returned no authorization code.");
 
     const response = await fetch("/auth/exchange", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ access_token: accessToken }),
+      body: JSON.stringify({ code }),
     });
 
     if (!response.ok) {
