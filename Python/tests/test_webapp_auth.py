@@ -87,6 +87,9 @@ def _app() -> web.Application:
     app.router.add_get("/", landing)
     app.router.add_get("/healthz", landing)
     app.router.add_get("/static/style.css", landing)
+    app.router.add_get("/legacy/index.html", landing)
+    app.router.add_get("/go.html", landing)
+    app.router.add_get("/tictactoe.html", landing)
     app.router.add_get("/shop", echo)
     app.router.add_get("/api/credits", echo)
     return app
@@ -94,7 +97,7 @@ def _app() -> web.Application:
 
 async def test_middleware_gating() -> None:
     async with TestClient(TestServer(_app())) as client:
-        for path in ("/", "/healthz", "/static/style.css"):
+        for path in ("/", "/healthz", "/static/style.css", "/legacy/index.html", "/go.html", "/tictactoe.html"):
             response = await client.get(path)
             assert response.status == 200, path
 

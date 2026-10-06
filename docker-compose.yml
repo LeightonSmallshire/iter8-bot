@@ -11,21 +11,6 @@ services:
       - iter8-bot-data:/app/data:rw
       - /home/nonroot/.cache # anonymous
 
-  # Reverse proxy to the bot's webapp. Same service name and port as the old
-  # static file server, so an existing Nginx Proxy Manager upstream keeps
-  # resolving without any changes over there. Not published to the host.
-  bot-web-server:
-    build: Web
-    restart: always
-    read_only: true
-    depends_on:
-      - iter8-bot-runner
-    expose:
-      - "80"
-    tmpfs:
-      - /var/cache/nginx
-      - /run
-
   # iter8-bot-runner:
   #   build: Cpp
   #   read_only: true

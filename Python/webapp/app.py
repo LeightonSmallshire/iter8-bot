@@ -1,7 +1,7 @@
 """aiohttp webapp hosted inside the Discord bot process."""
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
 
 import aiohttp
@@ -14,6 +14,15 @@ from .gigs.routes import register as register_gigs
 from .shop import register as register_shop
 
 STATIC_DIR = Path(__file__).parent / "static"
+LEGACY_DIR = STATIC_DIR / "legacy"
+
+# Legacy static pages, kept reachable at the URLs they always had. /legacy/ maps to
+# the old launcher index, because nginx used to serve it via its `index` directive.
+LEGACY_PAGES = {
+    "/go.html": "go.html",
+    "/tictactoe.html": "tictactoe.html",
+    "/legacy/": "index.html",
+}
 
 
 async def _oauth_http(app: web.Application) -> AsyncIterator[None]:
@@ -24,6 +33,15 @@ async def _oauth_http(app: web.Application) -> AsyncIterator[None]:
 
 async def _healthz(request: web.Request) -> web.StreamResponse:
     return web.json_response({"status": "ok"})
+
+
+def _legacy_handler(filename: str) -> Callable[[web.Request], Awaitable[web.StreamResponse]]:
+    """Build a handler serving one fixed legacy file. The name comes from the route table."""
+
+    async def handler(request: web.Request) -> web.StreamResponse:
+        return web.FileResponse(LEGACY_DIR / filename)
+
+    return handler
 
 
 async def _index(request: web.Request) -> web.StreamResponse:
@@ -57,6 +75,9 @@ def create_app() -> web.Application:
     app.router.add_get("/auth/callback", auth.callback_handler)
     app.router.add_get("/auth/logout", auth.logout_handler)
     app.router.add_static("/static/", STATIC_DIR)
+    for path, filename in LEGACY_PAGES.items():
+        app.router.add_get(path, _legacy_handler(filename))
+    app.router.add_static("/legacy/", LEGACY_DIR)
     register_shop(app)
     register_gigs(app)
     return app

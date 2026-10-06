@@ -28,7 +28,10 @@ NEXT_COOKIE = "iter8_next"
 SESSION_TTL_SECONDS = 7 * 24 * 3600
 STATE_TTL_SECONDS = 600
 
-OPEN_PATHS = frozenset({"/", "/healthz", "/auth/login", "/auth/callback", "/auth/logout"})
+OPEN_PATHS = frozenset({"/", "/healthz", "/auth/login", "/auth/callback", "/auth/logout", "/go.html", "/tictactoe.html"})
+
+# Prefixes served without a session: our own assets plus the legacy static pages.
+OPEN_PREFIXES = ("/static/", "/legacy/")
 
 MiddlewareHandler = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
@@ -232,7 +235,7 @@ async def logout_handler(request: web.Request) -> web.StreamResponse:
 @web.middleware
 async def require_session(request: web.Request, handler: MiddlewareHandler) -> web.StreamResponse:
     path = request.path
-    if path in OPEN_PATHS or path.startswith("/static/"):
+    if path in OPEN_PATHS or path.startswith(OPEN_PREFIXES):
         return await handler(request)
 
     auth: AuthConfig = request.app[AUTH_KEY]
