@@ -12,8 +12,10 @@ from cogs.bonk_cog import BONK_EMOJI, BonkCog
 @pytest.fixture(autouse=True)
 def _reset_profanity_cache() -> Any:
     profanity_utils._cache.clear()
+    profanity_utils._pattern_cache.clear()
     yield
     profanity_utils._cache.clear()
+    profanity_utils._pattern_cache.clear()
 
 
 def _make_message(content: str, guild_id: int, author_bot: bool = False) -> Any:

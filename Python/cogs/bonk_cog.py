@@ -1,5 +1,4 @@
 import datetime
-import re
 
 import discord
 import logfire
@@ -37,12 +36,11 @@ class BonkCog(commands.Cog):
 
     async def _contains_active_word(self, text: str) -> str | None:
         """Return the first active regex pattern found in the text (else None)."""
-        lower = text.lower()
-        for pattern in profanity_utils.active_words():
-            regex = rf"\b{pattern}\b"
-            if re.search(regex, lower):
-                return pattern
-        return None
+        pattern, sources = profanity_utils.active_pattern()
+        match = pattern.search(text.lower())
+        if match is None or match.lastgroup is None:
+            return None
+        return sources.get(match.lastgroup, match.group())
 
     async def _react(self, message: discord.Message) -> None:
         """React to the offending message with the bonk emoji."""
