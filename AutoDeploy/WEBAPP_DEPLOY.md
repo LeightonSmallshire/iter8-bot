@@ -132,13 +132,20 @@ https://trejon.smallshire.co.uk
 ```
 
 Discord serves the Activity through `<application id>.discordsays.com`. If that hostname
-has no provisioned origin — wrong URL, or none set — the frame fails with **HTTP 522**
-(`server: cloudflare`, `retry-after`), which looks like our site being down but is not:
-nothing reaches the Pi at all. Once the URL is registered it resolves and the frame loads.
+has no provisioned origin — wrong URL, wrong port, or none set — the frame fails with
+**HTTP 522** (`server: cloudflare`, `retry-after`), which looks like our site being down
+but is not: nothing reaches the Pi at all. A wrong **port** is the usual cause, since the
+public origin is on 443 and anything else answers on nothing.
 
-The same URL is the `redirect_uri` presented when trading the SDK's authorization code, so
-it must match byte for byte. Set `WEBAPP_ACTIVITY_URL` only if the Activity is registered
-somewhere other than the public origin; otherwise it defaults to `WEBAPP_BASE_URL`.
+Set it to the public origin, with no port:
+
+```
+https://trejon.smallshire.co.uk
+```
+
+Once registered it resolves and the frame loads. The Activity URL is *not* used as an OAuth
+`redirect_uri`: SDK v2 hands the webapp a bearer token rather than an authorization code, so
+nothing has to match byte for byte.
 
 Verify by loading the Activity in a real Discord client. This cannot be tested from a
 script: Discord's authorize and RPC endpoints reject non-browser clients.

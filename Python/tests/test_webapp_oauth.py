@@ -170,16 +170,9 @@ async def test_callback_clears_the_state_and_next_cookies() -> None:
     assert f'{auth.NEXT_COOKIE}=""' in cleared or f"{auth.NEXT_COOKIE}=;" in cleared
 
 
-async def test_callback_uses_the_web_redirect_uri_not_the_activity_one() -> None:
-    """The two flows differ only here; conflating them breaks one of them."""
-    config = auth.AuthConfig(
-        client_id="cid",
-        client_secret="secret",
-        base_url="https://trejon.smallshire.co.uk",
-        session_secret="s",
-        activity_url="https://elsewhere.test/activity",
-    )
-    app = make_auth_app(config)
+async def test_callback_posts_the_web_redirect_uri() -> None:
+    """The Activity flow no longer presents a redirect_uri at all, so this is the only one."""
+    app = make_auth_app(HTTPS)
     stub_discord(app, ALLOWED_UID)
 
     await _callback(app)

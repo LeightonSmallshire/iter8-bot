@@ -4,9 +4,13 @@
 // inside discord.com. That iframe is a cross-site context, and Discord refuses to have
 // its own authorize page framed, so the ordinary "Log in with Discord" link cannot work
 // in there. When we detect we are framed we therefore sign in through the Embedded App
-// SDK instead: authenticate() yields an authorization code, /auth/exchange trades it for
-// a session, and because that request is made from inside the iframe the cookie is set
-// on Discord's proxy host where the rest of the app can read it.
+// SDK instead: authenticate() returns a bearer token, /auth/exchange validates it against
+// Discord and issues a session, and because that request is made from inside the iframe
+// the cookie is set on Discord's proxy host where the rest of the app can read it.
+//
+// Note the SDK v2 shape: authenticate lives on sdk.commands, takes
+// { access_token: null } to request a fresh token (there is no scope argument), and
+// resolves to { access_token, user, scopes } -- a token, not an authorization code.
 //
 // In a normal browser tab nothing here runs and the page's own login link is used.
 
@@ -32,14 +36,15 @@ async function startActivity() {
     await sdk.ready();
 
     status("Signing in…");
-    const { code } = await sdk.authenticate({ scope: ["identify"] });
-    if (!code) throw new Error("Discord returned no authorization code.");
+    const auth = await sdk.commands.authenticate({ access_token: null });
+    const accessToken = auth && auth.access_token;
+    if (!accessToken) throw new Error("Discord returned no access token.");
 
     const response = await fetch("/auth/exchange", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ access_token: accessToken }),
     });
 
     if (!response.ok) {
