@@ -177,3 +177,36 @@ async def test_exchange_is_reachable_without_a_session() -> None:
 
     async with TestClient(TestServer(app)) as client:
         assert (await client.post("/auth/exchange", json={"access_token": "tok"})).status == 200
+
+
+# --- Activity entry point ----------------------------------------------------
+
+
+async def test_index_references_a_versioned_activity_script() -> None:
+    """Discord's CDN caches for hours, so the script URL must change with the file."""
+    from webapp import app as app_module
+
+    application = app_module.create_app()
+    async with TestClient(TestServer(application)) as client:
+        body = await (await client.get("/")).text()
+
+    assert "/static/activity.js?v=" in body
+    assert "window.WEBAPP" in body
+
+
+def test_activity_js_url_changes_when_the_file_does(tmp_path: object) -> None:
+    from webapp import app as app_module
+
+    original = app_module.ACTIVITY_JS
+    try:
+        replacement = tmp_path / "activity.js"  # type: ignore[operator]
+        replacement.write_text("// one")
+        first = app_module._activity_js_url()
+
+        replacement.write_text("// two, and longer")
+        second = app_module._activity_js_url()
+    finally:
+        app_module.ACTIVITY_JS = original
+
+    assert first.startswith("/static/activity.js?v=")
+    assert second.startswith("/static/activity.js?v=")

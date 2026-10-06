@@ -17,6 +17,17 @@ from .shop import register as register_shop
 STATIC_DIR = Path(__file__).parent / "static"
 LEGACY_DIR = STATIC_DIR / "legacy"
 
+# Discord fronts the Activity with a CDN that caches aggressively (4h), so a deploy
+# would otherwise leave the iframe running JS that no longer matches the backend. Tag
+# the script with the file's mtime so its URL changes whenever it does, which busts the
+# CDN deterministically instead of waiting for the entry to expire.
+ACTIVITY_JS = STATIC_DIR / "activity.js"
+
+
+def _activity_js_url() -> str:
+    version = int(ACTIVITY_JS.stat().st_mtime) if ACTIVITY_JS.is_file() else 0
+    return f"/static/activity.js?v={version}"
+
 # Legacy static pages, kept reachable at the URLs they always had. /legacy/ maps to
 # the old launcher index, because nginx used to serve it via its `index` directive.
 LEGACY_PAGES = {
@@ -59,9 +70,10 @@ async def _index(request: web.Request) -> web.StreamResponse:
             "<p class='activity-status' id='activity-status'>Not logged in.</p>"
             "<p><a href='/auth/login'>Log in with Discord</a></p>"
             "<script>window.WEBAPP = __CONFIG__;</script>"
-            "<script type='module' src='/static/activity.js'></script>"
+            "<script type='module' src='__ACTIVITY_JS__'></script>"
             "</body></html>"
         ).replace("__CONFIG__", json.dumps({"client_id": auth_config.client_id}).replace("<", "\\u003c"))
+        body = body.replace("__ACTIVITY_JS__", _activity_js_url())
     else:
         body = (
             f"<!doctype html><html><head><title>Clockwork</title></head><body>"
