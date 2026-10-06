@@ -1,22 +1,23 @@
-# Webapp environment additions for the AutoDeploy .env
+# Webapp environment additions
 #
-# Append these to /app/.env. This is deliberately NOT a unified diff: a diff would
-# need secret values as context lines, and those differ per machine. Append
-# instead, and keep the placeholder values out of git.
+# Write these to /app/data/webapp.env, NOT to /app/.env.
 #
-# Where this file lives
-# ---------------------
-# /app/.env is baked into the autodeploy-iter8-deployer image, built from
-#   /home/zero/PycharmProjects/iter8-bot/AutoDeploy
-# on machine `zero`. The bot container reads the same file via
-# `env_file: ../.env` in docker-compose.yml, resolved from /app/repo.
+# /app/.env is baked into the autodeploy-iter8-deployer image and the container's
+# root filesystem is read-only, so it cannot be edited in place. docker-compose.yml
+# declares a second, optional env file that points at the shared iter8-bot-data
+# volume:
 #
-# The copy currently in the image contains only:
-#   MODE (=Live), DISCORD_TOKEN, TENOR_TOKEN, OPENROUTER_API_KEY, LOGFIRE_TOKEN,
-#   GITHUB_WEBHOOK_SECRET, MEM0_API_KEY, MODAL_TOKEN_ID, MODAL_TOKEN_SECRET,
-#   DISCORD_WEBHOOK_ID, DISCORD_WEBHOOK_TOKEN, WEBHOOK_SECRET
+#   env_file:
+#     - ../.env
+#     - path: /app/data/webapp.env
+#       required: false
 #
-# None of the WEBAPP_* keys below are present yet.
+# compose runs inside the deployer container, so that path resolves against the
+# volume, and the bot container mounts the same volume at /app/data. Being a named
+# volume, it survives bot deploys and container recreation.
+#
+# `required: false` means a machine without this file still deploys fine; the webapp
+# just reports itself unconfigured.
 
 # --- required: without these the webapp boots but every page redirects to a 503 login ---
 
@@ -24,8 +25,7 @@
 # Must be https and must match the Discord redirect URI exactly.
 WEBAPP_BASE_URL=https://trejon.smallshire.co.uk
 
-# OAuth2 application id and client secret. NOT the bot token, and not necessarily
-# the bot's own application id.
+# OAuth2 application id and client secret. Not the bot token.
 DISCORD_CLIENT_ID=<oauth2 application id>
 DISCORD_CLIENT_SECRET=<oauth2 client secret>
 

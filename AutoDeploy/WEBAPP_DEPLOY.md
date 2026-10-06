@@ -11,7 +11,8 @@ Both changes below are **not** made on the Pi, and not in this repo:
 | --- | --- |
 | Public nginx (`nginx-proxy`) | compose project `bitmmo-5`, from `/home/zero/CLionProjects/BitMMO-5/docker-compose.yml` on machine `zero` |
 | Public nginx config | **baked into the `bitmmo-5-nginx-proxy` image** (`COPY ./config/ /etc/nginx/`) — not a bind mount |
-| Shared env file | `/app/.env`, **baked into the `autodeploy-iter8-deployer` image**, built from `/home/zero/PycharmProjects/iter8-bot/AutoDeploy` on machine `zero` |
+| Shared env file | `/app/.env`, **baked into the `autodeploy-iter8-deployer` image** (root filesystem is read-only) |
+| Webapp env file | `/app/data/webapp.env`, on the shared `iter8-bot-data` volume — writable, survives deploys |
 
 Do not edit `/home/pi/local-launch/nginx/nginx.conf` on the Pi. That is a different,
 currently-down stack (`nginx:latest` + authelia/code-server/portainer) whose conf is
@@ -81,17 +82,17 @@ Verify with `nginx -t` before reloading.
 
 ## 2. Environment
 
-The bot reads `env_file: ../.env`, resolved from `repo/docker-compose.yml` to `/app/.env`,
-which is the same file the deployer passes as `--env-file ./.env`. That file is baked into
-the deployer image, so adding vars means editing it at
-`/home/zero/PycharmProjects/iter8-bot/AutoDeploy` on machine `zero` and rebuilding
-`autodeploy-iter8-deployer` — or, better, bind-mount a host `.env` to `/app/.env` so later
-changes do not need an image rebuild.
+The bot reads `env_file: ../.env` (resolved from `repo/docker-compose.yml` to
+`/app/.env`) plus a second, optional `env_file` at `/app/data/webapp.env`. The first is
+baked into the `autodeploy-iter8-deployer` image and that container's root filesystem is
+read-only; the second lives on the shared `iter8-bot-data` volume, which compose resolves
+inside the deployer container and which survives bot deploys and container recreation.
 
-Current keys, as deployed: `MODE` (`Live`), `DISCORD_TOKEN`, `TENOR_TOKEN`,
+Current keys in `/app/.env`, as deployed: `MODE` (`Live`), `DISCORD_TOKEN`, `TENOR_TOKEN`,
 `OPENROUTER_API_KEY`, `LOGFIRE_TOKEN`, `GITHUB_WEBHOOK_SECRET`, `MEM0_API_KEY`,
 `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`, `DISCORD_WEBHOOK_ID`, `DISCORD_WEBHOOK_TOKEN`,
-`WEBHOOK_SECRET`. None of the webapp keys are present yet. Add:
+`WEBHOOK_SECRET`. None of the webapp keys are present yet, so create
+`/app/data/webapp.env` with:
 
 ```dotenv
 WEBAPP_BASE_URL=https://trejon.smallshire.co.uk

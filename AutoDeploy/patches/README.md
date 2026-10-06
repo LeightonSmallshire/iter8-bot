@@ -7,7 +7,7 @@ machines you cannot reach from CI.
 | File | Target | Machine |
 | --- | --- | --- |
 | `nginx-bitmmo-root-target.patch` | the public reverse proxy's `nginx.conf` | `zero` (`/home/zero/CLionProjects/BitMMO-5`) |
-| `app-env-webapp.add` | `/app/.env`, baked into the deployer image | `zero` (`/home/zero/PycharmProjects/iter8-bot/AutoDeploy`) |
+| `app-env-webapp.add` | `/app/data/webapp.env` on the Pi (shared `iter8-bot-data` volume) | any, once |
 
 The Discord redirect URI is the third piece and lives in the Discord developer portal,
 not on either machine:
@@ -52,12 +52,26 @@ BitMMO-5 compose file so this repo's copy is the source of truth.
 
 ## app-env-webapp.add
 
-The six `WEBAPP_*`/`SKIDDLE_*`/`DISCORD_CLIENT_*` keys the webapp needs. Append them to
-`/app/.env`, then rebuild `autodeploy-iter8-deployer` — or bind-mount a host `.env` to
-`/app/.env` so future changes do not need an image rebuild.
+The six `WEBAPP_*`/`SKIDDLE_*`/`DISCORD_CLIENT_*` keys the webapp needs.
 
-Until then: the bot boots normally and every Discord feature works, but `/` and every
-`/api/*` redirect to `/auth/login`, which returns **503 Login is not configured yet.**
+Write them to `/app/data/webapp.env`, which is the shared `iter8-bot-data` volume that
+both the deployer and the bot container mount. Do **not** try to edit `/app/.env`: it is
+baked into the `autodeploy-iter8-deployer` image and the container's root filesystem is
+read-only, so the write fails with `Read-only file system`.
+
+`docker-compose.yml` declares it as a second, optional `env_file`, so a machine without
+the file still deploys cleanly:
+
+```yaml
+env_file:
+  - ../.env
+  - path: /app/data/webapp.env
+    required: false
+```
+
+Until this file exists, the bot boots normally and every Discord feature works, but `/`
+and every `/api/*` redirect to `/auth/login`, which returns **503 Login is not configured
+yet.**
 
 ## Order of operations
 
@@ -65,7 +79,7 @@ The bot must be redeployed before the nginx patch lands. Pointing `location /` a
 that has not yet been recreated with the webapp serving gives a 404, and if
 `bot-web-server` is already deleted the upstream does not resolve at all.
 
-1. Append the env keys, rebuild the deployer image.
+1. Write the env file to `/app/data/webapp.env` on the Pi.
 2. Merge this branch to `main` and let the webhook deploy it.
 3. Confirm success in the deployer's Discord webhook channel.
 4. Apply the nginx patch and reload.

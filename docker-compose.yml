@@ -5,7 +5,13 @@ services:
     build: Python
     read_only: true
     restart: always
-    env_file: ../.env
+    env_file:
+      - ../.env
+      # Webapp secrets, kept out of git. Optional so a fresh clone still works.
+      # The deployer runs compose inside its own container, so this path resolves
+      # against the shared iter8-bot-data volume rather than the host.
+      - path: /app/data/webapp.env
+        required: false
     volumes:
 #      - /var/run/docker.sock:/var/run/docker.sock
       - iter8-bot-data:/app/data:rw
