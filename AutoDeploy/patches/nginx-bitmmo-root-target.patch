@@ -1,0 +1,38 @@
+Point the upstream at the bot and serve the webapp from the domain root.
+
+The bot-web-server nginx container is being removed from docker-compose.yml, so
+its upstream name will stop resolving once this deploy runs. The webapp is now
+served straight out of the Python app, including the legacy static pages.
+
+Bot is only reachable over the iter8-network docker network (no published port),
+which the proxy already shares. 'resolve' re-resolves the name so the bot
+container getting a new IP on each deploy is not a problem.
+
+nginx matches the longest prefix, so /bot/, /botweb/, /scratch/ and /status all
+keep winning over /.
+
+diff --git a/nginx.conf b/nginx.conf
+--- a/nginx.conf
++++ b/nginx.conf
+@@ -16,7 +16,7 @@ http {
+
+     upstream botweb_backend {
+         zone botweb_backend_zone 64k;
+-        server bot-web-server:80 resolve;
++        server iter8-bot-runner:8090 resolve;
+     }
+
+     # HTTPS Server Block (The Reverse Proxy)
+@@ -49,6 +49,11 @@ http {
+             proxy_pass http://botweb_backend/;
+             proxy_buffering off;
+         }
++
++        location / {
++            proxy_pass http://botweb_backend/;
++            proxy_buffering off;
++        }
+
+ #         location /cde/ {
+ #             alias /app/theia/;
+ #             index index.html;

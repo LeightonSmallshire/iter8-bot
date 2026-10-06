@@ -1,0 +1,42 @@
+# Webapp environment additions for the AutoDeploy .env
+#
+# Append these to /app/.env. This is deliberately NOT a unified diff: a diff would
+# need secret values as context lines, and those differ per machine. Append
+# instead, and keep the placeholder values out of git.
+#
+# Where this file lives
+# ---------------------
+# /app/.env is baked into the autodeploy-iter8-deployer image, built from
+#   /home/zero/PycharmProjects/iter8-bot/AutoDeploy
+# on machine `zero`. The bot container reads the same file via
+# `env_file: ../.env` in docker-compose.yml, resolved from /app/repo.
+#
+# The copy currently in the image contains only:
+#   MODE (=Live), DISCORD_TOKEN, TENOR_TOKEN, OPENROUTER_API_KEY, LOGFIRE_TOKEN,
+#   GITHUB_WEBHOOK_SECRET, MEM0_API_KEY, MODAL_TOKEN_ID, MODAL_TOKEN_SECRET,
+#   DISCORD_WEBHOOK_ID, DISCORD_WEBHOOK_TOKEN, WEBHOOK_SECRET
+#
+# None of the WEBAPP_* keys below are present yet.
+
+# --- required: without these the webapp boots but every page redirects to a 503 login ---
+
+# Public origin. Drives the OAuth redirect URI and makes session cookies Secure.
+# Must be https and must match the Discord redirect URI exactly.
+WEBAPP_BASE_URL=https://trejon.smallshire.co.uk
+
+# OAuth2 application id and client secret. NOT the bot token, and not necessarily
+# the bot's own application id.
+DISCORD_CLIENT_ID=<oauth2 application id>
+DISCORD_CLIENT_SECRET=<oauth2 client secret>
+
+# Signs the session cookie. Any long random string; changing it logs everyone out.
+#   openssl rand -hex 32
+WEBAPP_SESSION_SECRET=<long random string>
+
+# --- optional ---
+
+# Gig finder. Without it /gigs renders a config error banner.
+SKIDDLE_API_KEY=<skiddle key>
+
+# Where the shop announces purchases. Defaults to the channel named general-idiocy.
+SHOP_ANNOUNCE_CHANNEL_ID=<channel id>

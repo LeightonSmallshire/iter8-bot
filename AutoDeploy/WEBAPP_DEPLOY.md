@@ -26,43 +26,53 @@ then the change is silently lost.
 browser
   → https://trejon.smallshire.co.uk/<path>          TLS terminated upstream (Let's Encrypt)
   → 67.208.54.158 → Pi:8080                         plain HTTP to the nginx-proxy container
-  → http://bot-web-server:80/<path>                 internal proxy, bot-web-server container
   → http://iter8-bot-runner:8090/<path>              aiohttp webapp inside the bot
 ```
+
+The bot serves everything itself, including the legacy static pages at `/go.html`,
+`/tictactoe.html` and `/legacy/`. There is no intermediate proxy container: the
+`bot-web-server` service was removed from `docker-compose.yml`, and the public proxy now
+points straight at `iter8-bot-runner:8090`.
+
+The bot is **not** published to the host. Nothing but the proxy can reach it, over the
+`iter8-network` docker network.
 
 TLS is terminated **upstream** of the Pi. The proxy's `listen 443` is plain HTTP behind a
 forwarder, and its config has no `ssl_certificate` at all. That is fine: the webapp only
 needs `WEBAPP_BASE_URL` to be the public `https://` origin, which is what makes session
 cookies `Secure` and satisfies Discord's redirect-URI rule.
 
-`bot-web-server` (`Web/config/nginx.conf`) is an nginx container in the same compose
-project as the bot. It exists purely so the host nginx has a stable upstream to point
-at; it serves the legacy static pages at `/go.html`, `/tictactoe.html` and `/legacy/`,
-and proxies everything else to the bot. It re-resolves DNS per request
-(`resolver 127.0.0.11`) so it survives the bot container getting a new IP on each deploy.
-
-The bot is **not** published to the host. Nothing but the host nginx can reach it.
-
 ## 1. Public nginx
 
 The webapp generates root-absolute URLs (`/static/…`, `/shop`, `/api/…`, `/auth/…`), so it
-needs to be served from `/`, not from a path prefix. Add to the `server` block for
+needs to be served from `/`, not from a path prefix. Two changes to the `server` block for
 `trejon.smallshire.co.uk` in the BitMMO-5 nginx config on machine `zero`:
 
+- point the `botweb_backend` upstream at `iter8-bot-runner:8090`
+- add a `location /` that proxies to `botweb_backend`
+
 ```nginx
+upstream botweb_backend {
+    zone botweb_backend_zone 64k;
+    server iter8-bot-runner:8090 resolve;
+}
+
 location / {
     proxy_pass http://botweb_backend/;
     proxy_buffering off;
 }
 ```
 
-Then rebuild/recreate the proxy. Because the config is baked into the image, either rebuild
+A ready-made diff against the config as it is actually running is in
+`AutoDeploy/patches/nginx-bitmmo-root-target.patch`; see `AutoDeploy/patches/README.md` for
+how to apply it. Because the config is baked into the image, either rebuild
 `bitmmo-5-nginx-proxy` or bind-mount a conf over `/etc/nginx/nginx.conf` — the bind mount
-is the better long-term fix, and makes this file the one place the config lives.
+is the better long-term fix, and makes this repo's copy the source of truth.
 
 Nginx matches the longest prefix, so the existing `/bot/`, `/botweb/`, `/scratch/` and
 `/status` locations keep winning. `/botweb/` may be left in place as an alias entry point,
-but `/` is canonical.
+but `/` is canonical. `resolve` is already used in this config, so a new IP for the bot
+container after a deploy is not a problem.
 
 Side effect: paths that previously 404'd on the host now reach the bot and return the
 webapp's 404. Add an explicit `location` block before adding anything else to that domain.
@@ -116,11 +126,10 @@ The public nginx container sits on **two** networks and needs both:
 
 | Network | Needed for |
 | --- | --- |
-| `iter8-network` | `bot-web-server:80` — external network declared in `docker-compose.yml` |
+| `iter8-network` | `iter8-bot-runner:8090` — external network declared in `docker-compose.yml` |
 | `autodeploy_default` | `iter8-deployer:8080` — the `/bot/` webhook upstream |
 
-`iter8-bot-runner` and `bot-web-server` are on `iter8-network`; `iter8-deployer` is on
-`autodeploy_default` only. Verified live on the Pi.
+`iter8-deployer` is on `autodeploy_default` only. Verified live on the Pi.
 
 ## 5. Verify after deploy
 
@@ -129,8 +138,11 @@ curl -sI https://trejon.smallshire.co.uk/healthz          # {"status":"ok"}
 curl -s  https://trejon.smallshire.co.uk/                  # login page
 curl -sI https://trejon.smallshire.co.uk/static/shop.css   # 200, text/css
 curl -sI https://trejon.smallshire.co.uk/go.html           # legacy page still served
-curl -sI https://trejon.smallshire.co.uk/bot/webhook      # deployer still reachable
+curl -sI https://trejon.smallshire.co.uk/legacy/           # legacy directory
+curl -sI https://trejon.smallshire.co.uk/status            # 200, unchanged
 ```
+
+A fuller checklist is in `AutoDeploy/patches/README.md`.
 
 Then log in through Discord and confirm `/shop`, `/credits` and `/gigs` load, and that
 `/gigs` returns results rather than a Skiddle config error.
@@ -144,9 +156,9 @@ Note `/bot/` itself returns 404 — the deployer only serves `/webhook` and `/re
 ## Notes
 
 - `--remove-orphans` in `AutoDeploy/update.sh` deletes containers for services no longer in
-  the compose file. `bot-web-server` is in the compose file, so it is recreated in place and
-  the upstream keeps resolving across deploys. It is scoped to the `autorun-iter8-bot`
-  project, so the public proxy is untouched by a deploy.
+  the compose file, so the first deploy after `bot-web-server` is removed deletes that
+  container. It is scoped to the `autorun-iter8-bot` project, so the public proxy is
+  untouched by a deploy.
 - `AutoDeploy/update.sh` runs `git reset --hard origin/main`, so only committed work on
   `main` is deployed. It does not `git clean`, so untracked files in the clone persist.
 - The deployer runs `update.sh` on its own startup as well as on each push to `main`, so
