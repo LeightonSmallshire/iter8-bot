@@ -18,6 +18,14 @@ dotenv.load_dotenv()
 IS_LIVE = os.environ['MODE'] == 'Live'
 IS_TESTING = not IS_LIVE
 
+# Discord's CDN answers 403 / "error code: 1010" to aiohttp's default `aiohttp/3.x`
+# User-Agent, which breaks any REST call made from this host. Anything talking to Discord
+# over HTTP must send this instead.
+API_USER_AGENT = (
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/140.0.0.0 Safari/537.36'
+)
+
 
 class Guilds:
     TestServer = 1427287847085281382

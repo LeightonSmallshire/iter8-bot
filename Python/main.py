@@ -7,6 +7,7 @@ import logfire
 from aiohttp import web
 from discord.ext import commands
 
+import utils.activity as activity_utils
 import utils.allowlist as allowlist
 import utils.bot as bot_utils
 import utils.database as db_utils
@@ -103,6 +104,14 @@ class HotReloadBot(commands.Bot):
         self.tree.copy_global_to(guild=discord.Object(id=bot_utils.Guilds.Default))
         synced = await self.tree.sync(guild=discord.Object(id=bot_utils.Guilds.Default))
         logfire.info(f'Synced {len(synced)} commands.')
+
+        # 4b. The Activity launch command. discord.py cannot express a primary entry point,
+        #     so it is registered over REST and would not survive a hand-made entry.
+        #     Guarded: nothing about the Activity is worth failing a deploy over.
+        try:
+            await activity_utils.ensure_launch_command(self)
+        except Exception as e:
+            logfire.error(f'Failed to register the activity launch command: {e}')
 
         # 5. Build Discord-formatted message
         lines = ["## 🔄 Cog Reload Report"]

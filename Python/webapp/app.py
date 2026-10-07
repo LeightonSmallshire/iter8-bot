@@ -10,6 +10,8 @@ import discord
 import logfire
 from aiohttp import web
 
+import utils.bot as bot_utils
+
 from . import auth, keys
 from .gigs.routes import register as register_gigs
 from .shop import register as register_shop
@@ -37,17 +39,10 @@ LEGACY_PAGES = {
 }
 
 
-# Cloudflare fronts Discord's API and answers 1010 ("browser integrity check") to aiohttp's
-# default `aiohttp/3.x` User-Agent from this host, which breaks the OAuth token exchange.
-# Anything reaching Discord from here must look like a browser.
-DISCORD_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/140.0.0.0 Safari/537.36"
-)
-
-
 async def _oauth_http(app: web.Application) -> AsyncIterator[None]:
-    async with aiohttp.ClientSession(headers={"User-Agent": DISCORD_USER_AGENT}) as session:
+    # Cloudflare fronts Discord's API and answers aiohttp's default `aiohttp/3.x`
+    # User-Agent with 403 / "error code: 1010", which breaks the token exchange.
+    async with aiohttp.ClientSession(headers={"User-Agent": bot_utils.API_USER_AGENT}) as session:
         app[keys.HTTP_KEY] = session
         yield
 
